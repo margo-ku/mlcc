@@ -6,40 +6,50 @@
 #include "include/visitors/print_visitor.h"
 #include "parser.hh"
 
-Driver::Driver()
-    : trace_parsing(false),
-      trace_scanning(false),
-      location_debug(false),
-      scanner(*this),
-      parser(scanner, *this) {}
+Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}
 
-int Driver::parse(const std::string& f) {
-    file = f;
-    location.initialize(&file);
-    scan_begin();
-    parser.set_debug_level(trace_parsing);
-    int res = parser();
+int Driver::Parse(const std::string& filename) {
+    file_ = filename;
+    location_.initialize(&file_);
 
-    std::string asm_file = f;
-    asm_file[asm_file.size() - 1] = 's';
-    std::cout << "asm file: " << asm_file << std::endl;
+    ScanBegin();
+    parser_.set_debug_level(debug_parse);
+    int result = parser_();
 
-    std::ofstream out_file;
-    out_file.open(asm_file);
-    CompileVisitor compile_visitor(out_file);
-    translation_unit->Accept(&compile_visitor);
-    scan_end();
-    return res;
+    if (compile) {
+        std::string asm_file = file_;
+        size_t dot = asm_file.find_last_of('.');
+        if (dot != std::string::npos) {
+            asm_file.replace(dot, std::string::npos, ".s");
+        } else {
+            asm_file += ".s";
+        }
+
+        std::cout << "asm file: " << asm_file << std::endl;
+
+        std::ofstream out_file(asm_file);
+        CompileVisitor compile_visitor(out_file);
+        translation_unit_->Accept(&compile_visitor);
+    }
+
+    if (print_ast) {
+        PrintVisitor print_visitor(std::cout);
+        translation_unit_->Accept(&print_visitor);
+    }
+
+    ScanEnd();
+    return result;
 }
 
-void Driver::scan_begin() {
-    scanner.set_debug(trace_scanning);
-    if (file.empty() || file == "-") {
-    } else {
-        stream.open(file);
-        // std::cout << file << std::endl;
-        scanner.yyrestart(&stream);
+void Driver::ScanBegin() {
+    scanner_.set_debug(debug_scan);
+
+    if (!file_.empty() && file_ != "-") {
+        stream_.open(file_);
+        scanner_.yyrestart(&stream_);
     }
 }
 
-void Driver::scan_end() { stream.close(); }
+void Driver::ScanEnd() { stream_.close(); }
+
+void Driver::SetTranslationUnit(TranslationUnit* unit) { translation_unit_ = unit; }

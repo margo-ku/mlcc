@@ -1,10 +1,7 @@
 build/
 .vscode/
+grammar/generated/
 *.swp
 
-scanner.cpp
-location.hh
-parser.cpp
-parser.hh
 program.c
 program.s

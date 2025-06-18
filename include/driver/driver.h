@@ -1,7 +1,6 @@
 #pragma once
 
 #include <fstream>
-#include <map>
 #include <string>
 
 #include "include/ast/translation_unit.h"
@@ -11,23 +10,26 @@
 class Driver {
 public:
     Driver();
-    int result;
-    int parse(const std::string& f);
-    std::string file;
-    bool trace_parsing;
 
-    void scan_begin();
-    void scan_end();
+    int Parse(const std::string& filename);
+    void SetTranslationUnit(TranslationUnit* unit);
 
-    bool trace_scanning;
-    yy::location location;
-    bool location_debug;
+    bool debug_parse = false;
+    bool debug_scan = false;
+    bool print_ast = false;
+    bool compile = true;
 
     friend class Scanner;
-    Scanner scanner;
-    yy::parser parser;
-    TranslationUnit* translation_unit;
 
 private:
-    std::ifstream stream;
+    void ScanBegin();
+    void ScanEnd();
+
+    std::string file_;
+    std::ifstream stream_;
+
+    yy::location location_;
+    Scanner scanner_;
+    yy::parser parser_;
+    TranslationUnit* translation_unit_;  // to do!
 };

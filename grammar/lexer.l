@@ -23,7 +23,7 @@ blank  [ \t\r]
 
 %%
 %{
-  yy::location& loc = driver.location;
+  yy::location& loc = driver.location_;
   loc.step();
 %}
 

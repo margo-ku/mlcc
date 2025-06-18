@@ -81,7 +81,7 @@
 %%
 %start start;
 start:
-    translation_unit { $$ = $1; driver.translation_unit = $$; };
+    translation_unit { $$ = $1; driver.SetTranslationUnit($$); };
 
 translation_unit:
     external_declaration { $$ = new TranslationUnit(); $$->AddExternalDeclaration($1); }
