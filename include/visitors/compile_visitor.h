@@ -19,6 +19,7 @@ public:
 
 private:
     void PrintTabs() const;
+    void PrintToStream(const std::string&) const;
     std::ostream& stream_;
     size_t number_of_tabs_;
 };

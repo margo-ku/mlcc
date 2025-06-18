@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16...3.27)
 project(mlcc)
 
 if (CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
@@ -31,6 +31,9 @@ find_package(BISON REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 
+file(MAKE_DIRECTORY ${mlcc_SOURCE_DIR}/grammar/generated)
+set(GENERATED_DIR ${mlcc_SOURCE_DIR}/grammar/generated)
+
 set(
         HEADERS
         ${mlcc_SOURCE_DIR}/driver.h
@@ -40,18 +43,19 @@ set(
 BISON_TARGET(
         MyParser
         grammar/parser.y
-        ${mlcc_SOURCE_DIR}/parser.cpp
-        DEFINES_FILE ${mlcc_SOURCE_DIR}/parser.hh
+        ${GENERATED_DIR}/parser.cpp
+        DEFINES_FILE ${GENERATED_DIR}/parser.hh
         COMPILE_FLAGS "-Wcounterexamples"
 )
 
 FLEX_TARGET(
         MyScanner
         grammar/lexer.l
-        ${mlcc_SOURCE_DIR}/scanner.cpp
+        ${GENERATED_DIR}/scanner.cpp
 )
 
 ADD_FLEX_BISON_DEPENDENCY(MyScanner MyParser)
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${mlcc_SOURCE_DIR}/build)
 
 set(
@@ -83,4 +87,5 @@ add_executable(
         ${FLEX_MyScanner_OUTPUTS}
 )
 
+target_include_directories(mlcc PRIVATE ${GENERATED_DIR})
 target_include_directories(mlcc PRIVATE ${mlcc_SOURCE_DIR})

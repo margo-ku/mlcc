@@ -47,24 +47,21 @@ void CompileVisitor::Visit(Declarator* declarator) {
 }
 
 void CompileVisitor::Visit(PrimaryExpression* expression) {
-    PrintTabs();
-    stream_ << "mov w0, #" << expression->GetValue() << std::endl;
+    PrintToStream("mov w0, #" + std::to_string(expression->GetValue()));
 }
 
 void CompileVisitor::Visit(UnaryExpression* expression) {
     expression->GetExpression()->Accept(this);
-    PrintTabs();
     switch (expression->GetOp()) {
         case UnaryExpression::UnaryOperator::kMinus:
-            stream_ << "neg w0, w0" << std::endl;
+            PrintToStream("neg w0, w0");
             break;
         case UnaryExpression::UnaryOperator::kBinaryNot:
-            stream_ << "mvn w0, w0" << std::endl;
+            PrintToStream("mvn w0, w0");
             break;
         case UnaryExpression::UnaryOperator::kNot:
-            stream_ << "cmp w0, 0" << std::endl;
-            PrintTabs();
-            stream_ << "cset w0, eq" << std::endl;
+            PrintToStream("cmp w0, 0");
+            PrintToStream("cset w0, eq");
             break;
         case UnaryExpression::UnaryOperator::kPlus:
             break;
@@ -73,31 +70,27 @@ void CompileVisitor::Visit(UnaryExpression* expression) {
 
 void CompileVisitor::Visit(BinaryExpression* expression) {
     expression->GetLeftExpression()->Accept(this);  // result in w0
-    PrintTabs();
-    stream_ << "str w0, [sp, #-16]!" << std::endl;
+    PrintToStream("str w0, [sp, #-16]!");
     expression->GetRightExpression()->Accept(this);  // result in w0
-    PrintTabs();
-    stream_ << "ldr w1, [sp], #16" << std::endl;
-    PrintTabs();
+    PrintToStream("ldr w1, [sp], #16");
 
     // left in w1, right in w0
     switch (expression->GetOp()) {
         case BinaryExpression::BinaryOperator::kPlus:
-            stream_ << "add w0, w0, w1" << std::endl;
+            PrintToStream("add w0, w0, w1");
             break;
         case BinaryExpression::BinaryOperator::kMinus:
-            stream_ << "sub w0, w1, w0" << std::endl;
+            PrintToStream("sub w0, w1, w0");
             break;
         case BinaryExpression::BinaryOperator::kMul:
-            stream_ << "mul w0, w1, w0" << std::endl;
+            PrintToStream("mul w0, w1, w0");
             break;
         case BinaryExpression::BinaryOperator::kDiv:
-            stream_ << "sdiv w0, w1, w0" << std::endl;
+            PrintToStream("sdiv w0, w1, w0");
             break;
         case BinaryExpression::BinaryOperator::kMod:
-            stream_ << "sdiv w2, w1, w0" << std::endl;
-            PrintTabs();
-            stream_ << "msub w0, w2, w0, w1" << std::endl;
+            PrintToStream("sdiv w2, w1, w0");
+            PrintToStream("msub w0, w2, w0, w1");
             break;
         default:
             break;
@@ -117,4 +110,9 @@ void CompileVisitor::PrintTabs() const {
     for (int i = 0; i < number_of_tabs_; ++i) {
         stream_ << '\t';
     }
+}
+
+void CompileVisitor::PrintToStream(const std::string& output) const {
+    PrintTabs();
+    stream_ << output << std::endl;
 }
