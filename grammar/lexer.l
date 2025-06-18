@@ -32,6 +32,9 @@ blank  [ \t\r]
 {number}  { return make_NUMBER(yytext, loc); }
 "-"       { return yy::parser::make_MINUS(loc); }
 "+"       { return yy::parser::make_PLUS(loc); }
+"*"       { return yy::parser::make_STAR(loc); }
+"/"       { return yy::parser::make_SLASH(loc); }
+"%"       { return yy::parser::make_MOD(loc); }
 "~"       { return yy::parser::make_BIT_NOT(loc); }
 "!"       { return yy::parser::make_NOT(loc); }
 "return"  { return yy::parser::make_RETURN(loc); }

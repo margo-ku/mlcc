@@ -13,6 +13,7 @@ public:
     virtual void Visit(Declarator* declarator) override;
     virtual void Visit(PrimaryExpression* expression) override;
     virtual void Visit(UnaryExpression* expression) override;
+    virtual void Visit(BinaryExpression* expression) override;
     virtual void Visit(CompoundStatement* statement) override;
     virtual void Visit(ReturnStatement* statement) override;
 

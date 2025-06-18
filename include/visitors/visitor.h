@@ -13,6 +13,7 @@ public:
     virtual void Visit(Declarator* declarator) = 0;
     virtual void Visit(PrimaryExpression* expression) = 0;
     virtual void Visit(UnaryExpression* expression) = 0;
+    virtual void Visit(BinaryExpression* expression) = 0;
     virtual void Visit(CompoundStatement* statement) = 0;
     virtual void Visit(ReturnStatement* statement) = 0;
 };

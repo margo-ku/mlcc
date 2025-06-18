@@ -41,3 +41,21 @@ private:
     UnaryOperator op_;
     Expression* expression_;
 };
+
+///////////////////////////////////////////////
+
+class BinaryExpression : public Expression {
+public:
+    enum class BinaryOperator { kPlus = 0, kMinus, kMul, kDiv, kMod };
+
+    explicit BinaryExpression(char op, Expression* left, Expression* right);
+    virtual void Accept(Visitor* visitor) override;
+    BinaryOperator GetOp() const;
+    Expression* GetLeftExpression() const;
+    Expression* GetRightExpression() const;
+
+private:
+    BinaryOperator op_;
+    Expression* left_;
+    Expression* right_;
+};

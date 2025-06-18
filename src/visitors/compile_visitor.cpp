@@ -47,7 +47,8 @@ void CompileVisitor::Visit(Declarator* declarator) {
 }
 
 void CompileVisitor::Visit(PrimaryExpression* expression) {
-    stream_ << expression->GetValue() << std::endl;
+    PrintTabs();
+    stream_ << "mov w0, #" << expression->GetValue() << std::endl;
 }
 
 void CompileVisitor::Visit(UnaryExpression* expression) {
@@ -70,14 +71,45 @@ void CompileVisitor::Visit(UnaryExpression* expression) {
     }
 }
 
+void CompileVisitor::Visit(BinaryExpression* expression) {
+    expression->GetLeftExpression()->Accept(this);  // result in w0
+    PrintTabs();
+    stream_ << "str w0, [sp, #-16]!" << std::endl;
+    expression->GetRightExpression()->Accept(this);  // result in w0
+    PrintTabs();
+    stream_ << "ldr w1, [sp], #16" << std::endl;
+    PrintTabs();
+
+    // left in w1, right in w0
+    switch (expression->GetOp()) {
+        case BinaryExpression::BinaryOperator::kPlus:
+            stream_ << "add w0, w0, w1" << std::endl;
+            break;
+        case BinaryExpression::BinaryOperator::kMinus:
+            stream_ << "sub w0, w1, w0" << std::endl;
+            break;
+        case BinaryExpression::BinaryOperator::kMul:
+            stream_ << "mul w0, w1, w0" << std::endl;
+            break;
+        case BinaryExpression::BinaryOperator::kDiv:
+            stream_ << "sdiv w0, w1, w0" << std::endl;
+            break;
+        case BinaryExpression::BinaryOperator::kMod:
+            stream_ << "sdiv w2, w1, w0" << std::endl;
+            PrintTabs();
+            stream_ << "msub w0, w2, w0, w1" << std::endl;
+            break;
+        default:
+            break;
+    }
+}
+
 void CompileVisitor::Visit(CompoundStatement* statement) {
     statement->GetBody()->Accept(this);
 }
 
 void CompileVisitor::Visit(ReturnStatement* statement) {
     // to do: has expression
-    PrintTabs();
-    stream_ << "mov w0, #";
     statement->GetExpression()->Accept(this);
 }
 

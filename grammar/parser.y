@@ -22,6 +22,7 @@
     class Expression;
     class PrimaryExpression;
     class UnaryExpression;
+    class BinaryExpression;
 };
 
 %define parse.trace
@@ -51,7 +52,7 @@
 %define api.token.prefix {TOK_}
 
 %token END 0 "end of file"
-%token PLUS MINUS BIT_NOT NOT
+%token PLUS MINUS STAR SLASH MOD BIT_NOT NOT
 %token LPAREN RPAREN LBRACE RBRACE SEMI
 %token INT
 %token RETURN
@@ -71,8 +72,10 @@
 %type <ReturnStatement*> return_statement;
 %type <TypeSpecification*> type_specifier;
 %type <Expression*> expression;
-%type <PrimaryExpression*> primary_expression;
-%type <UnaryExpression*> unary_expression;
+%type <Expression*> primary_expression;
+%type <Expression*> unary_expression;
+%type <Expression*> additive_expression;
+%type <Expression*> multiplicative_expression;
 %type <char> unary_operator;
 
 %%
@@ -116,11 +119,22 @@ return_statement:
     RETURN expression SEMI { $$ = new ReturnStatement($2); };
 
 expression:
-    primary_expression { $$ = $1; }
-    | unary_expression { $$ = $1; };
+    additive_expression { $$ = $1; };
+
+additive_expression:
+    multiplicative_expression { $$ = $1; }
+    | additive_expression PLUS multiplicative_expression { $$ = new BinaryExpression('+', $1, $3); }
+    | additive_expression MINUS multiplicative_expression { $$ = new BinaryExpression('-', $1, $3); };
+
+multiplicative_expression:
+    unary_expression { $$ = $1; }
+    | multiplicative_expression STAR unary_expression { $$ = new BinaryExpression('*', $1, $3); }
+    | multiplicative_expression SLASH unary_expression { $$ = new BinaryExpression('/', $1, $3); }
+    | multiplicative_expression MOD unary_expression { $$ = new BinaryExpression('%', $1, $3); };
 
 unary_expression:
-    unary_operator expression { $$ = new UnaryExpression($1, $2); };
+    primary_expression { $$ = $1; }
+    | unary_operator unary_expression { $$ = new UnaryExpression($1, $2); };
 
 unary_operator:
     PLUS { $$ = '+'; }
@@ -129,7 +143,8 @@ unary_operator:
     | NOT { $$ = '!'; };
 
 primary_expression:
-    NUMBER { $$ = new PrimaryExpression($1); };
+    NUMBER { $$ = new PrimaryExpression($1); }
+    | LPAREN expression RPAREN { $$ = $2; };
 
 %%
 

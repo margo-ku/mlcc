@@ -40,7 +40,7 @@ void PrintVisitor::Visit(PrimaryExpression* expression) {
     stream_ << expression->GetValue();
 }
 
-void PrintVisitor::Visit(UnaryExpression* expression) {
+void PrintVisitor::Visit(UnaryExpression* expression) {  // ???
     switch (expression->GetOp()) {
         case UnaryExpression::UnaryOperator::kMinus:
             stream_ << "-";
@@ -55,6 +55,31 @@ void PrintVisitor::Visit(UnaryExpression* expression) {
             stream_ << "+";
             break;
     }
+    expression->GetExpression()->Accept(this);
+}
+
+void PrintVisitor::Visit(BinaryExpression* expression) {
+    stream_ << "(";
+    expression->GetLeftExpression()->Accept(this);
+    switch (expression->GetOp()) {
+        case BinaryExpression::BinaryOperator::kPlus:
+            stream_ << " + ";
+            break;
+        case BinaryExpression::BinaryOperator::kMinus:
+            stream_ << " - ";
+            break;
+        case BinaryExpression::BinaryOperator::kMul:
+            stream_ << " * ";
+            break;
+        case BinaryExpression::BinaryOperator::kDiv:
+            stream_ << " / ";
+            break;
+        case BinaryExpression::BinaryOperator::kMod:
+            stream_ << " % ";
+            break;
+    }
+    expression->GetRightExpression()->Accept(this);
+    stream_ << ")";
 }
 
 void PrintVisitor::Visit(CompoundStatement* statement) {
