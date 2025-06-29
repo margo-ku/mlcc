@@ -10,27 +10,8 @@ int PrimaryExpression::GetValue() const { return value_; }
 
 ///////////////////////////////////////////////
 
-UnaryExpression::UnaryExpression(char op, Expression* expression)
-    : expression_(expression) {
-    switch (op) {
-        case '-':
-            op_ = UnaryOperator::kMinus;
-            break;
-        case '+':
-            op_ = UnaryOperator::kPlus;
-            break;
-        case '~':
-            op_ = UnaryOperator::kBinaryNot;
-            break;
-        case '!':
-            op_ = UnaryOperator::kNot;
-            break;
-        default:
-            std::string msg = "unknown unary operator: ";
-            msg += op;
-            throw std::invalid_argument(msg);
-    }
-}
+UnaryExpression::UnaryExpression(UnaryOperator op, Expression* expression)
+    : op_(op), expression_(expression) {}
 
 void UnaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
@@ -40,30 +21,8 @@ Expression* UnaryExpression::GetExpression() const { return expression_; }
 
 ///////////////////////////////////////////////
 
-BinaryExpression::BinaryExpression(char op, Expression* left, Expression* right)
-    : left_(left), right_(right) {
-    switch (op) {
-        case '+':
-            op_ = BinaryOperator::kPlus;
-            break;
-        case '-':
-            op_ = BinaryOperator::kMinus;
-            break;
-        case '*':
-            op_ = BinaryOperator::kMul;
-            break;
-        case '/':
-            op_ = BinaryOperator::kDiv;
-            break;
-        case '%':
-            op_ = BinaryOperator::kMod;
-            break;
-        default:
-            std::string msg = "unknown binary operator: ";
-            msg += op;
-            throw std::invalid_argument(msg);
-    }
-}
+BinaryExpression::BinaryExpression(BinaryOperator op, Expression* left, Expression* right)
+    : op_(op), left_(left), right_(right) {}
 
 void BinaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 

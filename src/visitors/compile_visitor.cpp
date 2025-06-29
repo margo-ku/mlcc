@@ -1,7 +1,7 @@
 #include "include/visitors/compile_visitor.h"
 
 CompileVisitor::CompileVisitor(std::ostream& stream)
-    : stream_(stream), number_of_tabs_(0) {}
+    : stream_(stream), number_of_tabs_(0), unique_label_id_(0) {}
 
 void CompileVisitor::Visit(TranslationUnit* translation_unit) {
     for (auto* declaration : translation_unit->GetExternalDeclarations()) {
@@ -69,6 +69,16 @@ void CompileVisitor::Visit(UnaryExpression* expression) {
 }
 
 void CompileVisitor::Visit(BinaryExpression* expression) {
+    if (expression->GetOp() == BinaryExpression::BinaryOperator::kOr) {
+        ProcessBinaryOr(expression);
+        return;
+    }
+
+    if (expression->GetOp() == BinaryExpression::BinaryOperator::kAnd) {
+        ProcessBinaryAnd(expression);
+        return;
+    }
+
     expression->GetLeftExpression()->Accept(this);  // result in w0
     PrintToStream("str w0, [sp, #-16]!");
     expression->GetRightExpression()->Accept(this);  // result in w0
@@ -91,6 +101,36 @@ void CompileVisitor::Visit(BinaryExpression* expression) {
         case BinaryExpression::BinaryOperator::kMod:
             PrintToStream("sdiv w2, w1, w0");
             PrintToStream("msub w0, w2, w0, w1");
+            break;
+        case BinaryExpression::BinaryOperator::kLess:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, lt");
+            break;
+        case BinaryExpression::BinaryOperator::kGreater:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, gt");
+            break;
+        case BinaryExpression::BinaryOperator::kLessEqual:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, le");
+            break;
+        case BinaryExpression::BinaryOperator::kGreaterEqual:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, ge");
+            break;
+        case BinaryExpression::BinaryOperator::kEqual:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, eq");
+            break;
+        case BinaryExpression::BinaryOperator::kNotEqual:
+            PrintToStream("cmp w1, w0");
+            PrintToStream("cset w0, ne");
+            break;
+        case BinaryExpression::BinaryOperator::kAnd:
+            /* to do */
+            break;
+        case BinaryExpression::BinaryOperator::kOr:
+            /* to do */
             break;
         default:
             break;
@@ -115,4 +155,50 @@ void CompileVisitor::PrintTabs() const {
 void CompileVisitor::PrintToStream(const std::string& output) const {
     PrintTabs();
     stream_ << output << std::endl;
+}
+
+void CompileVisitor::ProcessBinaryOr(BinaryExpression* expression) {
+    std::string label_id = GetUniqueLabelId();
+    std::string label_set_true = "label_set_true_" + label_id;
+    std::string label_end = "label_end_" + label_id;
+
+    expression->GetLeftExpression()->Accept(this);
+    PrintToStream("cmp w0, #0");
+    PrintToStream("bne " + label_set_true);
+    expression->GetRightExpression()->Accept(this);
+    PrintToStream("cmp w0, #0");
+    PrintToStream("bne " + label_set_true);
+
+    PrintToStream("mov w0, #0");
+    PrintToStream("b " + label_end);
+
+    PrintToStream(label_set_true + ":");
+    PrintToStream("mov w0, #1");
+
+    PrintToStream(label_end + ":");
+}
+
+void CompileVisitor::ProcessBinaryAnd(BinaryExpression* expression) {
+    std::string label_id = GetUniqueLabelId();
+    std::string label_set_false = "label_set_false_" + label_id;
+    std::string label_end = "label_end_" + label_id;
+
+    expression->GetLeftExpression()->Accept(this);
+    PrintToStream("cmp w0, #0");
+    PrintToStream("beq " + label_set_false);
+    expression->GetRightExpression()->Accept(this);
+    PrintToStream("cmp w0, #0");
+    PrintToStream("beq " + label_set_false);
+
+    PrintToStream("mov w0, #1");
+    PrintToStream("b " + label_end);
+
+    PrintToStream(label_set_false + ":");
+    PrintToStream("mov w0, #0");
+
+    PrintToStream(label_end + ":");
+}
+
+std::string CompileVisitor::GetUniqueLabelId() {
+    return std::to_string(unique_label_id_++);
 }

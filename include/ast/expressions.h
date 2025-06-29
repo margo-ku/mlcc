@@ -32,7 +32,7 @@ public:
         kNot,
     };
 
-    explicit UnaryExpression(char op, Expression* expression);
+    explicit UnaryExpression(UnaryOperator op, Expression* expression);
     virtual void Accept(Visitor* visitor) override;
     UnaryOperator GetOp() const;
     Expression* GetExpression() const;
@@ -46,9 +46,23 @@ private:
 
 class BinaryExpression : public Expression {
 public:
-    enum class BinaryOperator { kPlus = 0, kMinus, kMul, kDiv, kMod };
+    enum class BinaryOperator {
+        kPlus = 0,
+        kMinus,
+        kMul,
+        kDiv,
+        kMod,
+        kLess,
+        kGreater,
+        kLessEqual,
+        kGreaterEqual,
+        kEqual,
+        kNotEqual,
+        kAnd,
+        kOr,
+    };
 
-    explicit BinaryExpression(char op, Expression* left, Expression* right);
+    explicit BinaryExpression(BinaryOperator op, Expression* left, Expression* right);
     virtual void Accept(Visitor* visitor) override;
     BinaryOperator GetOp() const;
     Expression* GetLeftExpression() const;

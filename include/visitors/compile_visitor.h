@@ -18,8 +18,13 @@ public:
     virtual void Visit(ReturnStatement* statement) override;
 
 private:
+    void ProcessBinaryOr(BinaryExpression* expression);
+    void ProcessBinaryAnd(BinaryExpression* expression);
+    std::string GetUniqueLabelId();
+
     void PrintTabs() const;
     void PrintToStream(const std::string&) const;
     std::ostream& stream_;
     size_t number_of_tabs_;
+    size_t unique_label_id_;
 };

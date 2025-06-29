@@ -52,7 +52,9 @@
 %define api.token.prefix {TOK_}
 
 %token END 0 "end of file"
-%token PLUS MINUS STAR SLASH MOD BIT_NOT NOT
+%token PLUS MINUS STAR SLASH MOD BIT_NOT
+%token OR AND NOT
+%token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI
 %token INT
 %token RETURN
@@ -76,7 +78,10 @@
 %type <Expression*> unary_expression;
 %type <Expression*> additive_expression;
 %type <Expression*> multiplicative_expression;
-%type <char> unary_operator;
+%type <Expression*> relation_expression;
+%type <Expression*> equality_expression;
+%type <Expression*> logical_and_expression;
+%type <Expression*> logical_or_expression;
 
 %%
 %start start;
@@ -119,28 +124,45 @@ return_statement:
     RETURN expression SEMI { $$ = new ReturnStatement($2); };
 
 expression:
-    additive_expression { $$ = $1; };
+    logical_or_expression { $$ = $1; };
+
+logical_or_expression:
+    logical_and_expression { $$ = $1; }
+    | logical_or_expression OR logical_and_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kOr, $1, $3); };
+
+logical_and_expression:
+    equality_expression { $$ = $1; }
+    | logical_and_expression AND equality_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kAnd, $1, $3); };
+
+equality_expression:
+    relation_expression { $$ = $1; }
+    | equality_expression EQ relation_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kEqual, $1, $3); }
+    | equality_expression NOT_EQ relation_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kNotEqual, $1, $3); };
+
+relation_expression:
+    additive_expression { $$ = $1; }
+    | relation_expression LE additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kLess, $1, $3); }
+    | relation_expression GE additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kGreater, $1, $3); }
+    | relation_expression LEQ additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kLessEqual, $1, $3); }
+    | relation_expression GEQ additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kGreaterEqual, $1, $3); };
 
 additive_expression:
     multiplicative_expression { $$ = $1; }
-    | additive_expression PLUS multiplicative_expression { $$ = new BinaryExpression('+', $1, $3); }
-    | additive_expression MINUS multiplicative_expression { $$ = new BinaryExpression('-', $1, $3); };
+    | additive_expression PLUS multiplicative_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kPlus, $1, $3); }
+    | additive_expression MINUS multiplicative_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMinus, $1, $3); };
 
 multiplicative_expression:
     unary_expression { $$ = $1; }
-    | multiplicative_expression STAR unary_expression { $$ = new BinaryExpression('*', $1, $3); }
-    | multiplicative_expression SLASH unary_expression { $$ = new BinaryExpression('/', $1, $3); }
-    | multiplicative_expression MOD unary_expression { $$ = new BinaryExpression('%', $1, $3); };
+    | multiplicative_expression STAR unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMul, $1, $3); }
+    | multiplicative_expression SLASH unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kDiv, $1, $3); }
+    | multiplicative_expression MOD unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMod, $1, $3); };
 
 unary_expression:
     primary_expression { $$ = $1; }
-    | unary_operator unary_expression { $$ = new UnaryExpression($1, $2); };
-
-unary_operator:
-    PLUS { $$ = '+'; }
-    | MINUS { $$ = '-'; }
-    | BIT_NOT { $$ = '~'; }
-    | NOT { $$ = '!'; };
+    | PLUS unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kPlus, $2); }
+    | MINUS unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kMinus, $2); }
+    | BIT_NOT unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kBinaryNot, $2); }
+    | NOT unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kNot, $2); }
 
 primary_expression:
     NUMBER { $$ = new PrimaryExpression($1); }

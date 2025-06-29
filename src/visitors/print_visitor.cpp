@@ -77,6 +77,30 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
         case BinaryExpression::BinaryOperator::kMod:
             stream_ << " % ";
             break;
+        case BinaryExpression::BinaryOperator::kLess:
+            stream_ << " < ";
+            break;
+        case BinaryExpression::BinaryOperator::kGreater:
+            stream_ << " > ";
+            break;
+        case BinaryExpression::BinaryOperator::kLessEqual:
+            stream_ << " <= ";
+            break;
+        case BinaryExpression::BinaryOperator::kGreaterEqual:
+            stream_ << " >= ";
+            break;
+        case BinaryExpression::BinaryOperator::kEqual:
+            stream_ << " == ";
+            break;
+        case BinaryExpression::BinaryOperator::kNotEqual:
+            stream_ << " != ";
+            break;
+        case BinaryExpression::BinaryOperator::kAnd:
+            stream_ << " && ";
+            break;
+        case BinaryExpression::BinaryOperator::kOr:
+            stream_ << " || ";
+            break;
     }
     expression->GetRightExpression()->Accept(this);
     stream_ << ")";

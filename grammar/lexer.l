@@ -30,6 +30,14 @@ blank  [ \t\r]
 {blank}+  { /* skip */ }
 \n+       { loc.lines(yyleng); loc.step(); }
 {number}  { return make_NUMBER(yytext, loc); }
+"<="      { return yy::parser::make_LEQ(loc); }
+">="      { return yy::parser::make_GEQ(loc); }
+"<"      { return yy::parser::make_LE(loc); }
+">"      { return yy::parser::make_GE(loc); }
+"!="      { return yy::parser::make_NOT_EQ(loc); }
+"=="      { return yy::parser::make_EQ(loc); }
+"||"      { return yy::parser::make_OR(loc); }
+"&&"      { return yy::parser::make_AND(loc); }
 "-"       { return yy::parser::make_MINUS(loc); }
 "+"       { return yy::parser::make_PLUS(loc); }
 "*"       { return yy::parser::make_STAR(loc); }
