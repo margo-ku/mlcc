@@ -46,6 +46,12 @@ void CompileVisitor::Visit(Declarator* declarator) {
     stream_ << "_" << declarator->GetId();
 }
 
+void CompileVisitor::Visit(InitDeclarator* declarator) { /* to do */ }
+
+void CompileVisitor::Visit(Declaration* declaration) { /* to do */ }
+
+void CompileVisitor::Visit(IdExpression* expression) { /* to do */ }
+
 void CompileVisitor::Visit(PrimaryExpression* expression) {
     PrintToStream("mov w0, #" + std::to_string(expression->GetValue()));
 }
@@ -126,16 +132,12 @@ void CompileVisitor::Visit(BinaryExpression* expression) {
             PrintToStream("cmp w1, w0");
             PrintToStream("cset w0, ne");
             break;
-        case BinaryExpression::BinaryOperator::kAnd:
-            /* to do */
-            break;
-        case BinaryExpression::BinaryOperator::kOr:
-            /* to do */
-            break;
         default:
             break;
     }
 }
+
+void CompileVisitor::Visit(AssignmentExpression* expression) { /* to do */ }
 
 void CompileVisitor::Visit(CompoundStatement* statement) {
     statement->GetBody()->Accept(this);
@@ -145,6 +147,8 @@ void CompileVisitor::Visit(ReturnStatement* statement) {
     // to do: has expression
     statement->GetExpression()->Accept(this);
 }
+
+void CompileVisitor::Visit(ExpressionStatement* statement) { /* to do */ }
 
 void CompileVisitor::PrintTabs() const {
     for (int i = 0; i < number_of_tabs_; ++i) {

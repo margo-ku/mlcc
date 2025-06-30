@@ -11,11 +11,16 @@ public:
     virtual void Visit(FunctionDefinition* function) override;
     virtual void Visit(TypeSpecification* type) override;
     virtual void Visit(Declarator* declarator) override;
+    virtual void Visit(InitDeclarator* declarator) override;
+    virtual void Visit(Declaration* declaration) override;
+    virtual void Visit(IdExpression* expression) override;
     virtual void Visit(PrimaryExpression* expression) override;
     virtual void Visit(UnaryExpression* expression) override;
     virtual void Visit(BinaryExpression* expression) override;
+    virtual void Visit(AssignmentExpression* expression) override;
     virtual void Visit(CompoundStatement* statement) override;
     virtual void Visit(ReturnStatement* statement) override;
+    virtual void Visit(ExpressionStatement* statement) override;
 
 private:
     std::ostream& stream_;

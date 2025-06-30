@@ -23,6 +23,18 @@ private:
 
 ///////////////////////////////////////////////
 
+class IdExpression : public Expression {
+public:
+    explicit IdExpression(std::string id);
+    virtual void Accept(Visitor* visitor) override;
+    std::string GetId() const;
+
+private:
+    std::string id_;
+};
+
+///////////////////////////////////////////////
+
 class UnaryExpression : public Expression {
 public:
     enum class UnaryOperator {
@@ -70,6 +82,20 @@ public:
 
 private:
     BinaryOperator op_;
+    Expression* left_;
+    Expression* right_;
+};
+
+///////////////////////////////////////////////
+
+class AssignmentExpression : public Expression {
+public:
+    explicit AssignmentExpression(Expression* left, Expression* right);
+    virtual void Accept(Visitor* visitor) override;
+    Expression* GetLeftExpression() const;
+    Expression* GetRightExpression() const;
+
+private:
     Expression* left_;
     Expression* right_;
 };

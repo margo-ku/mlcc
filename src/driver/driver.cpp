@@ -4,6 +4,7 @@
 
 #include "include/visitors/compile_visitor.h"
 #include "include/visitors/print_visitor.h"
+#include "include/visitors/semantic_visitor.h"
 #include "parser.hh"
 
 Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}
@@ -15,8 +16,20 @@ int Driver::Parse(const std::string& filename) {
     ScanBegin();
     parser_.set_debug_level(debug_parse);
     int result = parser_();
+    if (result != 0) {
+        return result;
+    }
 
     if (compile) {
+        SemanticVisitor semantic_visitor;
+        try {
+            translation_unit_->Accept(&semantic_visitor);
+        } catch (const std::runtime_error& e) {
+            std::cerr << e.what() << std::endl;
+            return 1;
+        }
+
+        // if everything is ok..........
         std::string asm_file = file_;
         size_t dot = asm_file.find_last_of('.');
         if (dot != std::string::npos) {

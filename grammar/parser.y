@@ -15,14 +15,19 @@
     class ItemList;
     class FunctionDefinition;
     class Declarator;
+    class InitDeclarator;
+    class Declaration;
     class TypeSpecification;
     class Statement;
     class CompoundStatement;
     class ReturnStatement;
+    class ExpressionStatement;
     class Expression;
     class PrimaryExpression;
+    class IdExpression;
     class UnaryExpression;
     class BinaryExpression;
+    class AssignmentExpression;
 };
 
 %define parse.trace
@@ -56,6 +61,7 @@
 %token OR AND NOT
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI
+%token ASSIGNMENT
 %token INT
 %token RETURN
 %token <std::string> ID
@@ -67,12 +73,16 @@
 %type <FunctionDefinition*> function_definition;
 %type <TypeSpecification*> declaration_specifiers;
 %type <Declarator*> declarator;
+%type <InitDeclarator*> init_declarator;
+%type <Declaration*> declaration;
 %type <CompoundStatement*> compound_statement;
 %type <ItemList*> item_list;
 %type <BaseElement*> item;
 %type <Statement*> statement;
 %type <ReturnStatement*> return_statement;
+%type <ExpressionStatement*> expression_statement;
 %type <TypeSpecification*> type_specifier;
+%type <Expression*> initializer;
 %type <Expression*> expression;
 %type <Expression*> primary_expression;
 %type <Expression*> unary_expression;
@@ -82,6 +92,7 @@
 %type <Expression*> equality_expression;
 %type <Expression*> logical_and_expression;
 %type <Expression*> logical_or_expression;
+%type <Expression*> assignment_expression;
 
 %%
 %start start;
@@ -105,7 +116,18 @@ type_specifier:
     INT { $$ = new TypeSpecification("int"); };
 
 declarator:
-    ID LPAREN RPAREN { $$ = new Declarator($1); };
+    ID { $$ = new Declarator($1); }
+    | declarator LPAREN RPAREN { $$ = $1; };
+
+declaration:
+    declaration_specifiers init_declarator SEMI { $$ = new Declaration($1, $2); };
+
+init_declarator:
+    declarator { $$ = new InitDeclarator($1); }
+    | declarator ASSIGNMENT initializer { $$ = new InitDeclarator($1, $3); };
+
+initializer:
+    assignment_expression { $$ = $1; };
 
 compound_statement:
     LBRACE item_list RBRACE { $$ = new CompoundStatement($2); };
@@ -115,16 +137,26 @@ item_list:
     | item_list item { $1->AddItem($2); $$ = $1; };
 
 item:
-    statement { $$ = $1; };
+    statement { $$ = $1; }
+    | declaration { $$ = $1; };
 
 statement:
-    return_statement { $$ = $1; };
+    expression_statement { $$ = $1; }
+    | return_statement { $$ = $1; };
+
+expression_statement:
+    SEMI { $$ = new ExpressionStatement(); }
+    | expression SEMI { $$ = new ExpressionStatement($1); };
 
 return_statement:
     RETURN expression SEMI { $$ = new ReturnStatement($2); };
 
 expression:
-    logical_or_expression { $$ = $1; };
+    assignment_expression { $$ = $1; }
+
+assignment_expression:
+    logical_or_expression { $$ = $1; }
+    | unary_expression ASSIGNMENT assignment_expression { $$ = new AssignmentExpression($1, $3); };
 
 logical_or_expression:
     logical_and_expression { $$ = $1; }
@@ -165,7 +197,8 @@ unary_expression:
     | NOT unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kNot, $2); }
 
 primary_expression:
-    NUMBER { $$ = new PrimaryExpression($1); }
+    ID { $$ = new IdExpression($1); }
+    | NUMBER { $$ = new PrimaryExpression($1); }
     | LPAREN expression RPAREN { $$ = $2; };
 
 %%

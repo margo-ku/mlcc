@@ -36,11 +36,30 @@ void PrintVisitor::Visit(TypeSpecification* type) { stream_ << type->GetTypeName
 
 void PrintVisitor::Visit(Declarator* declarator) { stream_ << declarator->GetId(); }
 
+void PrintVisitor::Visit(InitDeclarator* declarator) {
+    declarator->GetDeclarator()->Accept(this);
+    if (declarator->HasInitializer()) {
+        stream_ << " = ";
+        declarator->GetInitializer()->Accept(this);
+    }
+}
+
+void PrintVisitor::Visit(Declaration* declaration) {
+    PrintTabs();
+    stream_ << "Declaraion: ";
+    declaration->GetType()->Accept(this);
+    stream_ << " ";
+    declaration->GetDeclaration()->Accept(this);
+    stream_ << std::endl;
+}
+
+void PrintVisitor::Visit(IdExpression* expression) { stream_ << expression->GetId(); }
+
 void PrintVisitor::Visit(PrimaryExpression* expression) {
     stream_ << expression->GetValue();
 }
 
-void PrintVisitor::Visit(UnaryExpression* expression) {  // ???
+void PrintVisitor::Visit(UnaryExpression* expression) {
     switch (expression->GetOp()) {
         case UnaryExpression::UnaryOperator::kMinus:
             stream_ << "-";
@@ -106,6 +125,12 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
     stream_ << ")";
 }
 
+void PrintVisitor::Visit(AssignmentExpression* expression) {
+    expression->GetLeftExpression()->Accept(this);
+    stream_ << " = ";
+    expression->GetRightExpression()->Accept(this);
+}
+
 void PrintVisitor::Visit(CompoundStatement* statement) {
     PrintTabs();
     stream_ << "CompoundStatement:" << std::endl;
@@ -119,6 +144,15 @@ void PrintVisitor::Visit(ReturnStatement* statement) {
     stream_ << "ReturnStatement: return";
     if (statement->HasExpression()) {
         stream_ << " ";
+        statement->GetExpression()->Accept(this);
+    }
+    stream_ << std::endl;
+}
+
+void PrintVisitor::Visit(ExpressionStatement* statement) {
+    PrintTabs();
+    stream_ << "ExpressionStatement: ";
+    if (statement->HasExpression()) {
         statement->GetExpression()->Accept(this);
     }
     stream_ << std::endl;

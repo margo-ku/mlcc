@@ -11,9 +11,14 @@ public:
     virtual void Visit(FunctionDefinition* function) = 0;
     virtual void Visit(TypeSpecification* type) = 0;
     virtual void Visit(Declarator* declarator) = 0;
+    virtual void Visit(InitDeclarator* declarator) = 0;
+    virtual void Visit(Declaration* declaration) = 0;
+    virtual void Visit(IdExpression* expression) = 0;
     virtual void Visit(PrimaryExpression* expression) = 0;
     virtual void Visit(UnaryExpression* expression) = 0;
     virtual void Visit(BinaryExpression* expression) = 0;
+    virtual void Visit(AssignmentExpression* expression) = 0;
     virtual void Visit(CompoundStatement* statement) = 0;
     virtual void Visit(ReturnStatement* statement) = 0;
+    virtual void Visit(ExpressionStatement* statement) = 0;
 };

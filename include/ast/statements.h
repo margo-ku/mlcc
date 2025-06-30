@@ -35,3 +35,17 @@ public:
 private:
     Expression* expression_;
 };
+
+///////////////////////////////////////////////
+
+class ExpressionStatement : public Statement {
+public:
+    ExpressionStatement();
+    explicit ExpressionStatement(Expression* expression);
+    virtual void Accept(Visitor* visitor) override;
+    bool HasExpression() const;
+    Expression* GetExpression();
+
+private:
+    std::optional<Expression*> expression_;
+};

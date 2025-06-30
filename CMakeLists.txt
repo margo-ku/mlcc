@@ -75,6 +75,7 @@ set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
         src/visitors/compile_visitor.cpp
+        src/visitors/semantic_visitor.cpp
 )
 
 add_executable(

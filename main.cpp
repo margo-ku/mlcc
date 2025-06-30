@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
         if (opts.compile) {
             std::filesystem::path path(file);
             std::string asm_file = path.replace_extension(".s").string();
-            std::string out_file = path.stem().string();
+            std::string out_file = path.replace_extension("").string();
 
             std::string clang_cmd = "clang " + asm_file + " -o " + out_file;
             std::cout << "Running: " << clang_cmd << std::endl;

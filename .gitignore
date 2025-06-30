@@ -5,3 +5,4 @@ grammar/generated/
 
 program.c
 program.s
+program

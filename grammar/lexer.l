@@ -36,6 +36,7 @@ blank  [ \t\r]
 ">"      { return yy::parser::make_GE(loc); }
 "!="      { return yy::parser::make_NOT_EQ(loc); }
 "=="      { return yy::parser::make_EQ(loc); }
+"="       { return yy::parser::make_ASSIGNMENT(loc); }
 "||"      { return yy::parser::make_OR(loc); }
 "&&"      { return yy::parser::make_AND(loc); }
 "-"       { return yy::parser::make_MINUS(loc); }

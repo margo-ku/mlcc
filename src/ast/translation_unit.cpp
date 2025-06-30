@@ -21,11 +21,10 @@ std::vector<BaseElement*>& TranslationUnit::GetExternalDeclarations() {
 ///////////////////////////////////////////////
 
 void ItemList::AddItem(BaseElement* item) {
-    if (dynamic_cast<Statement*>(item)) {
+    if (dynamic_cast<Statement*>(item) || dynamic_cast<Declaration*>(item)) {
         items_.push_back(item);
     } else {
-        throw std::invalid_argument(
-            "Only Statement or Declaration allowed in ItemList");
+        throw std::invalid_argument("Only Statement or Declaration allowed in ItemList");
     }
 }
 
