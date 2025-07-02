@@ -1,11 +1,12 @@
 #pragma once
 #include <fstream>
 
+#include "frame_info.h"
 #include "visitor.h"
 
 class CompileVisitor : public Visitor {
 public:
-    explicit CompileVisitor(std::ostream& stream);
+    explicit CompileVisitor(std::ostream& stream, FrameInfo frame_info);
     virtual void Visit(TranslationUnit* translation_unit) override;
     virtual void Visit(ItemList* item_list) override;
     virtual void Visit(FunctionDefinition* function) override;
@@ -30,6 +31,8 @@ private:
     void PrintTabs() const;
     void PrintToStream(const std::string&) const;
     std::ostream& stream_;
+    FrameInfo frame_info_;
     size_t number_of_tabs_;
     size_t unique_label_id_;
+    std::string function_exit_label_;
 };

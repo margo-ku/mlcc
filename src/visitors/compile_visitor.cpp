@@ -1,7 +1,11 @@
 #include "include/visitors/compile_visitor.h"
 
-CompileVisitor::CompileVisitor(std::ostream& stream)
-    : stream_(stream), number_of_tabs_(0), unique_label_id_(0) {}
+CompileVisitor::CompileVisitor(std::ostream& stream, FrameInfo frame_info)
+    : stream_(stream),
+      frame_info_(frame_info),
+      number_of_tabs_(0),
+      unique_label_id_(0),
+      function_exit_label_("exit_0") {}
 
 void CompileVisitor::Visit(TranslationUnit* translation_unit) {
     for (auto* declaration : translation_unit->GetExternalDeclarations()) {
@@ -22,37 +26,50 @@ void CompileVisitor::Visit(FunctionDefinition* function) {
     function->GetDeclarator()->Accept(this);
     stream_ << ":" << std::endl;
     number_of_tabs_++;
-    if (function->GetDeclarator()->GetId() == "main") {
-        PrintTabs();
-        stream_ << "sub sp, sp, #16" << std::endl;
-        PrintTabs();
-        stream_ << "str wzr, [sp, #12]" << std::endl;
-    }
+
+    PrintToStream("stp x29, x30, [sp, #-16]!");
+    PrintToStream("mov x29, sp");
+    PrintToStream("sub sp, sp, " + std::to_string(frame_info_.total_size));
 
     function->GetBody()->Accept(this);
 
-    if (function->GetDeclarator()->GetId() == "main") {
-        PrintTabs();
-        stream_ << "add sp, sp, #16" << std::endl;
-    }
-    PrintTabs();
-    stream_ << "ret" << std::endl;
+    PrintToStream("mov w0, #0");
+    PrintToStream(function_exit_label_ + ": ");
+    PrintToStream("add sp, sp, " + std::to_string(frame_info_.total_size));
+    PrintToStream("mov sp, x29");
+    PrintToStream("ldp x29, x30, [sp], #16");
+    PrintToStream("ret");
     number_of_tabs_--;
 }
 
 void CompileVisitor::Visit(TypeSpecification* type) {}
 
 void CompileVisitor::Visit(Declarator* declarator) {
+    /* to do */
     stream_ << "_" << declarator->GetId();
 }
 
-void CompileVisitor::Visit(InitDeclarator* declarator) { /* to do */ }
+void CompileVisitor::Visit(InitDeclarator* declarator) {
+    std::string id = declarator->GetDeclarator()->GetId();
+    int offset = frame_info_.variables[0].at(id).offset;
 
-void CompileVisitor::Visit(Declaration* declaration) { /* to do */ }
+    if (declarator->HasInitializer()) {
+        declarator->GetInitializer()->Accept(this);
+    }
+    PrintToStream("str w0, [x29, #" + std::to_string(offset) + "]");
+}
 
-void CompileVisitor::Visit(IdExpression* expression) { /* to do */ }
+void CompileVisitor::Visit(Declaration* declaration) {
+    declaration->GetDeclaration()->Accept(this);
+}
+
+void CompileVisitor::Visit(IdExpression* expression) {
+    int offset = frame_info_.variables[0].at(expression->GetId()).offset;
+    PrintToStream("ldr w0, [x29, #" + std::to_string(offset) + "]");
+}
 
 void CompileVisitor::Visit(PrimaryExpression* expression) {
+    // только для маленьких чисел (пока): to do
     PrintToStream("mov w0, #" + std::to_string(expression->GetValue()));
 }
 
@@ -137,18 +154,29 @@ void CompileVisitor::Visit(BinaryExpression* expression) {
     }
 }
 
-void CompileVisitor::Visit(AssignmentExpression* expression) { /* to do */ }
+void CompileVisitor::Visit(AssignmentExpression* expression) {
+    std::string id =
+        dynamic_cast<IdExpression*>(expression->GetLeftExpression())->GetId();
+    int offset = frame_info_.variables[0].at(id).offset;
+
+    expression->GetRightExpression()->Accept(this);
+    PrintToStream("str w0, [x29, #" + std::to_string(offset) + "]");
+}
 
 void CompileVisitor::Visit(CompoundStatement* statement) {
     statement->GetBody()->Accept(this);
 }
 
 void CompileVisitor::Visit(ReturnStatement* statement) {
-    // to do: has expression
-    statement->GetExpression()->Accept(this);
+    if (statement->HasExpression()) {
+        statement->GetExpression()->Accept(this);
+    }
+    PrintToStream("b " + function_exit_label_);
 }
 
-void CompileVisitor::Visit(ExpressionStatement* statement) { /* to do */ }
+void CompileVisitor::Visit(ExpressionStatement* statement) {
+    statement->GetExpression()->Accept(this);
+}
 
 void CompileVisitor::PrintTabs() const {
     for (int i = 0; i < number_of_tabs_; ++i) {

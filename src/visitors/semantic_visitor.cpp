@@ -1,6 +1,6 @@
 #include "include/visitors/semantic_visitor.h"
 
-SemanticVisitor::SemanticVisitor() { scopes_.push_back({}); }
+SemanticVisitor::SemanticVisitor() { frame_info_.variables.push_back({}); }
 
 #include <iostream>
 
@@ -27,11 +27,11 @@ void SemanticVisitor::Visit(Declarator* declarator) {}
 
 void SemanticVisitor::Visit(InitDeclarator* declarator) {
     std::string id = declarator->GetDeclarator()->GetId();
-    if (scopes_[scopes_.size() - 1].contains(id)) {
+    if (HasVariable(id)) {
         throw std::runtime_error("semantic error: duplicate declaration of variable '" +
                                  id + "'");
     }
-    scopes_[scopes_.size() - 1].insert(id);
+    AddVariable(id);
 }
 
 void SemanticVisitor::Visit(Declaration* declaration) {
@@ -40,11 +40,11 @@ void SemanticVisitor::Visit(Declaration* declaration) {
 
 void SemanticVisitor::Visit(IdExpression* expression) {
     std::string id = expression->GetId();
-    if (!scopes_[scopes_.size() - 1].contains(id)) {  // to do: expand
+    if (!HasVariable(id)) {  // to do: expand
         throw std::runtime_error("semantic error: use of undeclared variable '" + id +
                                  "'");
     }
-}  // ! 1
+}
 
 void SemanticVisitor::Visit(PrimaryExpression* expression) {}
 
@@ -64,7 +64,7 @@ void SemanticVisitor::Visit(AssignmentExpression* expression) {
     }
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
-}  // ! 3
+}
 
 void SemanticVisitor::Visit(CompoundStatement* statement) {
     statement->GetBody()->Accept(this);
@@ -80,4 +80,22 @@ void SemanticVisitor::Visit(ExpressionStatement* statement) {
     if (statement->HasExpression()) {
         statement->GetExpression()->Accept(this);
     }
+}
+
+bool SemanticVisitor::HasVariable(const std::string& id) const {
+    size_t last_index = frame_info_.variables.size() - 1;
+    return frame_info_.variables[last_index].contains(id);
+}
+
+void SemanticVisitor::AddVariable(const std::string& id) {
+    size_t last_index = frame_info_.variables.size() - 1;
+    frame_info_.total_size += 4;
+
+    int offset = -frame_info_.total_size;
+    frame_info_.variables[last_index][id] = VariableInfo(offset);  // to do change
+}
+
+FrameInfo SemanticVisitor::GetFrameInfo() {
+    frame_info_.total_size = ((frame_info_.total_size + 15) / 16) * 16;
+    return frame_info_;
 }

@@ -41,7 +41,7 @@ int Driver::Parse(const std::string& filename) {
         std::cout << "asm file: " << asm_file << std::endl;
 
         std::ofstream out_file(asm_file);
-        CompileVisitor compile_visitor(out_file);
+        CompileVisitor compile_visitor(out_file, semantic_visitor.GetFrameInfo());
         translation_unit_->Accept(&compile_visitor);
     }
 
