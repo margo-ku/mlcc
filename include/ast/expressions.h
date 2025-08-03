@@ -89,6 +89,23 @@ private:
 
 ///////////////////////////////////////////////
 
+class ConditionalExpression : public Expression {
+public:
+    explicit ConditionalExpression(Expression* condition, Expression* left,
+                                   Expression* right);
+    virtual void Accept(Visitor* visitor) override;
+    Expression* GetCondition() const;
+    Expression* GetLeftExpression() const;
+    Expression* GetRightExpression() const;
+
+private:
+    Expression* cond_;
+    Expression* left_;
+    Expression* right_;
+};
+
+///////////////////////////////////////////////
+
 class AssignmentExpression : public Expression {
 public:
     explicit AssignmentExpression(Expression* left, Expression* right);

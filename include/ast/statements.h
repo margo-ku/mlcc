@@ -49,3 +49,22 @@ public:
 private:
     std::optional<Expression*> expression_;
 };
+
+///////////////////////////////////////////////
+
+class SelectionStatement : public Statement {
+public:
+    explicit SelectionStatement(Expression* cond, Statement* then_stmt);
+    explicit SelectionStatement(Expression* cond, Statement* then_stmt,
+                                Statement* else_stmt);
+    virtual void Accept(Visitor* visitor) override;
+    bool HasElseStatement() const;
+    Expression* GetCondition() const;
+    Statement* GetThenStatement() const;
+    Statement* GetElseStatement() const;
+
+private:
+    Expression* cond_;
+    Statement* then_stmt_;
+    std::optional<Statement*> else_stmt_;
+};

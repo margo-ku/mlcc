@@ -69,10 +69,12 @@ public:
     virtual void Visit(PrimaryExpression* expression) override;
     virtual void Visit(UnaryExpression* expression) override;
     virtual void Visit(BinaryExpression* expression) override;
+    virtual void Visit(ConditionalExpression* expression) override;
     virtual void Visit(AssignmentExpression* expression) override;
     virtual void Visit(CompoundStatement* statement) override;
     virtual void Visit(ReturnStatement* statement) override;
     virtual void Visit(ExpressionStatement* statement) override;
+    virtual void Visit(SelectionStatement* statement) override;
 
     std::vector<TACInstruction> GetTACInstructions() const;
     void PrintTACInstructions(std::ostream& out) const;

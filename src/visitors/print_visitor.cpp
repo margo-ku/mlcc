@@ -125,6 +125,16 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
     stream_ << ")";
 }
 
+void PrintVisitor::Visit(ConditionalExpression* expression) {
+    stream_ << "(";
+    expression->GetCondition()->Accept(this);
+    stream_ << " ? ";
+    expression->GetLeftExpression()->Accept(this);
+    stream_ << " : ";
+    expression->GetRightExpression()->Accept(this);
+    stream_ << ")";
+}
+
 void PrintVisitor::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     stream_ << " = ";
@@ -156,6 +166,26 @@ void PrintVisitor::Visit(ExpressionStatement* statement) {
         statement->GetExpression()->Accept(this);
     }
     stream_ << std::endl;
+}
+
+void PrintVisitor::Visit(SelectionStatement* statement) {
+    PrintTabs();
+    stream_ << "SelectionStatement: if ";
+    statement->GetCondition()->Accept(this);
+    stream_ << std::endl;
+
+    number_of_tabs_++;
+    stream_ << "then: " << std::endl;
+    number_of_tabs_++;
+    statement->GetThenStatement()->Accept(this);
+    number_of_tabs_--;
+    if (statement->HasElseStatement()) {
+        stream_ << "else: " << std::endl;
+        number_of_tabs_++;
+        statement->GetElseStatement()->Accept(this);
+        number_of_tabs_--;
+    }
+    number_of_tabs_--;
 }
 
 void PrintVisitor::PrintTabs() const {

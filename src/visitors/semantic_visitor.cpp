@@ -64,6 +64,12 @@ void SemanticVisitor::Visit(BinaryExpression* expression) {
     expression->GetRightExpression()->Accept(this);
 }
 
+void SemanticVisitor::Visit(ConditionalExpression* expression) {
+    expression->GetCondition()->Accept(this);
+    expression->GetLeftExpression()->Accept(this);
+    expression->GetRightExpression()->Accept(this);
+}
+
 void SemanticVisitor::Visit(AssignmentExpression* expression) {
     if (!dynamic_cast<IdExpression*>(expression->GetLeftExpression())) {
         throw std::runtime_error(
@@ -88,6 +94,14 @@ void SemanticVisitor::Visit(ReturnStatement* statement) {
 void SemanticVisitor::Visit(ExpressionStatement* statement) {
     if (statement->HasExpression()) {
         statement->GetExpression()->Accept(this);
+    }
+}
+
+void SemanticVisitor::Visit(SelectionStatement* statement) {
+    statement->GetCondition()->Accept(this);
+    statement->GetThenStatement()->Accept(this);
+    if (statement->HasElseStatement()) {
+        statement->GetElseStatement()->Accept(this);
     }
 }
 

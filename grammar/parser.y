@@ -22,12 +22,14 @@
     class CompoundStatement;
     class ReturnStatement;
     class ExpressionStatement;
+    class SelectionStatement;
     class Expression;
     class PrimaryExpression;
     class IdExpression;
     class UnaryExpression;
     class BinaryExpression;
     class AssignmentExpression;
+    class ConditionalExpression;
 };
 
 %define parse.trace
@@ -60,10 +62,10 @@
 %token PLUS MINUS STAR SLASH MOD BIT_NOT
 %token OR AND NOT
 %token LE LEQ GE GEQ EQ NOT_EQ
-%token LPAREN RPAREN LBRACE RBRACE SEMI
+%token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
 %token ASSIGNMENT
 %token INT
-%token RETURN
+%token RETURN IF ELSE
 %token <std::string> ID
 %token <int> NUMBER
 
@@ -81,6 +83,7 @@
 %type <Statement*> statement;
 %type <ReturnStatement*> return_statement;
 %type <ExpressionStatement*> expression_statement;
+%type <SelectionStatement*> selection_statement;
 %type <TypeSpecification*> type_specifier;
 %type <Expression*> initializer;
 %type <Expression*> expression;
@@ -92,6 +95,7 @@
 %type <Expression*> equality_expression;
 %type <Expression*> logical_and_expression;
 %type <Expression*> logical_or_expression;
+%type <Expression*> conditional_expression;
 %type <Expression*> assignment_expression;
 
 %%
@@ -142,7 +146,13 @@ item:
 
 statement:
     expression_statement { $$ = $1; }
+    | selection_statement { $$ = $1; }
+    | compound_statement { $$ = $1; }
     | return_statement { $$ = $1; };
+
+selection_statement:
+    IF LPAREN expression RPAREN statement { $$ = new SelectionStatement($3, $5); }
+    | IF LPAREN expression RPAREN statement ELSE statement { $$ = new SelectionStatement($3, $5, $7); }
 
 expression_statement:
     SEMI { $$ = new ExpressionStatement(); }
@@ -155,8 +165,12 @@ expression:
     assignment_expression { $$ = $1; }
 
 assignment_expression:
-    logical_or_expression { $$ = $1; }
+    conditional_expression { $$ = $1; }
     | unary_expression ASSIGNMENT assignment_expression { $$ = new AssignmentExpression($1, $3); };
+
+conditional_expression:
+    logical_or_expression { $$ = $1; }
+    | logical_or_expression QUESTION expression COLON conditional_expression { $$ = new ConditionalExpression($1, $3, $5); };
 
 logical_or_expression:
     logical_and_expression { $$ = $1; }

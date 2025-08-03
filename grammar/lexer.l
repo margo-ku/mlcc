@@ -46,13 +46,17 @@ blank  [ \t\r]
 "%"       { return yy::parser::make_MOD(loc); }
 "~"       { return yy::parser::make_BIT_NOT(loc); }
 "!"       { return yy::parser::make_NOT(loc); }
+"if"      { return yy::parser::make_IF(loc); }
+"else"    { return yy::parser::make_ELSE(loc); }
 "return"  { return yy::parser::make_RETURN(loc); }
 "int"     { return yy::parser::make_INT(loc); }
 "("       { return yy::parser::make_LPAREN(loc); }
 ")"       { return yy::parser::make_RPAREN(loc); }
 "{"       { return yy::parser::make_LBRACE(loc); }
 "}"       { return yy::parser::make_RBRACE(loc); }
+":"       { return yy::parser::make_COLON(loc); }
 ";"       { return yy::parser::make_SEMI(loc); }
+"?"       { return yy::parser::make_QUESTION(loc); }
 {id}      { return yy::parser::make_ID(yytext, loc); }
 <<EOF>>   { return yy::parser::make_END (loc); }
 .         { throw yy::parser::syntax_error(loc, "invalid character: " + std::string(yytext)); }

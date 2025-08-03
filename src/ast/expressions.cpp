@@ -44,6 +44,20 @@ Expression* BinaryExpression::GetRightExpression() const { return right_; }
 
 ///////////////////////////////////////////////
 
+ConditionalExpression::ConditionalExpression(Expression* cond, Expression* left,
+                                             Expression* right)
+    : cond_(cond), left_(left), right_(right) {}
+
+void ConditionalExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* ConditionalExpression::GetCondition() const { return cond_; }
+
+Expression* ConditionalExpression::GetLeftExpression() const { return left_; }
+
+Expression* ConditionalExpression::GetRightExpression() const { return right_; }
+
+///////////////////////////////////////////////
+
 AssignmentExpression::AssignmentExpression(Expression* left, Expression* right)
     : left_(left), right_(right) {}
 

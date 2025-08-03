@@ -268,6 +268,30 @@ void TACVisitor::Visit(BinaryExpression* expression) {
     stack_.push(variable_name);
 }
 
+void TACVisitor::Visit(ConditionalExpression* expression) {
+    std::string label_id = GetUniqueLabelId();
+    std::string label_else = "label_else_" + label_id;
+    std::string label_end = "label_end_" + label_id;
+    std::string variable_name = GetTemporaryName();
+
+    expression->GetCondition()->Accept(this);
+    std::string cond = GetTop();
+    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
+
+    expression->GetLeftExpression()->Accept(this);
+    std::string value = GetTop();
+    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, value);
+    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
+
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_else);
+    expression->GetRightExpression()->Accept(this);
+    value = GetTop();
+    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, value);
+
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+    stack_.push(variable_name);
+}
+
 void TACVisitor::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     std::string dst = GetTop();
@@ -298,6 +322,23 @@ void TACVisitor::Visit(ExpressionStatement* statement) {
     if (statement->HasExpression()) {
         statement->GetExpression()->Accept(this);
     }
+}
+
+void TACVisitor::Visit(SelectionStatement* statement) {
+    std::string label_id = GetUniqueLabelId();
+    std::string label_else = "label_else_" + label_id;
+    std::string label_end = "label_end_" + label_id;
+
+    statement->GetCondition()->Accept(this);
+    std::string cond = GetTop();
+    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
+    statement->GetThenStatement()->Accept(this);
+    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_else);
+    if (statement->HasElseStatement()) {
+        statement->GetElseStatement()->Accept(this);
+    }
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
 }
 
 std::string TACVisitor::GetTemporaryName() {
