@@ -3,6 +3,4 @@ build/
 grammar/generated/
 *.swp
 
-program.c
-program.s
-program
+program*

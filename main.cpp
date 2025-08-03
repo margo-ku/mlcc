@@ -38,7 +38,7 @@ int RunCompiler(const std::string& filename, const Options& opts) {
     driver.debug_scan = opts.debug_scan;
     driver.print_ast = opts.print_ast;
     driver.compile = opts.compile;
-    return driver.Parse(filename);
+    return driver.CompileFile(filename);
 }
 
 int main(int argc, char* argv[]) {

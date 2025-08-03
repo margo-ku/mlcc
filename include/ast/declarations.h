@@ -13,6 +13,7 @@ public:
     explicit Declarator(std::string id);
     virtual void Accept(Visitor* visitor) override;
     std::string GetId() const;
+    void SetId(const std::string& id);
 
 private:
     std::string id_;

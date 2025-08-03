@@ -59,6 +59,14 @@ ADD_FLEX_BISON_DEPENDENCY(MyScanner MyParser)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${mlcc_SOURCE_DIR}/build)
 
 set(
+        ASM_SOURCES
+        src/asm/allocator.cpp
+        src/asm/instructions.cpp
+        src/asm/ir_builder.cpp
+        src/asm/operands.cpp
+)
+
+set(
         AST_SOURCES
         src/ast/declarations.cpp
         src/ast/expressions.cpp
@@ -74,13 +82,14 @@ set(
 set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
-        src/visitors/compile_visitor.cpp
         src/visitors/semantic_visitor.cpp
+        src/visitors/tac_visitor.cpp
 )
 
 add_executable(
         mlcc
         main.cpp
+        ${ASM_SOURCES}
         ${AST_SOURCES}
         ${DRIVER_SOURCES}
         ${VISITOR_SOURCES}

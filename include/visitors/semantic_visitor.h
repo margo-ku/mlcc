@@ -1,9 +1,8 @@
 #pragma once
-#include <fstream>
-#include <set>
+#include <unordered_map>
 #include <vector>
 
-#include "frame_info.h"
+#include "include/asm/allocator.h"
 #include "visitor.h"
 
 class SemanticVisitor : public Visitor {
@@ -25,10 +24,19 @@ public:
     virtual void Visit(ReturnStatement* statement) override;
     virtual void Visit(ExpressionStatement* statement) override;
 
-    FrameInfo GetFrameInfo();
-
 private:
-    bool HasVariable(const std::string& id) const;
-    void AddVariable(const std::string& id);
-    FrameInfo frame_info_;
+    void EnterScope();
+    void ExitScope();
+
+    bool IsInCurrentScope(const std::string& id) const;
+    bool IsDeclaredInAnyScope(const std::string& id) const;
+
+    std::string GenerateUniqueName(const std::string& base);
+    std::string GetUniqueName(const std::string& base) const;
+
+    void AddToCurrentScope(const std::string& original_name,
+                           const std::string& unique_name);
+
+    std::vector<std::unordered_map<std::string, std::string>> scopes_;
+    std::unordered_map<std::string, int> name_counters_;
 };

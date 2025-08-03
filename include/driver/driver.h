@@ -4,6 +4,7 @@
 #include <string>
 
 #include "include/ast/translation_unit.h"
+#include "include/visitors/tac_visitor.h"
 #include "parser.hh"
 #include "scanner.h"
 
@@ -11,7 +12,7 @@ class Driver {
 public:
     Driver();
 
-    int Parse(const std::string& filename);
+    int CompileFile(const std::string& filename);
     void SetTranslationUnit(TranslationUnit* unit);
 
     bool debug_parse = false;
@@ -22,8 +23,16 @@ public:
     friend class Scanner;
 
 private:
+    bool Scan();
+    bool Parse();
+    bool AnalyzeSemantics();
+    bool GenerateTAC();
+    bool GenerateASM();
+
     void ScanBegin();
     void ScanEnd();
+
+    std::string ReplaceExtension(const std::string& filename, const std::string& new_ext);
 
     std::string file_;
     std::ifstream stream_;
@@ -32,4 +41,6 @@ private:
     Scanner scanner_;
     yy::parser parser_;
     TranslationUnit* translation_unit_;  // to do!
+
+    std::vector<TACInstruction> tac_instructions_;
 };

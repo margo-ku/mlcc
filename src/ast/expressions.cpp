@@ -16,6 +16,8 @@ void IdExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 std::string IdExpression::GetId() const { return id_; }
 
+void IdExpression::SetId(const std::string& id) { id_ = id; }
+
 ///////////////////////////////////////////////
 
 UnaryExpression::UnaryExpression(UnaryOperator op, Expression* expression)

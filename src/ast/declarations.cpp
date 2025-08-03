@@ -18,6 +18,8 @@ Declarator::Declarator(std::string id) : id_(id) {}
 
 std::string Declarator::GetId() const { return id_; }
 
+void Declarator::SetId(const std::string& id) { id_ = id; }
+
 void Declarator::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 ///////////////////////////////////////////////

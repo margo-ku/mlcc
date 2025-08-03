@@ -2,56 +2,30 @@
 
 #include <iostream>
 
-#include "include/visitors/compile_visitor.h"
+#include "include/asm/ir_builder.h"
 #include "include/visitors/print_visitor.h"
 #include "include/visitors/semantic_visitor.h"
-#include "parser.hh"
 
 Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}
 
-int Driver::Parse(const std::string& filename) {
+int Driver::CompileFile(const std::string& filename) {
     file_ = filename;
     location_.initialize(&file_);
 
-    ScanBegin();
-    parser_.set_debug_level(debug_parse);
-    int result = parser_();
-    if (result != 0) {
-        return result;
+    bool ok = Scan() && Parse();
+
+    if (ok && print_ast) {
+        std::cout << "Printing parsed AST:" << std::endl;
+        PrintVisitor printer(std::cout);
+        translation_unit_->Accept(&printer);
     }
 
-    if (compile) {
-        SemanticVisitor semantic_visitor;
-        try {
-            translation_unit_->Accept(&semantic_visitor);
-        } catch (const std::runtime_error& e) {
-            std::cerr << e.what() << std::endl;
-            return 1;
-        }
-
-        // if everything is ok..........
-        std::string asm_file = file_;
-        size_t dot = asm_file.find_last_of('.');
-        if (dot != std::string::npos) {
-            asm_file.replace(dot, std::string::npos, ".s");
-        } else {
-            asm_file += ".s";
-        }
-
-        std::cout << "asm file: " << asm_file << std::endl;
-
-        std::ofstream out_file(asm_file);
-        CompileVisitor compile_visitor(out_file, semantic_visitor.GetFrameInfo());
-        translation_unit_->Accept(&compile_visitor);
-    }
-
-    if (print_ast) {
-        PrintVisitor print_visitor(std::cout);
-        translation_unit_->Accept(&print_visitor);
+    if (ok && compile) {
+        ok = AnalyzeSemantics() && GenerateTAC() && GenerateASM();
     }
 
     ScanEnd();
-    return result;
+    return ok ? 0 : 1;
 }
 
 void Driver::ScanBegin() {
@@ -66,3 +40,57 @@ void Driver::ScanBegin() {
 void Driver::ScanEnd() { stream_.close(); }
 
 void Driver::SetTranslationUnit(TranslationUnit* unit) { translation_unit_ = unit; }
+
+bool Driver::Scan() {
+    ScanBegin();
+    scanner_.set_debug(debug_scan);
+    return true;
+}
+
+bool Driver::Parse() {
+    parser_.set_debug_level(debug_parse);
+    return parser_() == 0;
+}
+
+bool Driver::AnalyzeSemantics() {
+    SemanticVisitor semantic_visitor;
+    try {
+        translation_unit_->Accept(&semantic_visitor);
+    } catch (const std::runtime_error& e) {
+        std::cerr << e.what() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool Driver::GenerateTAC() {
+    TACVisitor tac_visitor;
+    translation_unit_->Accept(&tac_visitor);
+    tac_instructions_ = tac_visitor.GetTACInstructions();
+
+    std::string tac_file = ReplaceExtension(file_, ".tac.txt");
+    std::cout << "Generated TAC: " << tac_file << std::endl;
+    std::ofstream out(tac_file);
+    tac_visitor.PrintTACInstructions(out);
+    return true;
+}
+
+bool Driver::GenerateASM() {
+    LinearIRBuilder builder(tac_instructions_);
+    builder.Build();
+
+    std::string asm_file = ReplaceExtension(file_, ".s");
+    std::cout << "Generated ASM: " << asm_file << std::endl;
+    std::ofstream out(asm_file);
+    builder.Print(out);
+    return true;
+}
+
+std::string Driver::ReplaceExtension(const std::string& filename,
+                                     const std::string& new_ext) {
+    size_t dot = filename.find_last_of('.');
+    if (dot != std::string::npos) {
+        return filename.substr(0, dot) + new_ext;
+    }
+    return filename + new_ext;
+}

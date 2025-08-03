@@ -1,6 +1,6 @@
 #include "include/visitors/semantic_visitor.h"
 
-SemanticVisitor::SemanticVisitor() { frame_info_.variables.push_back({}); }
+SemanticVisitor::SemanticVisitor() {}
 
 #include <iostream>
 
@@ -26,12 +26,18 @@ void SemanticVisitor::Visit(TypeSpecification* type) {}
 void SemanticVisitor::Visit(Declarator* declarator) {}
 
 void SemanticVisitor::Visit(InitDeclarator* declarator) {
-    std::string id = declarator->GetDeclarator()->GetId();
-    if (HasVariable(id)) {
+    std::string original_name = declarator->GetDeclarator()->GetId();
+    if (IsInCurrentScope(original_name)) {
         throw std::runtime_error("semantic error: duplicate declaration of variable '" +
-                                 id + "'");
+                                 original_name + "'");
     }
-    AddVariable(id);
+    std::string unique_name = GenerateUniqueName(original_name);
+    declarator->GetDeclarator()->SetId(unique_name);
+    AddToCurrentScope(original_name, unique_name);
+
+    if (declarator->HasInitializer()) {
+        declarator->GetInitializer()->Accept(this);
+    }
 }
 
 void SemanticVisitor::Visit(Declaration* declaration) {
@@ -39,11 +45,12 @@ void SemanticVisitor::Visit(Declaration* declaration) {
 }
 
 void SemanticVisitor::Visit(IdExpression* expression) {
-    std::string id = expression->GetId();
-    if (!HasVariable(id)) {  // to do: expand
-        throw std::runtime_error("semantic error: use of undeclared variable '" + id +
-                                 "'");
+    std::string original_name = expression->GetId();
+    if (!IsDeclaredInAnyScope(original_name)) {
+        throw std::runtime_error("semantic error: use of undeclared variable '" +
+                                 original_name + "'");
     }
+    expression->SetId(GetUniqueName(original_name));
 }
 
 void SemanticVisitor::Visit(PrimaryExpression* expression) {}
@@ -67,7 +74,9 @@ void SemanticVisitor::Visit(AssignmentExpression* expression) {
 }
 
 void SemanticVisitor::Visit(CompoundStatement* statement) {
+    EnterScope();
     statement->GetBody()->Accept(this);
+    ExitScope();
 }
 
 void SemanticVisitor::Visit(ReturnStatement* statement) {
@@ -82,20 +91,38 @@ void SemanticVisitor::Visit(ExpressionStatement* statement) {
     }
 }
 
-bool SemanticVisitor::HasVariable(const std::string& id) const {
-    size_t last_index = frame_info_.variables.size() - 1;
-    return frame_info_.variables[last_index].contains(id);
+void SemanticVisitor::EnterScope() { scopes_.emplace_back(); }
+
+void SemanticVisitor::ExitScope() { scopes_.pop_back(); }
+
+bool SemanticVisitor::IsInCurrentScope(const std::string& name) const {
+    return scopes_.back().count(name) > 0;
 }
 
-void SemanticVisitor::AddVariable(const std::string& id) {
-    size_t last_index = frame_info_.variables.size() - 1;
-    frame_info_.total_size += 4;
-
-    int offset = -frame_info_.total_size;
-    frame_info_.variables[last_index][id] = VariableInfo(offset);  // to do change
+bool SemanticVisitor::IsDeclaredInAnyScope(const std::string& name) const {
+    for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
+        if (it->count(name) > 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
-FrameInfo SemanticVisitor::GetFrameInfo() {
-    frame_info_.total_size = ((frame_info_.total_size + 15) / 16) * 16;
-    return frame_info_;
+std::string SemanticVisitor::GenerateUniqueName(const std::string& base) {
+    int count = name_counters_[base]++;
+    return base + "." + std::to_string(count);
+}
+
+std::string SemanticVisitor::GetUniqueName(const std::string& original_name) const {
+    for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
+        if (it->contains(original_name)) {
+            return it->at(original_name);
+        }
+    }
+    throw std::runtime_error("semantic error: variable not found: " + original_name);
+}
+
+void SemanticVisitor::AddToCurrentScope(const std::string& original_name,
+                                        const std::string& unique_name) {
+    scopes_.back()[original_name] = unique_name;
 }
