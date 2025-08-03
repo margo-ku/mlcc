@@ -44,6 +44,8 @@ void SemanticVisitor::Visit(Declaration* declaration) {
     declaration->GetDeclaration()->Accept(this);
 }
 
+void SemanticVisitor::Visit(Expression* expression) {}
+
 void SemanticVisitor::Visit(IdExpression* expression) {
     std::string original_name = expression->GetId();
     if (!IsDeclaredInAnyScope(original_name)) {
@@ -105,6 +107,39 @@ void SemanticVisitor::Visit(SelectionStatement* statement) {
     }
 }
 
+void SemanticVisitor::Visit(JumpStatement* statement) {
+    if (loop_ids_.empty()) {
+        throw std::runtime_error("semantic error: jump statement outside of loop");
+    }
+    statement->SetLabel(loop_ids_.top());
+}
+
+void SemanticVisitor::Visit(WhileStatement* statement) {
+    std::string loop_id = GenerateLoopId();
+    statement->SetLabel(loop_id);
+    loop_ids_.push(loop_id);
+
+    statement->GetCondition()->Accept(this);
+    statement->GetBody()->Accept(this);
+
+    loop_ids_.pop();
+}
+
+void SemanticVisitor::Visit(ForStatement* statement) {
+    std::string loop_id = GenerateLoopId();
+    statement->SetLabel(loop_id);
+    loop_ids_.push(loop_id);
+
+    EnterScope();
+    statement->GetInit()->Accept(this);
+    statement->GetCondition()->Accept(this);
+    statement->GetIncrement()->Accept(this);
+    statement->GetBody()->Accept(this);
+
+    ExitScope();
+    loop_ids_.pop();
+}
+
 void SemanticVisitor::EnterScope() { scopes_.emplace_back(); }
 
 void SemanticVisitor::ExitScope() { scopes_.pop_back(); }
@@ -139,4 +174,8 @@ std::string SemanticVisitor::GetUniqueName(const std::string& original_name) con
 void SemanticVisitor::AddToCurrentScope(const std::string& original_name,
                                         const std::string& unique_name) {
     scopes_.back()[original_name] = unique_name;
+}
+
+std::string SemanticVisitor::GenerateLoopId() {
+    return "loop." + std::to_string(name_counters_["loop."]++);
 }

@@ -13,6 +13,7 @@ public:
     virtual void Visit(Declarator* declarator) = 0;
     virtual void Visit(InitDeclarator* declarator) = 0;
     virtual void Visit(Declaration* declaration) = 0;
+    virtual void Visit(Expression* expression) = 0;
     virtual void Visit(IdExpression* expression) = 0;
     virtual void Visit(PrimaryExpression* expression) = 0;
     virtual void Visit(UnaryExpression* expression) = 0;
@@ -23,4 +24,7 @@ public:
     virtual void Visit(ReturnStatement* statement) = 0;
     virtual void Visit(ExpressionStatement* statement) = 0;
     virtual void Visit(SelectionStatement* statement) = 0;
+    virtual void Visit(JumpStatement* statement) = 0;
+    virtual void Visit(WhileStatement* statement) = 0;
+    virtual void Visit(ForStatement* statement) = 0;
 };

@@ -53,6 +53,8 @@ void PrintVisitor::Visit(Declaration* declaration) {
     stream_ << std::endl;
 }
 
+void PrintVisitor::Visit(Expression* expression) {}
+
 void PrintVisitor::Visit(IdExpression* expression) { stream_ << expression->GetId(); }
 
 void PrintVisitor::Visit(PrimaryExpression* expression) {
@@ -185,6 +187,59 @@ void PrintVisitor::Visit(SelectionStatement* statement) {
         statement->GetElseStatement()->Accept(this);
         number_of_tabs_--;
     }
+    number_of_tabs_--;
+}
+
+void PrintVisitor::Visit(JumpStatement* statement) {
+    PrintTabs();
+    stream_ << "JumpStatement: ";
+    switch (statement->GetType()) {
+        case JumpStatement::JumpType::kBreak:
+            stream_ << "break";
+            break;
+        case JumpStatement::JumpType::kContinue:
+            stream_ << "continue";
+            break;
+    }
+    stream_ << std::endl;
+}
+
+void PrintVisitor::Visit(WhileStatement* statement) {
+    PrintTabs();
+    stream_ << "WhileStatement: ";
+    switch (statement->GetType()) {
+        case WhileStatement::LoopType::kDoWhile:
+            stream_ << "do" << std::endl;
+            number_of_tabs_++;
+            statement->GetBody()->Accept(this);
+            number_of_tabs_--;
+            PrintTabs();
+            stream_ << "while (";
+            statement->GetCondition()->Accept(this);
+            stream_ << ")" << std::endl;
+            break;
+        case WhileStatement::LoopType::kWhile:
+            stream_ << "while (";
+            statement->GetCondition()->Accept(this);
+            stream_ << ")" << std::endl;
+            number_of_tabs_++;
+            statement->GetBody()->Accept(this);
+            number_of_tabs_--;
+            break;
+    }
+}
+
+void PrintVisitor::Visit(ForStatement* statement) {
+    PrintTabs();
+    stream_ << "ForStatement: for (";
+    statement->GetInit()->Accept(this);
+    stream_ << "; ";
+    statement->GetCondition()->Accept(this);
+    stream_ << "; ";
+    statement->GetIncrement()->Accept(this);
+    stream_ << ")" << std::endl;
+    number_of_tabs_++;
+    statement->GetBody()->Accept(this);
     number_of_tabs_--;
 }
 

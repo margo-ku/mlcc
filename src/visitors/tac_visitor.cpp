@@ -178,6 +178,8 @@ void TACVisitor::Visit(Declaration* declaration) {
     declaration->GetDeclaration()->Accept(this);
 }
 
+void TACVisitor::Visit(Expression* expression) { stack_.push("1"); }
+
 void TACVisitor::Visit(IdExpression* expression) { stack_.push(expression->GetId()); }
 
 void TACVisitor::Visit(PrimaryExpression* expression) {
@@ -339,6 +341,58 @@ void TACVisitor::Visit(SelectionStatement* statement) {
         statement->GetElseStatement()->Accept(this);
     }
     instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+}
+
+void TACVisitor::Visit(JumpStatement* statement) {
+    std::string label = statement->GetLabel() + "_";
+    if (statement->GetType() == JumpStatement::JumpType::kBreak) {
+        label += "break";
+    } else {
+        label += "continue";
+    }
+
+    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label);
+}
+
+void TACVisitor::Visit(WhileStatement* statement) {
+    std::string label_break = statement->GetLabel() + "_break";
+    std::string label_continue = statement->GetLabel() + "_continue";
+    std::string label_start = statement->GetLabel() + "_start";
+
+    if (statement->GetType() == WhileStatement::LoopType::kWhile) {
+        instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+        statement->GetCondition()->Accept(this);
+        std::string cond = GetTop();
+        instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_break, cond);
+        statement->GetBody()->Accept(this);
+        instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_continue);
+        instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
+    } else {
+        instructions_.emplace_back(TACInstruction::OpCode::Label, label_start);
+        statement->GetBody()->Accept(this);
+        instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+        statement->GetCondition()->Accept(this);
+        std::string cond = GetTop();
+        instructions_.emplace_back(TACInstruction::OpCode::If, label_start, cond);
+        instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
+    }
+}
+
+void TACVisitor::Visit(ForStatement* statement) {
+    std::string label_break = statement->GetLabel() + "_break";
+    std::string label_continue = statement->GetLabel() + "_continue";
+    std::string label_start = statement->GetLabel() + "_start";
+
+    statement->GetInit()->Accept(this);
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_start);
+    statement->GetCondition()->Accept(this);
+    std::string cond = GetTop();
+    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_break, cond);
+    statement->GetBody()->Accept(this);
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+    statement->GetIncrement()->Accept(this);
+    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_start);
+    instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
 }
 
 std::string TACVisitor::GetTemporaryName() {

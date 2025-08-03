@@ -30,6 +30,9 @@
     class BinaryExpression;
     class AssignmentExpression;
     class ConditionalExpression;
+    class JumpStatement;
+    class WhileStatement;
+    class ForStatement;
 };
 
 %define parse.trace
@@ -65,7 +68,7 @@
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
 %token ASSIGNMENT
 %token INT
-%token RETURN IF ELSE
+%token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
 %token <std::string> ID
 %token <int> NUMBER
 
@@ -97,6 +100,10 @@
 %type <Expression*> logical_or_expression;
 %type <Expression*> conditional_expression;
 %type <Expression*> assignment_expression;
+%type <JumpStatement*> jump_statement;
+%type <Statement*> iteration_statement; 
+%type <BaseElement*> for_init;
+%type <Expression*> expression_opt;
 
 %%
 %start start;
@@ -148,7 +155,9 @@ statement:
     expression_statement { $$ = $1; }
     | selection_statement { $$ = $1; }
     | compound_statement { $$ = $1; }
-    | return_statement { $$ = $1; };
+    | return_statement { $$ = $1; }
+    | jump_statement { $$ = $1; }
+    | iteration_statement { $$ = $1; };
 
 selection_statement:
     IF LPAREN expression RPAREN statement { $$ = new SelectionStatement($3, $5); }
@@ -160,6 +169,23 @@ expression_statement:
 
 return_statement:
     RETURN expression SEMI { $$ = new ReturnStatement($2); };
+
+jump_statement:
+    BREAK SEMI { $$ = new JumpStatement(JumpStatement::JumpType::kBreak); }
+    | CONTINUE SEMI { $$ = new JumpStatement(JumpStatement::JumpType::kContinue); };
+
+iteration_statement:
+    WHILE LPAREN expression RPAREN statement { $$ = new WhileStatement(WhileStatement::LoopType::kWhile, $3, $5); }
+    | DO statement WHILE LPAREN expression RPAREN SEMI { $$ = new WhileStatement(WhileStatement::LoopType::kDoWhile, $5, $2); }
+    | FOR LPAREN for_init expression_opt SEMI expression_opt RPAREN statement { $$ = new ForStatement($3, $4, $6, $8); };
+
+for_init:
+    declaration { $$ = $1; }
+    | expression_opt SEMI { $$ = $1; };
+
+expression_opt:
+    %empty { $$ = new Expression(); }
+    | expression { $$ = $1; };
 
 expression:
     assignment_expression { $$ = $1; }

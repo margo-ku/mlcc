@@ -49,6 +49,11 @@ blank  [ \t\r]
 "if"      { return yy::parser::make_IF(loc); }
 "else"    { return yy::parser::make_ELSE(loc); }
 "return"  { return yy::parser::make_RETURN(loc); }
+"do"      { return yy::parser::make_DO(loc); }
+"while"   { return yy::parser::make_WHILE(loc); }
+"for"     { return yy::parser::make_FOR(loc); }
+"break"   { return yy::parser::make_BREAK(loc); }
+"continue" { return yy::parser::make_CONTINUE(loc); }
 "int"     { return yy::parser::make_INT(loc); }
 "("       { return yy::parser::make_LPAREN(loc); }
 ")"       { return yy::parser::make_RPAREN(loc); }

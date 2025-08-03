@@ -2,6 +2,10 @@
 
 #include "include/visitors/visitor.h"
 
+void Expression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+///////////////////////////////////////////////
+
 PrimaryExpression::PrimaryExpression(int value) : value_(value) {}
 
 void PrimaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
