@@ -67,10 +67,13 @@
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
 %token ASSIGNMENT
-%token INT
+%token INT VOID
 %token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
 %token <std::string> ID
 %token <int> NUMBER
+
+%nonassoc LOWER_THAN_ELSE
+%nonassoc ELSE
 
 %type <TranslationUnit*> start
 %type <TranslationUnit*> translation_unit
@@ -128,7 +131,8 @@ type_specifier:
 
 declarator:
     ID { $$ = new Declarator($1); }
-    | declarator LPAREN RPAREN { $$ = $1; };
+    | declarator LPAREN RPAREN { $$ = $1; }
+    | declarator LPAREN VOID RPAREN { $$ = $1; };
 
 declaration:
     declaration_specifiers init_declarator SEMI { $$ = new Declaration($1, $2); };
@@ -160,7 +164,7 @@ statement:
     | iteration_statement { $$ = $1; };
 
 selection_statement:
-    IF LPAREN expression RPAREN statement { $$ = new SelectionStatement($3, $5); }
+    IF LPAREN expression RPAREN statement %prec LOWER_THAN_ELSE { $$ = new SelectionStatement($3, $5); }
     | IF LPAREN expression RPAREN statement ELSE statement { $$ = new SelectionStatement($3, $5, $7); }
 
 expression_statement:

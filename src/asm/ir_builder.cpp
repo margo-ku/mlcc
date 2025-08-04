@@ -57,11 +57,6 @@ void LinearIRBuilder::LowerInstruction(const TACInstruction& instr) {
         case Op::Global:
             return LowerControl(instr);
 
-        case Op::EnterScope:
-        case Op::ExitScope:
-            // to do: remove both
-            return;
-
         default:
             throw std::runtime_error("Unhandled TAC instruction: " + instr.ToString());
     }

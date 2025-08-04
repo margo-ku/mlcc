@@ -10,12 +10,14 @@ Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}
 
 int Driver::CompileFile(const std::string& filename) {
     file_ = filename;
-    location_.initialize(&file_);
+    location_.initialize(&filename);
 
     bool ok = Scan() && Parse();
 
     if (ok && print_ast) {
-        std::cout << "Printing parsed AST:" << std::endl;
+        if (debug_output) {
+            std::cout << "Printing parsed AST:" << std::endl;
+        }
         PrintVisitor printer(std::cout);
         translation_unit_->Accept(&printer);
     }
@@ -68,8 +70,10 @@ bool Driver::GenerateTAC() {
     translation_unit_->Accept(&tac_visitor);
     tac_instructions_ = tac_visitor.GetTACInstructions();
 
-    std::string tac_file = ReplaceExtension(file_, ".tac.txt");
-    std::cout << "Generated TAC: " << tac_file << std::endl;
+    std::string tac_file = ReplaceExtension(original_filename_, ".tac.txt");
+    if (debug_output) {
+        std::cout << "Generated TAC: " << tac_file << std::endl;
+    }
     std::ofstream out(tac_file);
     tac_visitor.PrintTACInstructions(out);
     return true;
@@ -79,8 +83,10 @@ bool Driver::GenerateASM() {
     LinearIRBuilder builder(tac_instructions_);
     builder.Build();
 
-    std::string asm_file = ReplaceExtension(file_, ".s");
-    std::cout << "Generated ASM: " << asm_file << std::endl;
+    std::string asm_file = ReplaceExtension(original_filename_, ".s");
+    if (debug_output) {
+        std::cout << "Generated ASM: " << asm_file << std::endl;
+    }
     std::ofstream out(asm_file);
     builder.Print(out);
     return true;
@@ -94,3 +100,5 @@ std::string Driver::ReplaceExtension(const std::string& filename,
     }
     return filename + new_ext;
 }
+
+void Driver::SetFileName(const std::string& name) { original_filename_ = name; }

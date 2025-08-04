@@ -27,6 +27,7 @@ blank  [ \t\r]
   loc.step();
 %}
 
+^[ \t]*#[^\n]*\n
 {blank}+  { /* skip */ }
 \n+       { loc.lines(yyleng); loc.step(); }
 {number}  { return make_NUMBER(yytext, loc); }
@@ -54,6 +55,7 @@ blank  [ \t\r]
 "for"     { return yy::parser::make_FOR(loc); }
 "break"   { return yy::parser::make_BREAK(loc); }
 "continue" { return yy::parser::make_CONTINUE(loc); }
+"void"    { return yy::parser::make_VOID(loc); }
 "int"     { return yy::parser::make_INT(loc); }
 "("       { return yy::parser::make_LPAREN(loc); }
 ")"       { return yy::parser::make_RPAREN(loc); }

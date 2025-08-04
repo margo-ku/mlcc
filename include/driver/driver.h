@@ -14,11 +14,13 @@ public:
 
     int CompileFile(const std::string& filename);
     void SetTranslationUnit(TranslationUnit* unit);
+    void SetFileName(const std::string& name);
 
     bool debug_parse = false;
     bool debug_scan = false;
     bool print_ast = false;
     bool compile = true;
+    bool debug_output = false;
 
     friend class Scanner;
 
@@ -35,6 +37,7 @@ private:
     std::string ReplaceExtension(const std::string& filename, const std::string& new_ext);
 
     std::string file_;
+    std::string original_filename_;
     std::ifstream stream_;
 
     yy::location location_;

@@ -64,10 +64,6 @@ std::string TACInstruction::ToString() const {
                 return "iffalse";
             case OpCode::GoTo:
                 return "goto";
-            case OpCode::EnterScope:
-                return "enter scope";
-            case OpCode::ExitScope:
-                return "exit scope";
         }
         return "unknown";
     };
@@ -87,12 +83,6 @@ std::string TACInstruction::ToString() const {
             break;
         case OpCode::Assign:
             out << dst_ << " = " << lhs_;
-            break;
-        case OpCode::EnterScope:
-            out << "enter scope";
-            break;
-        case OpCode::ExitScope:
-            out << "exit scope";
             break;
         case OpCode::Add:
         case OpCode::Sub:
@@ -306,9 +296,7 @@ void TACVisitor::Visit(AssignmentExpression* expression) {
 }
 
 void TACVisitor::Visit(CompoundStatement* statement) {
-    instructions_.emplace_back(TACInstruction::OpCode::EnterScope);
     statement->GetBody()->Accept(this);
-    instructions_.emplace_back(TACInstruction::OpCode::ExitScope);
 }
 
 void TACVisitor::Visit(ReturnStatement* statement) {

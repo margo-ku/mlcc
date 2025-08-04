@@ -29,8 +29,6 @@ public:
         If,
         IfFalse,
         GoTo,
-        EnterScope,
-        ExitScope,
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
