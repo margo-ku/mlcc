@@ -20,7 +20,7 @@ private:
     FrameStackAllocator stack_allocator_;
     TempRegisterAllocator reg_allocator_;
 
-    std::string exit_label_ = "exit_label";
+    std::string exit_label_ = "exit";
 
     void LowerInstruction(const TACInstruction& instr);
     void ResolveOperands();

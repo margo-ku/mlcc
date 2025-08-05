@@ -63,16 +63,16 @@ void PrintVisitor::Visit(PrimaryExpression* expression) {
 
 void PrintVisitor::Visit(UnaryExpression* expression) {
     switch (expression->GetOp()) {
-        case UnaryExpression::UnaryOperator::kMinus:
+        case UnaryExpression::UnaryOperator::Minus:
             stream_ << "-";
             break;
-        case UnaryExpression::UnaryOperator::kBinaryNot:
+        case UnaryExpression::UnaryOperator::BinaryNot:
             stream_ << "~";
             break;
-        case UnaryExpression::UnaryOperator::kNot:
+        case UnaryExpression::UnaryOperator::Not:
             stream_ << "!";
             break;
-        case UnaryExpression::UnaryOperator::kPlus:
+        case UnaryExpression::UnaryOperator::Plus:
             stream_ << "+";
             break;
     }
@@ -83,43 +83,43 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
     stream_ << "(";
     expression->GetLeftExpression()->Accept(this);
     switch (expression->GetOp()) {
-        case BinaryExpression::BinaryOperator::kPlus:
+        case BinaryExpression::BinaryOperator::Plus:
             stream_ << " + ";
             break;
-        case BinaryExpression::BinaryOperator::kMinus:
+        case BinaryExpression::BinaryOperator::Minus:
             stream_ << " - ";
             break;
-        case BinaryExpression::BinaryOperator::kMul:
+        case BinaryExpression::BinaryOperator::Mul:
             stream_ << " * ";
             break;
-        case BinaryExpression::BinaryOperator::kDiv:
+        case BinaryExpression::BinaryOperator::Div:
             stream_ << " / ";
             break;
-        case BinaryExpression::BinaryOperator::kMod:
+        case BinaryExpression::BinaryOperator::Mod:
             stream_ << " % ";
             break;
-        case BinaryExpression::BinaryOperator::kLess:
+        case BinaryExpression::BinaryOperator::Less:
             stream_ << " < ";
             break;
-        case BinaryExpression::BinaryOperator::kGreater:
+        case BinaryExpression::BinaryOperator::Greater:
             stream_ << " > ";
             break;
-        case BinaryExpression::BinaryOperator::kLessEqual:
+        case BinaryExpression::BinaryOperator::LessEqual:
             stream_ << " <= ";
             break;
-        case BinaryExpression::BinaryOperator::kGreaterEqual:
+        case BinaryExpression::BinaryOperator::GreaterEqual:
             stream_ << " >= ";
             break;
-        case BinaryExpression::BinaryOperator::kEqual:
+        case BinaryExpression::BinaryOperator::Equal:
             stream_ << " == ";
             break;
-        case BinaryExpression::BinaryOperator::kNotEqual:
+        case BinaryExpression::BinaryOperator::NotEqual:
             stream_ << " != ";
             break;
-        case BinaryExpression::BinaryOperator::kAnd:
+        case BinaryExpression::BinaryOperator::And:
             stream_ << " && ";
             break;
-        case BinaryExpression::BinaryOperator::kOr:
+        case BinaryExpression::BinaryOperator::Or:
             stream_ << " || ";
             break;
     }
@@ -194,10 +194,10 @@ void PrintVisitor::Visit(JumpStatement* statement) {
     PrintTabs();
     stream_ << "JumpStatement: ";
     switch (statement->GetType()) {
-        case JumpStatement::JumpType::kBreak:
+        case JumpStatement::JumpType::Break:
             stream_ << "break";
             break;
-        case JumpStatement::JumpType::kContinue:
+        case JumpStatement::JumpType::Continue:
             stream_ << "continue";
             break;
     }
@@ -208,23 +208,18 @@ void PrintVisitor::Visit(WhileStatement* statement) {
     PrintTabs();
     stream_ << "WhileStatement: ";
     switch (statement->GetType()) {
-        case WhileStatement::LoopType::kDoWhile:
-            stream_ << "do" << std::endl;
-            number_of_tabs_++;
+        case WhileStatement::LoopType::DoWhile:
+            stream_ << "do ";
             statement->GetBody()->Accept(this);
-            number_of_tabs_--;
-            PrintTabs();
-            stream_ << "while (";
+            stream_ << " while (";
             statement->GetCondition()->Accept(this);
-            stream_ << ")" << std::endl;
+            stream_ << ")";
             break;
-        case WhileStatement::LoopType::kWhile:
+        case WhileStatement::LoopType::While:
             stream_ << "while (";
             statement->GetCondition()->Accept(this);
-            stream_ << ")" << std::endl;
-            number_of_tabs_++;
+            stream_ << ") ";
             statement->GetBody()->Accept(this);
-            number_of_tabs_--;
             break;
     }
 }

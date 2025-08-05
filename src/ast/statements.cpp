@@ -9,7 +9,7 @@ CompoundStatement::CompoundStatement(std::unique_ptr<ItemList> body)
 
 void CompoundStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-ItemList* CompoundStatement::GetBody() { return body_.get(); }
+ItemList* CompoundStatement::GetBody() const { return body_.get(); }
 
 ///////////////////////////////////////////////
 
@@ -22,7 +22,7 @@ void ReturnStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 bool ReturnStatement::HasExpression() const { return expression_.has_value(); }
 
-Expression* ReturnStatement::GetExpression() {
+Expression* ReturnStatement::GetExpression() const {
     return expression_ ? expression_->get() : nullptr;
 }
 

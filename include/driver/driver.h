@@ -35,7 +35,7 @@ private:
     void ScanBegin();
     void ScanEnd();
 
-    std::string ReplaceExtension(const std::string& filename, const std::string& new_ext);
+    std::string ReplaceExtension(const std::string& filename, const std::string& new_ext) const;
 
     std::string file_;
     std::string original_filename_;

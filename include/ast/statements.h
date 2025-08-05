@@ -17,7 +17,7 @@ public:
     explicit CompoundStatement(std::unique_ptr<ItemList> body);
     virtual ~CompoundStatement() = default;
     void Accept(Visitor* visitor) override;
-    ItemList* GetBody();
+    ItemList* GetBody() const;
 
 private:
     std::unique_ptr<ItemList> body_;
@@ -32,7 +32,7 @@ public:
     virtual ~ReturnStatement() = default;
     void Accept(Visitor* visitor) override;
     bool HasExpression() const;
-    Expression* GetExpression();
+    Expression* GetExpression() const;
 
 private:
     std::optional<std::unique_ptr<Expression>> expression_;
@@ -79,8 +79,8 @@ private:
 class JumpStatement : public Statement {
 public:
     enum class JumpType {
-        kBreak,
-        kContinue,
+        Break,
+        Continue,
     };
 
     explicit JumpStatement(JumpType type);
@@ -100,8 +100,8 @@ private:
 class WhileStatement : public Statement {
 public:
     enum class LoopType {
-        kDoWhile,
-        kWhile,
+        DoWhile,
+        While,
     };
 
     explicit WhileStatement(LoopType type, std::unique_ptr<Expression> cond,

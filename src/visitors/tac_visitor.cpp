@@ -183,16 +183,16 @@ void TACVisitor::Visit(UnaryExpression* expression) {
     TACInstruction::OpCode op_code;
 
     switch (expression->GetOp()) {
-        case UnaryExpression::UnaryOperator::kPlus:
+        case UnaryExpression::UnaryOperator::Plus:
             op_code = TACInstruction::OpCode::Plus;
             break;
-        case UnaryExpression::UnaryOperator::kMinus:
+        case UnaryExpression::UnaryOperator::Minus:
             op_code = TACInstruction::OpCode::Minus;
             break;
-        case UnaryExpression::UnaryOperator::kNot:
+        case UnaryExpression::UnaryOperator::Not:
             op_code = TACInstruction::OpCode::Not;
             break;
-        case UnaryExpression::UnaryOperator::kBinaryNot:
+        case UnaryExpression::UnaryOperator::BinaryNot:
             op_code = TACInstruction::OpCode::BinaryNot;
             break;
     }
@@ -202,12 +202,12 @@ void TACVisitor::Visit(UnaryExpression* expression) {
 
 void TACVisitor::Visit(BinaryExpression* expression) {
     BinaryExpression::BinaryOperator op = expression->GetOp();
-    if (op == BinaryExpression::BinaryOperator::kOr) {
+    if (op == BinaryExpression::BinaryOperator::Or) {
         ProcessBinaryOr(expression);
         return;
     }
 
-    if (op == BinaryExpression::BinaryOperator::kAnd) {
+    if (op == BinaryExpression::BinaryOperator::And) {
         ProcessBinaryAnd(expression);
         return;
     }
@@ -220,37 +220,37 @@ void TACVisitor::Visit(BinaryExpression* expression) {
     std::string variable_name = GetTemporaryName();
     TACInstruction::OpCode op_code;
     switch (op) {
-        case BinaryExpression::BinaryOperator::kPlus:
+        case BinaryExpression::BinaryOperator::Plus:
             op_code = TACInstruction::OpCode::Add;
             break;
-        case BinaryExpression::BinaryOperator::kMinus:
+        case BinaryExpression::BinaryOperator::Minus:
             op_code = TACInstruction::OpCode::Sub;
             break;
-        case BinaryExpression::BinaryOperator::kMul:
+        case BinaryExpression::BinaryOperator::Mul:
             op_code = TACInstruction::OpCode::Mul;
             break;
-        case BinaryExpression::BinaryOperator::kDiv:
+        case BinaryExpression::BinaryOperator::Div:
             op_code = TACInstruction::OpCode::Div;
             break;
-        case BinaryExpression::BinaryOperator::kMod:
+        case BinaryExpression::BinaryOperator::Mod:
             op_code = TACInstruction::OpCode::Mod;
             break;
-        case BinaryExpression::BinaryOperator::kLess:
+        case BinaryExpression::BinaryOperator::Less:
             op_code = TACInstruction::OpCode::Less;
             break;
-        case BinaryExpression::BinaryOperator::kLessEqual:
+        case BinaryExpression::BinaryOperator::LessEqual:
             op_code = TACInstruction::OpCode::LessEqual;
             break;
-        case BinaryExpression::BinaryOperator::kGreater:
+        case BinaryExpression::BinaryOperator::Greater:
             op_code = TACInstruction::OpCode::Greater;
             break;
-        case BinaryExpression::BinaryOperator::kGreaterEqual:
+        case BinaryExpression::BinaryOperator::GreaterEqual:
             op_code = TACInstruction::OpCode::GreaterEqual;
             break;
-        case BinaryExpression::BinaryOperator::kEqual:
+        case BinaryExpression::BinaryOperator::Equal:
             op_code = TACInstruction::OpCode::Equal;
             break;
-        case BinaryExpression::BinaryOperator::kNotEqual:
+        case BinaryExpression::BinaryOperator::NotEqual:
             op_code = TACInstruction::OpCode::NotEqual;
             break;
         default:
@@ -333,7 +333,7 @@ void TACVisitor::Visit(SelectionStatement* statement) {
 
 void TACVisitor::Visit(JumpStatement* statement) {
     std::string label = statement->GetLabel() + "_";
-    if (statement->GetType() == JumpStatement::JumpType::kBreak) {
+    if (statement->GetType() == JumpStatement::JumpType::Break) {
         label += "break";
     } else {
         label += "continue";
@@ -347,7 +347,7 @@ void TACVisitor::Visit(WhileStatement* statement) {
     std::string label_continue = statement->GetLabel() + "_continue";
     std::string label_start = statement->GetLabel() + "_start";
 
-    if (statement->GetType() == WhileStatement::LoopType::kWhile) {
+    if (statement->GetType() == WhileStatement::LoopType::While) {
         instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
         statement->GetCondition()->Accept(this);
         std::string cond = GetTop();

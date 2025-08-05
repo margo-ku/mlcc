@@ -95,7 +95,7 @@ bool Driver::GenerateASM() {
 }
 
 std::string Driver::ReplaceExtension(const std::string& filename,
-                                     const std::string& new_ext) {
+                                     const std::string& new_ext) const {
     size_t dot = filename.find_last_of('.');
     if (dot != std::string::npos) {
         return filename.substr(0, dot) + new_ext;

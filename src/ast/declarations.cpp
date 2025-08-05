@@ -33,7 +33,7 @@ Expression* InitDeclarator::GetInitializer() const {
 
 TypeSpecification::TypeSpecification(std::string type_name) {
     if (type_name == "int") {
-        type_ = Type::kInt;
+        type_ = Type::Int;
     } else {
         throw std::invalid_argument("Unknown type specifier: " + type_name);
     }
@@ -54,11 +54,11 @@ FunctionDefinition::FunctionDefinition(std::unique_ptr<TypeSpecification> return
 
 void FunctionDefinition::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-TypeSpecification* FunctionDefinition::GetReturnType() { return return_type_.get(); }
+TypeSpecification* FunctionDefinition::GetReturnType() const { return return_type_.get(); }
 
-Declarator* FunctionDefinition::GetDeclarator() { return name_.get(); }
+Declarator* FunctionDefinition::GetDeclarator() const { return name_.get(); }
 
-CompoundStatement* FunctionDefinition::GetBody() { return body_.get(); }
+CompoundStatement* FunctionDefinition::GetBody() const { return body_.get(); }
 
 ///////////////////////////////////////////////
 

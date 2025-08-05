@@ -113,7 +113,7 @@
 %%
 %start start;
 start:
-    translation_unit { driver.SetTranslationUnit(std::move($1)); };
+    translation_unit END { driver.SetTranslationUnit(std::move($1)); };
 
 translation_unit:
     external_declaration { $$ = std::make_unique<TranslationUnit>(); $$->AddExternalDeclaration(std::move($1)); }
@@ -177,12 +177,12 @@ return_statement:
     RETURN expression SEMI { $$ = std::make_unique<ReturnStatement>(std::move($2)); };
 
 jump_statement:
-    BREAK SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::kBreak); }
-    | CONTINUE SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::kContinue); };
+    BREAK SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::Break); }
+    | CONTINUE SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::Continue); };
 
 iteration_statement:
-    WHILE LPAREN expression RPAREN statement { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::kWhile, std::move($3), std::move($5)); }
-    | DO statement WHILE LPAREN expression RPAREN SEMI { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::kDoWhile, std::move($5), std::move($2)); }
+    WHILE LPAREN expression RPAREN statement { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::While, std::move($3), std::move($5)); }
+    | DO statement WHILE LPAREN expression RPAREN SEMI { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::DoWhile, std::move($5), std::move($2)); }
     | FOR LPAREN for_init expression_opt SEMI expression_opt RPAREN statement { $$ = std::make_unique<ForStatement>(std::move($3), std::move($4), std::move($6), std::move($8)); };
 
 for_init:
@@ -206,41 +206,41 @@ conditional_expression:
 
 logical_or_expression:
     logical_and_expression { $$ = std::move($1); }
-    | logical_or_expression OR logical_and_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kOr, std::move($1), std::move($3)); };
+    | logical_or_expression OR logical_and_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Or, std::move($1), std::move($3)); };
 
 logical_and_expression:
     equality_expression { $$ = std::move($1); }
-    | logical_and_expression AND equality_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kAnd, std::move($1), std::move($3)); };
+    | logical_and_expression AND equality_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::And, std::move($1), std::move($3)); };
 
 equality_expression:
     relation_expression { $$ = std::move($1); }
-    | equality_expression EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kEqual, std::move($1), std::move($3)); }
-    | equality_expression NOT_EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kNotEqual, std::move($1), std::move($3)); };
+    | equality_expression EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Equal, std::move($1), std::move($3)); }
+    | equality_expression NOT_EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::NotEqual, std::move($1), std::move($3)); };
 
 relation_expression:
     additive_expression { $$ = std::move($1); }
-    | relation_expression LE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kLess, std::move($1), std::move($3)); }
-    | relation_expression GE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kGreater, std::move($1), std::move($3)); }
-    | relation_expression LEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kLessEqual, std::move($1), std::move($3)); }
-    | relation_expression GEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kGreaterEqual, std::move($1), std::move($3)); };
+    | relation_expression LE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Less, std::move($1), std::move($3)); }
+    | relation_expression GE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Greater, std::move($1), std::move($3)); }
+    | relation_expression LEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::LessEqual, std::move($1), std::move($3)); }
+    | relation_expression GEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::GreaterEqual, std::move($1), std::move($3)); };
 
 additive_expression:
     multiplicative_expression { $$ = std::move($1); }
-    | additive_expression PLUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kPlus, std::move($1), std::move($3)); }
-    | additive_expression MINUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMinus, std::move($1), std::move($3)); };
+    | additive_expression PLUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Plus, std::move($1), std::move($3)); }
+    | additive_expression MINUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Minus, std::move($1), std::move($3)); };
 
 multiplicative_expression:
     unary_expression { $$ = std::move($1); }
-    | multiplicative_expression STAR unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMul, std::move($1), std::move($3)); }
-    | multiplicative_expression SLASH unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kDiv, std::move($1), std::move($3)); }
-    | multiplicative_expression MOD unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMod, std::move($1), std::move($3)); };
+    | multiplicative_expression STAR unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mul, std::move($1), std::move($3)); }
+    | multiplicative_expression SLASH unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Div, std::move($1), std::move($3)); }
+    | multiplicative_expression MOD unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mod, std::move($1), std::move($3)); };
 
 unary_expression:
     primary_expression { $$ = std::move($1); }
-    | PLUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kPlus, std::move($2)); }
-    | MINUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kMinus, std::move($2)); }
-    | BIT_NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kBinaryNot, std::move($2)); }
-    | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kNot, std::move($2)); };
+    | PLUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Plus, std::move($2)); }
+    | MINUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Minus, std::move($2)); }
+    | BIT_NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::BinaryNot, std::move($2)); }
+    | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Not, std::move($2)); };
 
 primary_expression:
     ID { $$ = std::make_unique<IdExpression>($1); }

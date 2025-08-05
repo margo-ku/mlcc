@@ -41,10 +41,10 @@ private:
 class UnaryExpression : public Expression {
 public:
     enum class UnaryOperator {
-        kMinus = 0,
-        kPlus,
-        kBinaryNot,
-        kNot,
+        Minus = 0,
+        Plus,
+        BinaryNot,
+        Not,
     };
 
     explicit UnaryExpression(UnaryOperator op, std::unique_ptr<Expression> expression);
@@ -63,19 +63,19 @@ private:
 class BinaryExpression : public Expression {
 public:
     enum class BinaryOperator {
-        kPlus = 0,
-        kMinus,
-        kMul,
-        kDiv,
-        kMod,
-        kLess,
-        kGreater,
-        kLessEqual,
-        kGreaterEqual,
-        kEqual,
-        kNotEqual,
-        kAnd,
-        kOr,
+        Plus = 0,
+        Minus,
+        Mul,
+        Div,
+        Mod,
+        Less,
+        Greater,
+        LessEqual,
+        GreaterEqual,
+        Equal,
+        NotEqual,
+        And,
+        Or,
     };
 
     BinaryExpression(BinaryOperator op, std::unique_ptr<Expression> left,

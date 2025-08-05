@@ -44,7 +44,7 @@ private:
 class TypeSpecification : public BaseElement {
 public:
     enum class Type {
-        kInt = 0,
+        Int = 0,
     };
     explicit TypeSpecification(std::string type_name);
     virtual ~TypeSpecification() = default;
@@ -64,9 +64,9 @@ public:
                        std::unique_ptr<CompoundStatement> body);
     virtual ~FunctionDefinition() = default;
     void Accept(Visitor* visitor) override;
-    TypeSpecification* GetReturnType();
-    Declarator* GetDeclarator();
-    CompoundStatement* GetBody();
+    TypeSpecification* GetReturnType() const;
+    Declarator* GetDeclarator() const;
+    CompoundStatement* GetBody() const;
 
 private:
     std::unique_ptr<TypeSpecification> return_type_;
