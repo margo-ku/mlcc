@@ -24,6 +24,7 @@ private:
 
     void LowerInstruction(const TACInstruction& instr);
     void ResolveOperands();
+    void RunPeepholeOptimization();
 
     void LowerAssign(const TACInstruction& instr);
     void LowerUnaryOp(const TACInstruction& instr);

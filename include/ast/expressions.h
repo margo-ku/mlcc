@@ -5,16 +5,17 @@ class Visitor;
 
 class Expression : public BaseElement {
 public:
+    virtual ~Expression() = default;
     virtual void Accept(Visitor* visitor);
 };
 
 ///////////////////////////////////////////////
 
-// to do: expand
 class PrimaryExpression : public Expression {
 public:
     explicit PrimaryExpression(int value);
-    virtual void Accept(Visitor* visitor) override;
+    virtual ~PrimaryExpression() = default;
+    void Accept(Visitor* visitor) override;
     int GetValue() const;
 
 private:
@@ -26,7 +27,8 @@ private:
 class IdExpression : public Expression {
 public:
     explicit IdExpression(std::string id);
-    virtual void Accept(Visitor* visitor) override;
+    virtual ~IdExpression() = default;
+    void Accept(Visitor* visitor) override;
     std::string GetId() const;
     void SetId(const std::string& id);
 
@@ -45,14 +47,15 @@ public:
         kNot,
     };
 
-    explicit UnaryExpression(UnaryOperator op, Expression* expression);
-    virtual void Accept(Visitor* visitor) override;
+    explicit UnaryExpression(UnaryOperator op, std::unique_ptr<Expression> expression);
+    virtual ~UnaryExpression() = default;
+    void Accept(Visitor* visitor) override;
     UnaryOperator GetOp() const;
     Expression* GetExpression() const;
 
 private:
     UnaryOperator op_;
-    Expression* expression_;
+    std::unique_ptr<Expression> expression_;
 };
 
 ///////////////////////////////////////////////
@@ -75,45 +78,51 @@ public:
         kOr,
     };
 
-    explicit BinaryExpression(BinaryOperator op, Expression* left, Expression* right);
-    virtual void Accept(Visitor* visitor) override;
+    BinaryExpression(BinaryOperator op, std::unique_ptr<Expression> left,
+                     std::unique_ptr<Expression> right);
+    virtual ~BinaryExpression() = default;
+    void Accept(Visitor* visitor) override;
     BinaryOperator GetOp() const;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
 
 private:
     BinaryOperator op_;
-    Expression* left_;
-    Expression* right_;
+    std::unique_ptr<Expression> left_;
+    std::unique_ptr<Expression> right_;
 };
 
 ///////////////////////////////////////////////
 
 class ConditionalExpression : public Expression {
 public:
-    explicit ConditionalExpression(Expression* condition, Expression* left,
-                                   Expression* right);
-    virtual void Accept(Visitor* visitor) override;
+    ConditionalExpression(std::unique_ptr<Expression> condition,
+                          std::unique_ptr<Expression> left,
+                          std::unique_ptr<Expression> right);
+    virtual ~ConditionalExpression() = default;
+    void Accept(Visitor* visitor) override;
     Expression* GetCondition() const;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
 
 private:
-    Expression* cond_;
-    Expression* left_;
-    Expression* right_;
+    std::unique_ptr<Expression> cond_;
+    std::unique_ptr<Expression> left_;
+    std::unique_ptr<Expression> right_;
 };
 
 ///////////////////////////////////////////////
 
 class AssignmentExpression : public Expression {
 public:
-    explicit AssignmentExpression(Expression* left, Expression* right);
-    virtual void Accept(Visitor* visitor) override;
+    AssignmentExpression(std::unique_ptr<Expression> left,
+                         std::unique_ptr<Expression> right);
+    virtual ~AssignmentExpression() = default;
+    void Accept(Visitor* visitor) override;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
 
 private:
-    Expression* left_;
-    Expression* right_;
+    std::unique_ptr<Expression> left_;
+    std::unique_ptr<Expression> right_;
 };

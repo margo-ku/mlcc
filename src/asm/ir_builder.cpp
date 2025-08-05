@@ -11,6 +11,7 @@ void LinearIRBuilder::Build() {
     }
     ResolveOperands();
     AddPrologueAndEpilogue();
+    RunPeepholeOptimization();
 }
 
 void LinearIRBuilder::Print(std::ostream& out) const {
@@ -109,6 +110,24 @@ void LinearIRBuilder::ResolveOperands() {
         new_instructions.insert(new_instructions.end(), before.begin(), before.end());
         new_instructions.push_back(instr);
         new_instructions.insert(new_instructions.end(), after.begin(), after.end());
+    }
+
+    asm_instructions_ = std::move(new_instructions);
+}
+
+// mov x, x
+void LinearIRBuilder::RunPeepholeOptimization() {
+    std::vector<std::shared_ptr<ASMInstruction>> new_instructions;
+    for (size_t index = 0; index < asm_instructions_.size(); ++index) {
+        auto instr = asm_instructions_[index];
+        auto mov = std::dynamic_pointer_cast<MovInstruction>(instr);
+        if (mov) {
+            auto operands = mov->GetOperands();
+            if (operands[0]->ToString() == operands[1]->ToString()) {
+                continue;
+            }
+        }
+        new_instructions.push_back(instr);
     }
 
     asm_instructions_ = std::move(new_instructions);

@@ -6,7 +6,7 @@ void PrintVisitor::Visit(TranslationUnit* translation_unit) {
     stream_ << "TranslationUnit:" << std::endl;
     number_of_tabs_++;
 
-    for (auto* declaration : translation_unit->GetExternalDeclarations()) {
+    for (auto& declaration : translation_unit->GetExternalDeclarations()) {
         declaration->Accept(this);
     }
 
@@ -14,7 +14,7 @@ void PrintVisitor::Visit(TranslationUnit* translation_unit) {
 }
 
 void PrintVisitor::Visit(ItemList* item_list) {
-    for (auto* item : item_list->GetItems()) {
+    for (auto& item : item_list->GetItems()) {
         item->Accept(this);
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <fstream>
+#include <memory>
 #include <string>
 
 #include "include/ast/translation_unit.h"
@@ -13,7 +14,7 @@ public:
     Driver();
 
     int CompileFile(const std::string& filename);
-    void SetTranslationUnit(TranslationUnit* unit);
+    void SetTranslationUnit(std::unique_ptr<TranslationUnit> unit);
     void SetFileName(const std::string& name);
 
     bool debug_parse = false;
@@ -43,7 +44,7 @@ private:
     yy::location location_;
     Scanner scanner_;
     yy::parser parser_;
-    TranslationUnit* translation_unit_;  // to do!
+    std::unique_ptr<TranslationUnit> translation_unit_;
 
     std::vector<TACInstruction> tac_instructions_;
 };

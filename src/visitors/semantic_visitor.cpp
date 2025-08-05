@@ -5,14 +5,13 @@ SemanticVisitor::SemanticVisitor() {}
 #include <iostream>
 
 void SemanticVisitor::Visit(TranslationUnit* translation_unit) {
-    // to do: check function names
-    for (auto* declaration : translation_unit->GetExternalDeclarations()) {
+    for (auto& declaration : translation_unit->GetExternalDeclarations()) {
         declaration->Accept(this);
     }
 }
 
 void SemanticVisitor::Visit(ItemList* item_list) {
-    for (auto* item : item_list->GetItems()) {
+    for (auto& item : item_list->GetItems()) {
         item->Accept(this);
     }
 }

@@ -132,13 +132,13 @@ const std::string& TACInstruction::GetLabel() const { return label_; }
 TACVisitor::TACVisitor() {}
 
 void TACVisitor::Visit(TranslationUnit* translation_unit) {
-    for (auto* declaration : translation_unit->GetExternalDeclarations()) {
+    for (auto& declaration : translation_unit->GetExternalDeclarations()) {
         declaration->Accept(this);
     }
 }
 
 void TACVisitor::Visit(ItemList* item_list) {
-    for (auto* item : item_list->GetItems()) {
+    for (auto& item : item_list->GetItems()) {
         item->Accept(this);
     }
 }

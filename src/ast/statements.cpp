@@ -4,55 +4,67 @@
 
 ///////////////////////////////////////////////
 
-CompoundStatement::CompoundStatement(ItemList* body) : body_(body) {}
+CompoundStatement::CompoundStatement(std::unique_ptr<ItemList> body)
+    : body_(std::move(body)) {}
 
 void CompoundStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-ItemList* CompoundStatement::GetBody() { return body_; }
+ItemList* CompoundStatement::GetBody() { return body_.get(); }
 
 ///////////////////////////////////////////////
 
-ReturnStatement::ReturnStatement() : expression_(nullptr) {}
+ReturnStatement::ReturnStatement() = default;
 
-ReturnStatement::ReturnStatement(Expression* expression) : expression_(expression) {}
+ReturnStatement::ReturnStatement(std::unique_ptr<Expression> expression)
+    : expression_(std::move(expression)) {}
 
 void ReturnStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-bool ReturnStatement::HasExpression() const { return expression_ != nullptr; }
+bool ReturnStatement::HasExpression() const { return expression_.has_value(); }
 
-Expression* ReturnStatement::GetExpression() { return expression_; }
+Expression* ReturnStatement::GetExpression() {
+    return expression_ ? expression_->get() : nullptr;
+}
 
 ///////////////////////////////////////////////
 
-ExpressionStatement::ExpressionStatement() {}
+ExpressionStatement::ExpressionStatement() = default;
 
-ExpressionStatement::ExpressionStatement(Expression* expression)
-    : expression_(expression) {}
+ExpressionStatement::ExpressionStatement(std::unique_ptr<Expression> expression)
+    : expression_(std::move(expression)) {}
 
 void ExpressionStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 bool ExpressionStatement::HasExpression() const { return expression_.has_value(); }
 
-Expression* ExpressionStatement::GetExpression() { return expression_.value(); }
+Expression* ExpressionStatement::GetExpression() const {
+    return expression_ ? expression_->get() : nullptr;
+}
 
 ///////////////////////////////////////////////
 
-SelectionStatement::SelectionStatement(Expression* cond, Statement* then_stmt)
-    : cond_(cond), then_stmt_(then_stmt) {}
+SelectionStatement::SelectionStatement(std::unique_ptr<Expression> cond,
+                                       std::unique_ptr<Statement> then_stmt)
+    : cond_(std::move(cond)), then_stmt_(std::move(then_stmt)) {}
 
-SelectionStatement::SelectionStatement(Expression* cond, Statement* then_stmt,
-                                       Statement* else_stmt)
-    : cond_(cond), then_stmt_(then_stmt), else_stmt_(else_stmt) {}
+SelectionStatement::SelectionStatement(std::unique_ptr<Expression> cond,
+                                       std::unique_ptr<Statement> then_stmt,
+                                       std::unique_ptr<Statement> else_stmt)
+    : cond_(std::move(cond)),
+      then_stmt_(std::move(then_stmt)),
+      else_stmt_(std::move(else_stmt)) {}
 
 void SelectionStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 bool SelectionStatement::HasElseStatement() const { return else_stmt_.has_value(); }
 
-Expression* SelectionStatement::GetCondition() const { return cond_; }
+Expression* SelectionStatement::GetCondition() const { return cond_.get(); }
 
-Statement* SelectionStatement::GetThenStatement() const { return then_stmt_; }
+Statement* SelectionStatement::GetThenStatement() const { return then_stmt_.get(); }
 
-Statement* SelectionStatement::GetElseStatement() const { return else_stmt_.value(); }
+Statement* SelectionStatement::GetElseStatement() const {
+    return else_stmt_ ? else_stmt_->get() : nullptr;
+}
 
 ///////////////////////////////////////////////
 
@@ -62,42 +74,49 @@ void JumpStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 JumpStatement::JumpType JumpStatement::GetType() const { return type_; }
 
-void JumpStatement::SetLabel(std::string label) { label_ = label; }
+void JumpStatement::SetLabel(std::string label) { label_ = std::move(label); }
 
 std::string JumpStatement::GetLabel() const { return label_; }
 
 ///////////////////////////////////////////////
 
-WhileStatement::WhileStatement(LoopType type, Expression* cond, Statement* body)
-    : cond_(cond), body_(body), type_(type) {}
+WhileStatement::WhileStatement(LoopType type, std::unique_ptr<Expression> cond,
+                               std::unique_ptr<Statement> body)
+    : cond_(std::move(cond)), body_(std::move(body)), type_(type) {}
 
 void WhileStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 WhileStatement::LoopType WhileStatement::GetType() const { return type_; }
 
-Expression* WhileStatement::GetCondition() const { return cond_; }
+Expression* WhileStatement::GetCondition() const { return cond_.get(); }
 
-Statement* WhileStatement::GetBody() const { return body_; }
+Statement* WhileStatement::GetBody() const { return body_.get(); }
 
-void WhileStatement::SetLabel(std::string label) { label_ = label; }
+void WhileStatement::SetLabel(std::string label) { label_ = std::move(label); }
 
 std::string WhileStatement::GetLabel() const { return label_; }
 
 ///////////////////////////////////////////////
 
-ForStatement::ForStatement(BaseElement* init, Expression* cond, Expression* inc, Statement* body)
-    : init_(init), cond_(cond), inc_(inc), body_(body) {}
+ForStatement::ForStatement(std::unique_ptr<BaseElement> init,
+                           std::unique_ptr<Expression> cond,
+                           std::unique_ptr<Expression> inc,
+                           std::unique_ptr<Statement> body)
+    : init_(std::move(init)),
+      cond_(std::move(cond)),
+      inc_(std::move(inc)),
+      body_(std::move(body)) {}
 
 void ForStatement::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-BaseElement* ForStatement::GetInit() const { return init_; }
+BaseElement* ForStatement::GetInit() const { return init_.get(); }
 
-Expression* ForStatement::GetCondition() const { return cond_; }
+Expression* ForStatement::GetCondition() const { return cond_.get(); }
 
-Expression* ForStatement::GetIncrement() const { return inc_; }
+Expression* ForStatement::GetIncrement() const { return inc_.get(); }
 
-Statement* ForStatement::GetBody() const { return body_; }
+Statement* ForStatement::GetBody() const { return body_.get(); }
 
-void ForStatement::SetLabel(std::string label) { label_ = label; }
+void ForStatement::SetLabel(std::string label) { label_ = std::move(label); }
 
 std::string ForStatement::GetLabel() const { return label_; }

@@ -2,18 +2,6 @@
 
 #include "include/visitors/visitor.h"
 
-FunctionDefinition::FunctionDefinition(TypeSpecification* return_type, Declarator* name,
-                                       CompoundStatement* body)
-    : return_type_(return_type), name_(name), body_(body) {}
-
-void FunctionDefinition::Accept(Visitor* visitor) { visitor->Visit(this); }
-
-TypeSpecification* FunctionDefinition::GetReturnType() { return return_type_; }
-Declarator* FunctionDefinition::GetDeclarator() { return name_; }
-CompoundStatement* FunctionDefinition::GetBody() { return body_; }
-
-///////////////////////////////////////////////
-
 Declarator::Declarator(std::string id) : id_(id) {}
 
 std::string Declarator::GetId() const { return id_; }
@@ -24,18 +12,22 @@ void Declarator::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 ///////////////////////////////////////////////
 
-InitDeclarator::InitDeclarator(Declarator* declarator) : declarator_(declarator) {}
+InitDeclarator::InitDeclarator(std::unique_ptr<Declarator> declarator)
+    : declarator_(std::move(declarator)) {}
 
-InitDeclarator::InitDeclarator(Declarator* declarator, Expression* initializer)
-    : declarator_(declarator), initializer_(initializer) {}
+InitDeclarator::InitDeclarator(std::unique_ptr<Declarator> declarator,
+                               std::unique_ptr<Expression> initializer)
+    : declarator_(std::move(declarator)), initializer_(std::move(initializer)) {}
 
 void InitDeclarator::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-Declarator* InitDeclarator::GetDeclarator() const { return declarator_; }
+Declarator* InitDeclarator::GetDeclarator() const { return declarator_.get(); }
 
 bool InitDeclarator::HasInitializer() const { return initializer_.has_value(); }
 
-Expression* InitDeclarator::GetInitializer() const { return initializer_.value(); }
+Expression* InitDeclarator::GetInitializer() const {
+    return initializer_ ? initializer_->get() : nullptr;
+}
 
 ///////////////////////////////////////////////
 
@@ -53,11 +45,29 @@ void TypeSpecification::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 ///////////////////////////////////////////////
 
-Declaration::Declaration(TypeSpecification* type, InitDeclarator* declaration)
-    : type_(type), declaration_(declaration) {}
+FunctionDefinition::FunctionDefinition(std::unique_ptr<TypeSpecification> return_type,
+                                       std::unique_ptr<Declarator> name,
+                                       std::unique_ptr<CompoundStatement> body)
+    : return_type_(std::move(return_type)),
+      name_(std::move(name)),
+      body_(std::move(body)) {}
+
+void FunctionDefinition::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+TypeSpecification* FunctionDefinition::GetReturnType() { return return_type_.get(); }
+
+Declarator* FunctionDefinition::GetDeclarator() { return name_.get(); }
+
+CompoundStatement* FunctionDefinition::GetBody() { return body_.get(); }
+
+///////////////////////////////////////////////
+
+Declaration::Declaration(std::unique_ptr<TypeSpecification> type,
+                         std::unique_ptr<InitDeclarator> declaration)
+    : type_(std::move(type)), declaration_(std::move(declaration)) {}
 
 void Declaration::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-TypeSpecification* Declaration::GetType() const { return type_; }
+TypeSpecification* Declaration::GetType() const { return type_.get(); }
 
-InitDeclarator* Declaration::GetDeclaration() const { return declaration_; };
+InitDeclarator* Declaration::GetDeclaration() const { return declaration_.get(); }

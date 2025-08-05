@@ -11,6 +11,7 @@ class Visitor;
 class Declarator : public BaseElement {
 public:
     explicit Declarator(std::string id);
+    virtual ~Declarator() = default;
     virtual void Accept(Visitor* visitor) override;
     std::string GetId() const;
     void SetId(const std::string& id);
@@ -23,16 +24,19 @@ private:
 
 class InitDeclarator : public BaseElement {
 public:
-    explicit InitDeclarator(Declarator* declarator);
-    explicit InitDeclarator(Declarator* declarator, Expression* initializer);
-    virtual void Accept(Visitor* visitor) override;
+    explicit InitDeclarator(std::unique_ptr<Declarator> declarator);
+    InitDeclarator(std::unique_ptr<Declarator> declarator,
+                   std::unique_ptr<Expression> initializer);
+    virtual ~InitDeclarator() = default;
+
+    void Accept(Visitor* visitor) override;
     Declarator* GetDeclarator() const;
     bool HasInitializer() const;
     Expression* GetInitializer() const;
 
 private:
-    Declarator* declarator_;
-    std::optional<Expression*> initializer_;
+    std::unique_ptr<Declarator> declarator_;
+    std::optional<std::unique_ptr<Expression>> initializer_;
 };
 
 ///////////////////////////////////////////////
@@ -43,7 +47,8 @@ public:
         kInt = 0,
     };
     explicit TypeSpecification(std::string type_name);
-    virtual void Accept(Visitor* visitor) override;
+    virtual ~TypeSpecification() = default;
+    void Accept(Visitor* visitor) override;
     std::string GetTypeName() const;
 
 private:
@@ -54,29 +59,33 @@ private:
 
 class FunctionDefinition : public BaseElement {
 public:
-    explicit FunctionDefinition(TypeSpecification* return_type, Declarator* name,
-                                CompoundStatement* body);
-    virtual void Accept(Visitor* visitor) override;
+    FunctionDefinition(std::unique_ptr<TypeSpecification> return_type,
+                       std::unique_ptr<Declarator> name,
+                       std::unique_ptr<CompoundStatement> body);
+    virtual ~FunctionDefinition() = default;
+    void Accept(Visitor* visitor) override;
     TypeSpecification* GetReturnType();
     Declarator* GetDeclarator();
     CompoundStatement* GetBody();
 
 private:
-    TypeSpecification* return_type_;
-    Declarator* name_;
-    CompoundStatement* body_;
+    std::unique_ptr<TypeSpecification> return_type_;
+    std::unique_ptr<Declarator> name_;
+    std::unique_ptr<CompoundStatement> body_;
 };
 
 ///////////////////////////////////////////////
 
 class Declaration : public BaseElement {
 public:
-    explicit Declaration(TypeSpecification* type, InitDeclarator* declaration);
-    virtual void Accept(Visitor* visitor) override;
+    Declaration(std::unique_ptr<TypeSpecification> type,
+                std::unique_ptr<InitDeclarator> declaration);
+    virtual ~Declaration() = default;
+    void Accept(Visitor* visitor) override;
     TypeSpecification* GetType() const;
     InitDeclarator* GetDeclaration() const;
 
 private:
-    TypeSpecification* type_;
-    InitDeclarator* declaration_;
+    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<InitDeclarator> declaration_;
 };

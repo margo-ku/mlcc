@@ -39,6 +39,8 @@
 %define parse.error verbose
 
 %code {
+    #include <memory>
+
     #include "include/driver/driver.h"
     #include "location.hh"
 
@@ -75,175 +77,175 @@
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 
-%type <TranslationUnit*> start
-%type <TranslationUnit*> translation_unit
-%type <BaseElement*> external_declaration;
-%type <FunctionDefinition*> function_definition;
-%type <TypeSpecification*> declaration_specifiers;
-%type <Declarator*> declarator;
-%type <InitDeclarator*> init_declarator;
-%type <Declaration*> declaration;
-%type <CompoundStatement*> compound_statement;
-%type <ItemList*> item_list;
-%type <BaseElement*> item;
-%type <Statement*> statement;
-%type <ReturnStatement*> return_statement;
-%type <ExpressionStatement*> expression_statement;
-%type <SelectionStatement*> selection_statement;
-%type <TypeSpecification*> type_specifier;
-%type <Expression*> initializer;
-%type <Expression*> expression;
-%type <Expression*> primary_expression;
-%type <Expression*> unary_expression;
-%type <Expression*> additive_expression;
-%type <Expression*> multiplicative_expression;
-%type <Expression*> relation_expression;
-%type <Expression*> equality_expression;
-%type <Expression*> logical_and_expression;
-%type <Expression*> logical_or_expression;
-%type <Expression*> conditional_expression;
-%type <Expression*> assignment_expression;
-%type <JumpStatement*> jump_statement;
-%type <Statement*> iteration_statement; 
-%type <BaseElement*> for_init;
-%type <Expression*> expression_opt;
+%type <std::unique_ptr<TranslationUnit>> start
+%type <std::unique_ptr<TranslationUnit>> translation_unit
+%type <std::unique_ptr<BaseElement>> external_declaration
+%type <std::unique_ptr<FunctionDefinition>> function_definition
+%type <std::unique_ptr<TypeSpecification>> declaration_specifiers
+%type <std::unique_ptr<Declarator>> declarator
+%type <std::unique_ptr<InitDeclarator>> init_declarator
+%type <std::unique_ptr<Declaration>> declaration
+%type <std::unique_ptr<CompoundStatement>> compound_statement
+%type <std::unique_ptr<ItemList>> item_list
+%type <std::unique_ptr<BaseElement>> item
+%type <std::unique_ptr<Statement>> statement
+%type <std::unique_ptr<ReturnStatement>> return_statement
+%type <std::unique_ptr<ExpressionStatement>> expression_statement
+%type <std::unique_ptr<SelectionStatement>> selection_statement
+%type <std::unique_ptr<TypeSpecification>> type_specifier
+%type <std::unique_ptr<Expression>> initializer
+%type <std::unique_ptr<Expression>> expression
+%type <std::unique_ptr<Expression>> primary_expression
+%type <std::unique_ptr<Expression>> unary_expression
+%type <std::unique_ptr<Expression>> additive_expression
+%type <std::unique_ptr<Expression>> multiplicative_expression
+%type <std::unique_ptr<Expression>> relation_expression
+%type <std::unique_ptr<Expression>> equality_expression
+%type <std::unique_ptr<Expression>> logical_and_expression
+%type <std::unique_ptr<Expression>> logical_or_expression
+%type <std::unique_ptr<Expression>> conditional_expression
+%type <std::unique_ptr<Expression>> assignment_expression
+%type <std::unique_ptr<JumpStatement>> jump_statement
+%type <std::unique_ptr<Statement>> iteration_statement
+%type <std::unique_ptr<BaseElement>> for_init
+%type <std::unique_ptr<Expression>> expression_opt
 
 %%
 %start start;
 start:
-    translation_unit { $$ = $1; driver.SetTranslationUnit($$); };
+    translation_unit { driver.SetTranslationUnit(std::move($1)); };
 
 translation_unit:
-    external_declaration { $$ = new TranslationUnit(); $$->AddExternalDeclaration($1); }
-    | external_declaration translation_unit { $2->AddExternalDeclaration($1); $$ = $2; };
+    external_declaration { $$ = std::make_unique<TranslationUnit>(); $$->AddExternalDeclaration(std::move($1)); }
+    | external_declaration translation_unit { $2->AddExternalDeclaration(std::move($1)); $$ = std::move($2); };
 
 external_declaration:
-    function_definition { $$ = $1; };
+    function_definition { $$ = std::move($1); };
 
 function_definition:
-    declaration_specifiers declarator compound_statement { $$ = new FunctionDefinition($1, $2, $3); };
+    declaration_specifiers declarator compound_statement { $$ = std::make_unique<FunctionDefinition>(std::move($1), std::move($2), std::move($3)); };
 
 declaration_specifiers:
-    type_specifier { $$ = $1; };
+    type_specifier { $$ = std::move($1); };
 
 type_specifier:
-    INT { $$ = new TypeSpecification("int"); };
+    INT { $$ = std::make_unique<TypeSpecification>("int"); };
 
 declarator:
-    ID { $$ = new Declarator($1); }
-    | declarator LPAREN RPAREN { $$ = $1; }
-    | declarator LPAREN VOID RPAREN { $$ = $1; };
+    ID { $$ = std::make_unique<Declarator>($1); }
+    | declarator LPAREN RPAREN { $$ = std::move($1); }
+    | declarator LPAREN VOID RPAREN { $$ = std::move($1); };
 
 declaration:
-    declaration_specifiers init_declarator SEMI { $$ = new Declaration($1, $2); };
+    declaration_specifiers init_declarator SEMI { $$ = std::make_unique<Declaration>(std::move($1), std::move($2)); };
 
 init_declarator:
-    declarator { $$ = new InitDeclarator($1); }
-    | declarator ASSIGNMENT initializer { $$ = new InitDeclarator($1, $3); };
+    declarator { $$ = std::make_unique<InitDeclarator>(std::move($1)); }
+    | declarator ASSIGNMENT initializer { $$ = std::make_unique<InitDeclarator>(std::move($1), std::move($3)); };
 
 initializer:
-    assignment_expression { $$ = $1; };
+    assignment_expression { $$ = std::move($1); };
 
 compound_statement:
-    LBRACE item_list RBRACE { $$ = new CompoundStatement($2); };
+    LBRACE item_list RBRACE { $$ = std::make_unique<CompoundStatement>(std::move($2)); };
 
 item_list:
-    %empty { $$ = new ItemList(); }
-    | item_list item { $1->AddItem($2); $$ = $1; };
+    %empty { $$ = std::make_unique<ItemList>(); }
+    | item_list item { $1->AddItem(std::move($2)); $$ = std::move($1); };
 
 item:
-    statement { $$ = $1; }
-    | declaration { $$ = $1; };
+    statement { $$ = std::move($1); }
+    | declaration { $$ = std::move($1); };
 
 statement:
-    expression_statement { $$ = $1; }
-    | selection_statement { $$ = $1; }
-    | compound_statement { $$ = $1; }
-    | return_statement { $$ = $1; }
-    | jump_statement { $$ = $1; }
-    | iteration_statement { $$ = $1; };
+    expression_statement { $$ = std::move($1); }
+    | selection_statement { $$ = std::move($1); }
+    | compound_statement { $$ = std::move($1); }
+    | return_statement { $$ = std::move($1); }
+    | jump_statement { $$ = std::move($1); }
+    | iteration_statement { $$ = std::move($1); };
 
 selection_statement:
-    IF LPAREN expression RPAREN statement %prec LOWER_THAN_ELSE { $$ = new SelectionStatement($3, $5); }
-    | IF LPAREN expression RPAREN statement ELSE statement { $$ = new SelectionStatement($3, $5, $7); }
+    IF LPAREN expression RPAREN statement %prec LOWER_THAN_ELSE { $$ = std::make_unique<SelectionStatement>(std::move($3), std::move($5)); }
+    | IF LPAREN expression RPAREN statement ELSE statement { $$ = std::make_unique<SelectionStatement>(std::move($3), std::move($5), std::move($7)); };
 
 expression_statement:
-    SEMI { $$ = new ExpressionStatement(); }
-    | expression SEMI { $$ = new ExpressionStatement($1); };
+    SEMI { $$ = std::make_unique<ExpressionStatement>(); }
+    | expression SEMI { $$ = std::make_unique<ExpressionStatement>(std::move($1)); };
 
 return_statement:
-    RETURN expression SEMI { $$ = new ReturnStatement($2); };
+    RETURN expression SEMI { $$ = std::make_unique<ReturnStatement>(std::move($2)); };
 
 jump_statement:
-    BREAK SEMI { $$ = new JumpStatement(JumpStatement::JumpType::kBreak); }
-    | CONTINUE SEMI { $$ = new JumpStatement(JumpStatement::JumpType::kContinue); };
+    BREAK SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::kBreak); }
+    | CONTINUE SEMI { $$ = std::make_unique<JumpStatement>(JumpStatement::JumpType::kContinue); };
 
 iteration_statement:
-    WHILE LPAREN expression RPAREN statement { $$ = new WhileStatement(WhileStatement::LoopType::kWhile, $3, $5); }
-    | DO statement WHILE LPAREN expression RPAREN SEMI { $$ = new WhileStatement(WhileStatement::LoopType::kDoWhile, $5, $2); }
-    | FOR LPAREN for_init expression_opt SEMI expression_opt RPAREN statement { $$ = new ForStatement($3, $4, $6, $8); };
+    WHILE LPAREN expression RPAREN statement { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::kWhile, std::move($3), std::move($5)); }
+    | DO statement WHILE LPAREN expression RPAREN SEMI { $$ = std::make_unique<WhileStatement>(WhileStatement::LoopType::kDoWhile, std::move($5), std::move($2)); }
+    | FOR LPAREN for_init expression_opt SEMI expression_opt RPAREN statement { $$ = std::make_unique<ForStatement>(std::move($3), std::move($4), std::move($6), std::move($8)); };
 
 for_init:
-    declaration { $$ = $1; }
-    | expression_opt SEMI { $$ = $1; };
+    declaration { $$ = std::move($1); }
+    | expression_opt SEMI { $$ = std::move($1); };
 
 expression_opt:
-    %empty { $$ = new Expression(); }
-    | expression { $$ = $1; };
+    %empty { $$ = std::make_unique<Expression>(); }
+    | expression { $$ = std::move($1); };
 
 expression:
-    assignment_expression { $$ = $1; }
+    assignment_expression { $$ = std::move($1); };
 
 assignment_expression:
-    conditional_expression { $$ = $1; }
-    | unary_expression ASSIGNMENT assignment_expression { $$ = new AssignmentExpression($1, $3); };
+    conditional_expression { $$ = std::move($1); }
+    | unary_expression ASSIGNMENT assignment_expression { $$ = std::make_unique<AssignmentExpression>(std::move($1), std::move($3)); };
 
 conditional_expression:
-    logical_or_expression { $$ = $1; }
-    | logical_or_expression QUESTION expression COLON conditional_expression { $$ = new ConditionalExpression($1, $3, $5); };
+    logical_or_expression { $$ = std::move($1); }
+    | logical_or_expression QUESTION expression COLON conditional_expression { $$ = std::make_unique<ConditionalExpression>(std::move($1), std::move($3), std::move($5)); };
 
 logical_or_expression:
-    logical_and_expression { $$ = $1; }
-    | logical_or_expression OR logical_and_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kOr, $1, $3); };
+    logical_and_expression { $$ = std::move($1); }
+    | logical_or_expression OR logical_and_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kOr, std::move($1), std::move($3)); };
 
 logical_and_expression:
-    equality_expression { $$ = $1; }
-    | logical_and_expression AND equality_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kAnd, $1, $3); };
+    equality_expression { $$ = std::move($1); }
+    | logical_and_expression AND equality_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kAnd, std::move($1), std::move($3)); };
 
 equality_expression:
-    relation_expression { $$ = $1; }
-    | equality_expression EQ relation_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kEqual, $1, $3); }
-    | equality_expression NOT_EQ relation_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kNotEqual, $1, $3); };
+    relation_expression { $$ = std::move($1); }
+    | equality_expression EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kEqual, std::move($1), std::move($3)); }
+    | equality_expression NOT_EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kNotEqual, std::move($1), std::move($3)); };
 
 relation_expression:
-    additive_expression { $$ = $1; }
-    | relation_expression LE additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kLess, $1, $3); }
-    | relation_expression GE additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kGreater, $1, $3); }
-    | relation_expression LEQ additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kLessEqual, $1, $3); }
-    | relation_expression GEQ additive_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kGreaterEqual, $1, $3); };
+    additive_expression { $$ = std::move($1); }
+    | relation_expression LE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kLess, std::move($1), std::move($3)); }
+    | relation_expression GE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kGreater, std::move($1), std::move($3)); }
+    | relation_expression LEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kLessEqual, std::move($1), std::move($3)); }
+    | relation_expression GEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kGreaterEqual, std::move($1), std::move($3)); };
 
 additive_expression:
-    multiplicative_expression { $$ = $1; }
-    | additive_expression PLUS multiplicative_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kPlus, $1, $3); }
-    | additive_expression MINUS multiplicative_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMinus, $1, $3); };
+    multiplicative_expression { $$ = std::move($1); }
+    | additive_expression PLUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kPlus, std::move($1), std::move($3)); }
+    | additive_expression MINUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMinus, std::move($1), std::move($3)); };
 
 multiplicative_expression:
-    unary_expression { $$ = $1; }
-    | multiplicative_expression STAR unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMul, $1, $3); }
-    | multiplicative_expression SLASH unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kDiv, $1, $3); }
-    | multiplicative_expression MOD unary_expression { $$ = new BinaryExpression(BinaryExpression::BinaryOperator::kMod, $1, $3); };
+    unary_expression { $$ = std::move($1); }
+    | multiplicative_expression STAR unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMul, std::move($1), std::move($3)); }
+    | multiplicative_expression SLASH unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kDiv, std::move($1), std::move($3)); }
+    | multiplicative_expression MOD unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::kMod, std::move($1), std::move($3)); };
 
 unary_expression:
-    primary_expression { $$ = $1; }
-    | PLUS unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kPlus, $2); }
-    | MINUS unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kMinus, $2); }
-    | BIT_NOT unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kBinaryNot, $2); }
-    | NOT unary_expression { $$ = new UnaryExpression(UnaryExpression::UnaryOperator::kNot, $2); }
+    primary_expression { $$ = std::move($1); }
+    | PLUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kPlus, std::move($2)); }
+    | MINUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kMinus, std::move($2)); }
+    | BIT_NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kBinaryNot, std::move($2)); }
+    | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::kNot, std::move($2)); };
 
 primary_expression:
-    ID { $$ = new IdExpression($1); }
-    | NUMBER { $$ = new PrimaryExpression($1); }
-    | LPAREN expression RPAREN { $$ = $2; };
+    ID { $$ = std::make_unique<IdExpression>($1); }
+    | NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | LPAREN expression RPAREN { $$ = std::move($2); };
 
 %%
 

@@ -6,6 +6,7 @@ class Visitor;
 class BaseElement {
 public:
     virtual void Accept(Visitor* visitor) = 0;
+    virtual ~BaseElement() = default;
 };
 
 ///////////////////////////////////////////////
@@ -13,12 +14,14 @@ public:
 class TranslationUnit : public BaseElement {
 public:
     TranslationUnit() = default;
-    void AddExternalDeclaration(BaseElement* declaration);
+    virtual ~TranslationUnit() = default;
+    void AddExternalDeclaration(std::unique_ptr<BaseElement> declaration);
     virtual void Accept(Visitor* visitor) override;
-    std::vector<BaseElement*>& GetExternalDeclarations();
+    const std::vector<std::unique_ptr<BaseElement>>& GetExternalDeclarations() const;
+    std::vector<std::unique_ptr<BaseElement>>& GetExternalDeclarations();
 
 private:
-    std::vector<BaseElement*> external_declarations_;
+    std::vector<std::unique_ptr<BaseElement>> external_declarations_;
 };
 
 ///////////////////////////////////////////////
@@ -26,10 +29,14 @@ private:
 class ItemList : public BaseElement {
 public:
     ItemList() = default;
-    void AddItem(BaseElement* item);
-    virtual void Accept(Visitor* visitor) override;
-    std::vector<BaseElement*>& GetItems();
+    virtual ~ItemList() = default;
+
+    void AddItem(std::unique_ptr<BaseElement> item);
+    void Accept(Visitor* visitor) override;
+
+    const std::vector<std::unique_ptr<BaseElement>>& GetItems() const;
+    std::vector<std::unique_ptr<BaseElement>>& GetItems();
 
 private:
-    std::vector<BaseElement*> items_;
+    std::vector<std::unique_ptr<BaseElement>> items_;
 };

@@ -41,7 +41,9 @@ void Driver::ScanBegin() {
 
 void Driver::ScanEnd() { stream_.close(); }
 
-void Driver::SetTranslationUnit(TranslationUnit* unit) { translation_unit_ = unit; }
+void Driver::SetTranslationUnit(std::unique_ptr<TranslationUnit> unit) {
+    translation_unit_ = std::move(unit);
+}
 
 bool Driver::Scan() {
     ScanBegin();
