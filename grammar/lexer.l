@@ -57,6 +57,9 @@ blank  [ \t\r]
 "continue" { return yy::parser::make_CONTINUE(loc); }
 "void"    { return yy::parser::make_VOID(loc); }
 "int"     { return yy::parser::make_INT(loc); }
+"&"     { return yy::parser::make_BIT_AND(loc); }
+"|"     { return yy::parser::make_BIT_OR(loc); }
+"^"     { return yy::parser::make_BIT_XOR(loc); }
 "("       { return yy::parser::make_LPAREN(loc); }
 ")"       { return yy::parser::make_RPAREN(loc); }
 "{"       { return yy::parser::make_LBRACE(loc); }

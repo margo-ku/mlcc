@@ -65,6 +65,15 @@ std::string BinaryInstruction::ToString() const {
         case BinaryOp::SDiv:
             opcode = "sdiv";
             break;
+        case BinaryOp::And:
+            opcode = "and";
+            break;
+        case BinaryOp::Orr:
+            opcode = "orr";
+            break;
+        case BinaryOp::Eor:
+            opcode = "eor";
+            break;
     }
     return opcode + " " + dst_->ToString() + ", " + lhs_->ToString() + ", " +
            rhs_->ToString();

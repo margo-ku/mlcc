@@ -31,6 +31,9 @@ void LinearIRBuilder::LowerInstruction(const TACInstruction& instr) {
         case Op::Sub:
         case Op::Mul:
         case Op::Div:
+        case Op::BitwiseAnd:
+        case Op::BitwiseXor:
+        case Op::BitwiseOr:
             return LowerBinaryOp(instr);
         case Op::Plus:
         case Op::Minus:
@@ -173,6 +176,12 @@ void LinearIRBuilder::LowerBinaryOp(const TACInstruction& instr) {
         op = BinaryOp::Mul;
     } else if (instr.GetOp() == TACInstruction::OpCode::Div) {
         op = BinaryOp::SDiv;
+    } else if (instr.GetOp() == TACInstruction::OpCode::BitwiseAnd) {
+        op = BinaryOp::And;
+    } else if (instr.GetOp() == TACInstruction::OpCode::BitwiseOr) {
+        op = BinaryOp::Orr;
+    } else if (instr.GetOp() == TACInstruction::OpCode::BitwiseXor) {
+        op = BinaryOp::Eor;
     } else {
         throw std::runtime_error("Unknown binary operation");
     }

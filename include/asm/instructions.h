@@ -6,7 +6,7 @@
 
 #include "operands.h"
 
-enum class BinaryOp { Add, Sub, Mul, SDiv };
+enum class BinaryOp { Add, Sub, Mul, SDiv, And, Orr, Eor };
 enum class UnaryOp { Neg, Mvn };
 enum class Condition { Eq, Ne, Lt, Le, Gt, Ge };
 enum class BranchType { Unconditional, Conditional };

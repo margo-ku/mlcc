@@ -122,6 +122,15 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
         case BinaryExpression::BinaryOperator::Or:
             stream_ << " || ";
             break;
+        case BinaryExpression::BinaryOperator::BitwiseAnd:
+            stream_ << " & ";
+            break;
+        case BinaryExpression::BinaryOperator::BitwiseXor:
+            stream_ << " ^ ";
+            break;
+        case BinaryExpression::BinaryOperator::BitwiseOr:
+            stream_ << " | ";
+            break;
     }
     expression->GetRightExpression()->Accept(this);
     stream_ << ")";

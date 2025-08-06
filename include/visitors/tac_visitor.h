@@ -29,6 +29,9 @@ public:
         If,
         IfFalse,
         GoTo,
+        BitwiseAnd,
+        BitwiseXor,
+        BitwiseOr,
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,

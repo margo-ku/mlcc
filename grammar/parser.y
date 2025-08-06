@@ -66,6 +66,7 @@
 %token END 0 "end of file"
 %token PLUS MINUS STAR SLASH MOD BIT_NOT
 %token OR AND NOT
+%token BIT_AND BIT_OR BIT_XOR
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
 %token ASSIGNMENT
@@ -109,6 +110,9 @@
 %type <std::unique_ptr<Statement>> iteration_statement
 %type <std::unique_ptr<BaseElement>> for_init
 %type <std::unique_ptr<Expression>> expression_opt
+%type <std::unique_ptr<Expression>> and_expression
+%type <std::unique_ptr<Expression>> exclusive_or_expression
+%type <std::unique_ptr<Expression>> inclusive_or_expression
 
 %%
 %start start;
@@ -209,8 +213,20 @@ logical_or_expression:
     | logical_or_expression OR logical_and_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Or, std::move($1), std::move($3)); };
 
 logical_and_expression:
+    inclusive_or_expression { $$ = std::move($1); }
+    | logical_and_expression AND inclusive_or_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::And, std::move($1), std::move($3)); };
+
+inclusive_or_expression:
+    exclusive_or_expression { $$ = std::move($1); }
+    | inclusive_or_expression BIT_OR exclusive_or_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::BitwiseOr, std::move($1), std::move($3)); };
+
+exclusive_or_expression:
+    and_expression { $$ = std::move($1); } 
+    | exclusive_or_expression BIT_XOR and_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::BitwiseXor, std::move($1), std::move($3)); };
+
+and_expression:
     equality_expression { $$ = std::move($1); }
-    | logical_and_expression AND equality_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::And, std::move($1), std::move($3)); };
+    | and_expression BIT_AND equality_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::BitwiseAnd, std::move($1), std::move($3)); };
 
 equality_expression:
     relation_expression { $$ = std::move($1); }

@@ -76,6 +76,9 @@ public:
         NotEqual,
         And,
         Or,
+        BitwiseAnd,
+        BitwiseXor,
+        BitwiseOr,
     };
 
     BinaryExpression(BinaryOperator op, std::unique_ptr<Expression> left,
