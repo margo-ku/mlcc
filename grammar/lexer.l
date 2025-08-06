@@ -31,6 +31,8 @@ blank  [ \t\r]
 {blank}+  { /* skip */ }
 \n+       { loc.lines(yyleng); loc.step(); }
 {number}  { return make_NUMBER(yytext, loc); }
+"<<"    { return yy::parser::make_BIT_LSHIFT(loc); }
+">>"    { return yy::parser::make_BIT_RSHIFT(loc); }
 "<="      { return yy::parser::make_LEQ(loc); }
 ">="      { return yy::parser::make_GEQ(loc); }
 "<"      { return yy::parser::make_LE(loc); }

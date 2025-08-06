@@ -32,6 +32,8 @@ public:
         BitwiseAnd,
         BitwiseXor,
         BitwiseOr,
+        LeftShift,
+        RightShift,
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,

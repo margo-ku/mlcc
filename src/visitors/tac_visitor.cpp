@@ -70,6 +70,10 @@ std::string TACInstruction::ToString() const {
                 return "^";
             case OpCode::BitwiseOr:
                 return "|";
+            case OpCode::LeftShift:
+                return "<<";
+            case OpCode::RightShift:
+                return ">>";
         }
         return "unknown";
     };
@@ -104,6 +108,8 @@ std::string TACInstruction::ToString() const {
         case OpCode::BitwiseAnd:
         case OpCode::BitwiseXor:
         case OpCode::BitwiseOr:
+        case OpCode::LeftShift:
+        case OpCode::RightShift:
             out << dst_ << " = " << lhs_ << " " << OpToStr(op_) << " " << rhs_;
             break;
         case OpCode::Not:
@@ -270,6 +276,12 @@ void TACVisitor::Visit(BinaryExpression* expression) {
             break;
         case BinaryExpression::BinaryOperator::BitwiseOr:
             op_code = TACInstruction::OpCode::BitwiseOr;
+            break;
+        case BinaryExpression::BinaryOperator::LeftShift:
+            op_code = TACInstruction::OpCode::LeftShift;
+            break;
+        case BinaryExpression::BinaryOperator::RightShift:
+            op_code = TACInstruction::OpCode::RightShift;
             break;
         default:
             break;

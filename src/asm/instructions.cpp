@@ -74,6 +74,12 @@ std::string BinaryInstruction::ToString() const {
         case BinaryOp::Eor:
             opcode = "eor";
             break;
+        case BinaryOp::Lsl:
+            opcode = "lsl";
+            break;
+        case BinaryOp::Asr:
+            opcode = "asr";
+            break;
     }
     return opcode + " " + dst_->ToString() + ", " + lhs_->ToString() + ", " +
            rhs_->ToString();

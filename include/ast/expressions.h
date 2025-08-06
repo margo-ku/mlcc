@@ -79,6 +79,8 @@ public:
         BitwiseAnd,
         BitwiseXor,
         BitwiseOr,
+        LeftShift,
+        RightShift,
     };
 
     BinaryExpression(BinaryOperator op, std::unique_ptr<Expression> left,

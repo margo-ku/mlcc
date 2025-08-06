@@ -66,7 +66,7 @@
 %token END 0 "end of file"
 %token PLUS MINUS STAR SLASH MOD BIT_NOT
 %token OR AND NOT
-%token BIT_AND BIT_OR BIT_XOR
+%token BIT_AND BIT_OR BIT_XOR BIT_LSHIFT BIT_RSHIFT
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
 %token ASSIGNMENT
@@ -99,6 +99,7 @@
 %type <std::unique_ptr<Expression>> primary_expression
 %type <std::unique_ptr<Expression>> unary_expression
 %type <std::unique_ptr<Expression>> additive_expression
+%type <std::unique_ptr<Expression>> shift_expression
 %type <std::unique_ptr<Expression>> multiplicative_expression
 %type <std::unique_ptr<Expression>> relation_expression
 %type <std::unique_ptr<Expression>> equality_expression
@@ -234,11 +235,16 @@ equality_expression:
     | equality_expression NOT_EQ relation_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::NotEqual, std::move($1), std::move($3)); };
 
 relation_expression:
+    shift_expression { $$ = std::move($1); }
+    | relation_expression LE shift_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Less, std::move($1), std::move($3)); }
+    | relation_expression GE shift_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Greater, std::move($1), std::move($3)); }
+    | relation_expression LEQ shift_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::LessEqual, std::move($1), std::move($3)); }
+    | relation_expression GEQ shift_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::GreaterEqual, std::move($1), std::move($3)); };
+
+shift_expression:
     additive_expression { $$ = std::move($1); }
-    | relation_expression LE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Less, std::move($1), std::move($3)); }
-    | relation_expression GE additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Greater, std::move($1), std::move($3)); }
-    | relation_expression LEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::LessEqual, std::move($1), std::move($3)); }
-    | relation_expression GEQ additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::GreaterEqual, std::move($1), std::move($3)); };
+    | shift_expression BIT_LSHIFT additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::LeftShift, std::move($1), std::move($3)); }
+    | shift_expression BIT_RSHIFT additive_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::RightShift, std::move($1), std::move($3)); };
 
 additive_expression:
     multiplicative_expression { $$ = std::move($1); }

@@ -131,6 +131,12 @@ void PrintVisitor::Visit(BinaryExpression* expression) {
         case BinaryExpression::BinaryOperator::BitwiseOr:
             stream_ << " | ";
             break;
+        case BinaryExpression::BinaryOperator::LeftShift:
+            stream_ << " << ";
+            break;
+        case BinaryExpression::BinaryOperator::RightShift:
+            stream_ << " >> ";
+            break;
     }
     expression->GetRightExpression()->Accept(this);
     stream_ << ")";
