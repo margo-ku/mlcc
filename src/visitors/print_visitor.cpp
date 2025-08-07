@@ -253,6 +253,56 @@ void PrintVisitor::Visit(ForStatement* statement) {
     number_of_tabs_--;
 }
 
+void PrintVisitor::Visit(ParameterDeclaration* declaration) {
+    declaration->GetType()->Accept(this);
+    stream_ << " ";
+    declaration->GetDeclarator()->Accept(this);
+}
+
+void PrintVisitor::Visit(ParameterList* list) {
+    bool first = true;
+    for (auto& param : list->GetParameters()) {
+        if (!first) {
+            stream_ << ", ";
+        }
+        param->Accept(this);
+        first = false;
+    }
+}
+
+void PrintVisitor::Visit(FunctionCallExpression* expression) {
+    expression->GetFunction()->Accept(this);
+    stream_ << "(";
+    if (expression->HasArguments()) {
+        expression->GetArguments()->Accept(this);
+    }
+    stream_ << ")";
+}
+
+void PrintVisitor::Visit(ArgumentExpressionList* list) {
+    bool first = true;
+    for (auto& arg : list->GetArguments()) {
+        if (!first) {
+            stream_ << ", ";
+        }
+        arg->Accept(this);
+        first = false;
+    }
+}
+
+void PrintVisitor::Visit(IdentifierDeclarator* declarator) {
+    stream_ << declarator->GetId();
+}
+
+void PrintVisitor::Visit(FunctionDeclarator* declarator) {
+    stream_ << declarator->GetId();
+    stream_ << "(";
+    if (declarator->HasParameters()) {
+        declarator->GetParameters()->Accept(this);
+    }
+    stream_ << ")";
+}
+
 void PrintVisitor::PrintTabs() const {
     for (int i = 0; i < number_of_tabs_; ++i) {
         stream_ << '\t';

@@ -483,3 +483,27 @@ void TACVisitor::PrintTACInstructions(std::ostream& out) const {
 std::vector<TACInstruction> TACVisitor::GetTACInstructions() const {
     return instructions_;
 }
+
+void TACVisitor::Visit(FunctionDeclarator* declarator) {
+    // TODO: Implement function declarator TAC generation
+}
+
+void TACVisitor::Visit(IdentifierDeclarator* declarator) {
+    // TODO: Implement identifier declarator TAC generation
+}
+
+void TACVisitor::Visit(ParameterDeclaration* declaration) {
+    // TODO: Implement parameter declaration TAC generation
+}
+
+void TACVisitor::Visit(ParameterList* list) {
+    // TODO: Implement parameter list TAC generation
+}
+
+void TACVisitor::Visit(FunctionCallExpression* expression) {
+    // TODO: Implement function call TAC generation
+}
+
+void TACVisitor::Visit(ArgumentExpressionList* list) {
+    // TODO: Implement argument list TAC generation
+}

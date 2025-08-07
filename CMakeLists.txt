@@ -86,6 +86,14 @@ set(
         src/visitors/tac_visitor.cpp
 )
 
+set(
+        SEMANTIC_SOURCES
+        src/semantic/analyzer.cpp
+        src/semantic/loop_analyzer.cpp
+        src/semantic/symbol_resolver.cpp
+        src/semantic/type_checker.cpp
+)
+
 add_executable(
         mlcc
         main.cpp
@@ -93,6 +101,7 @@ add_executable(
         ${AST_SOURCES}
         ${DRIVER_SOURCES}
         ${VISITOR_SOURCES}
+        ${SEMANTIC_SOURCES}
         ${BISON_MyParser_OUTPUTS}
         ${FLEX_MyScanner_OUTPUTS}
 )

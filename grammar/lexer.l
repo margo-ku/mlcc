@@ -69,6 +69,7 @@ blank  [ \t\r]
 ":"       { return yy::parser::make_COLON(loc); }
 ";"       { return yy::parser::make_SEMI(loc); }
 "?"       { return yy::parser::make_QUESTION(loc); }
+","       { return yy::parser::make_COMMA(loc); }
 {id}      { return yy::parser::make_ID(yytext, loc); }
 <<EOF>>   { return yy::parser::make_END (loc); }
 .         { throw yy::parser::syntax_error(loc, "invalid character: " + std::string(yytext)); }

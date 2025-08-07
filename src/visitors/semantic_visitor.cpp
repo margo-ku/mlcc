@@ -178,3 +178,36 @@ void SemanticVisitor::AddToCurrentScope(const std::string& original_name,
 std::string SemanticVisitor::GenerateLoopId() {
     return "loop." + std::to_string(name_counters_["loop."]++);
 }
+
+void SemanticVisitor::Visit(FunctionDeclarator* declarator) {
+    if (declarator->HasParameters()) {
+        declarator->GetParameters()->Accept(this);
+    }
+}
+
+void SemanticVisitor::Visit(IdentifierDeclarator* declarator) {
+    // TODO: Implement identifier declarator semantic analysis
+}
+
+void SemanticVisitor::Visit(ParameterDeclaration* declaration) {
+    // TODO: Implement parameter declaration semantic analysis
+}
+
+void SemanticVisitor::Visit(ParameterList* list) {
+    for (auto& parameter : list->GetParameters()) {
+        parameter->Accept(this);
+    }
+}
+
+void SemanticVisitor::Visit(FunctionCallExpression* expression) {
+    expression->GetFunction()->Accept(this);
+    if (expression->HasArguments()) {
+        expression->GetArguments()->Accept(this);
+    }
+}
+
+void SemanticVisitor::Visit(ArgumentExpressionList* list) {
+    for (auto& argument : list->GetArguments()) {
+        argument->Accept(this);
+    }
+}

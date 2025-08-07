@@ -33,6 +33,11 @@
     class JumpStatement;
     class WhileStatement;
     class ForStatement;
+    class ArgumentExpressionList;
+    class ParameterList;
+    class ParameterDeclaration;
+    class IdentifierDeclarator;
+    class FunctionDeclarator;
 };
 
 %define parse.trace
@@ -68,7 +73,7 @@
 %token OR AND NOT
 %token BIT_AND BIT_OR BIT_XOR BIT_LSHIFT BIT_RSHIFT
 %token LE LEQ GE GEQ EQ NOT_EQ
-%token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION
+%token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION COMMA
 %token ASSIGNMENT
 %token INT VOID
 %token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
@@ -97,6 +102,7 @@
 %type <std::unique_ptr<Expression>> initializer
 %type <std::unique_ptr<Expression>> expression
 %type <std::unique_ptr<Expression>> primary_expression
+%type <std::unique_ptr<Expression>> postfix_expression
 %type <std::unique_ptr<Expression>> unary_expression
 %type <std::unique_ptr<Expression>> additive_expression
 %type <std::unique_ptr<Expression>> shift_expression
@@ -114,6 +120,9 @@
 %type <std::unique_ptr<Expression>> and_expression
 %type <std::unique_ptr<Expression>> exclusive_or_expression
 %type <std::unique_ptr<Expression>> inclusive_or_expression
+%type <std::unique_ptr<ArgumentExpressionList>> argument_expression_list
+%type <std::unique_ptr<ParameterList>> parameter_list
+%type <std::unique_ptr<ParameterDeclaration>> parameter_declaration
 
 %%
 %start start;
@@ -137,9 +146,10 @@ type_specifier:
     INT { $$ = std::make_unique<TypeSpecification>("int"); };
 
 declarator:
-    ID { $$ = std::make_unique<Declarator>($1); }
+    ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
     | declarator LPAREN RPAREN { $$ = std::move($1); }
-    | declarator LPAREN VOID RPAREN { $$ = std::move($1); };
+    | declarator LPAREN VOID RPAREN { $$ = std::move($1); }
+    | declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); };
 
 declaration:
     declaration_specifiers init_declarator SEMI { $$ = std::make_unique<Declaration>(std::move($1), std::move($2)); };
@@ -150,6 +160,13 @@ init_declarator:
 
 initializer:
     assignment_expression { $$ = std::move($1); };
+
+parameter_list:
+    parameter_declaration { $$ = std::make_unique<ParameterList>(); $$->AddParameter(std::move($1)); }
+    | parameter_list COMMA parameter_declaration { $1->AddParameter(std::move($3)); $$ = std::move($1); };
+
+parameter_declaration:
+    declaration_specifiers declarator { $$ = std::make_unique<ParameterDeclaration>(std::move($1), std::move($2)); };
 
 compound_statement:
     LBRACE item_list RBRACE { $$ = std::make_unique<CompoundStatement>(std::move($2)); };
@@ -258,16 +275,25 @@ multiplicative_expression:
     | multiplicative_expression MOD unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mod, std::move($1), std::move($3)); };
 
 unary_expression:
-    primary_expression { $$ = std::move($1); }
+    postfix_expression { $$ = std::move($1); }
     | PLUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Plus, std::move($2)); }
     | MINUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Minus, std::move($2)); }
     | BIT_NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::BinaryNot, std::move($2)); }
     | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Not, std::move($2)); };
 
+postfix_expression:
+    primary_expression { $$ = std::move($1); }
+    | postfix_expression LPAREN RPAREN { $$ = std::make_unique<FunctionCallExpression>(std::move($1)); }
+    | postfix_expression LPAREN argument_expression_list RPAREN { $$ = std::make_unique<FunctionCallExpression>(std::move($1), std::move($3)); };
+
 primary_expression:
     ID { $$ = std::make_unique<IdExpression>($1); }
     | NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | LPAREN expression RPAREN { $$ = std::move($2); };
+
+argument_expression_list:
+    assignment_expression { $$ = std::make_unique<ArgumentExpressionList>(); $$->AddArgument(std::move($1)); }
+    | argument_expression_list COMMA assignment_expression { $1->AddArgument(std::move($3)); $$ = std::move($1); };
 
 %%
 

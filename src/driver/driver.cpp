@@ -1,10 +1,8 @@
 #include "include/driver/driver.h"
 
-#include <iostream>
-
 #include "include/asm/ir_builder.h"
+#include "include/semantic/analyzer.h"
 #include "include/visitors/print_visitor.h"
-#include "include/visitors/semantic_visitor.h"
 
 Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}
 
@@ -57,11 +55,12 @@ bool Driver::Parse() {
 }
 
 bool Driver::AnalyzeSemantics() {
-    SemanticVisitor semantic_visitor;
-    try {
-        translation_unit_->Accept(&semantic_visitor);
-    } catch (const std::runtime_error& e) {
-        std::cerr << e.what() << std::endl;
+    SemanticAnalyzer analyzer;
+    analyzer.Analyze(translation_unit_.get());
+    if (analyzer.HasErrors()) {
+        for (const auto& error : analyzer.GetErrors()) {
+            std::cerr << error << std::endl;
+        }
         return false;
     }
     return true;

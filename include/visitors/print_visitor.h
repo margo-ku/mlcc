@@ -27,6 +27,12 @@ public:
     virtual void Visit(JumpStatement* statement) override;
     virtual void Visit(WhileStatement* statement) override;
     virtual void Visit(ForStatement* statement) override;
+    virtual void Visit(ParameterDeclaration* declaration) override;
+    virtual void Visit(ParameterList* list) override;
+    virtual void Visit(FunctionCallExpression* expression) override;
+    virtual void Visit(ArgumentExpressionList* list) override;
+    virtual void Visit(IdentifierDeclarator* declarator) override;
+    virtual void Visit(FunctionDeclarator* declarator) override;
 private:
     std::ostream& stream_;
     size_t number_of_tabs_;

@@ -131,3 +131,36 @@ private:
     std::unique_ptr<Expression> left_;
     std::unique_ptr<Expression> right_;
 };
+
+///////////////////////////////////////////////
+
+class ArgumentExpressionList : public Expression {
+public:
+    ArgumentExpressionList();
+    virtual ~ArgumentExpressionList() = default;
+    void Accept(Visitor* visitor) override;
+    const std::vector<std::unique_ptr<Expression>>& GetArguments() const;
+    std::vector<std::unique_ptr<Expression>>& GetArguments();
+    void AddArgument(std::unique_ptr<Expression> argument);
+
+private:
+    std::vector<std::unique_ptr<Expression>> arguments_;
+};
+
+///////////////////////////////////////////////
+
+class FunctionCallExpression : public Expression {
+public:
+    explicit FunctionCallExpression(std::unique_ptr<Expression> function);
+    FunctionCallExpression(std::unique_ptr<Expression> function,
+                           std::unique_ptr<ArgumentExpressionList> arguments);
+    virtual ~FunctionCallExpression() = default;
+    void Accept(Visitor* visitor) override;
+    Expression* GetFunction() const;
+    ArgumentExpressionList* GetArguments() const;
+    bool HasArguments() const;
+
+private:
+    std::unique_ptr<Expression> function_;
+    std::optional<std::unique_ptr<ArgumentExpressionList>> arguments_;
+};

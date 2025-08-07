@@ -10,14 +10,47 @@ class Visitor;
 
 class Declarator : public BaseElement {
 public:
-    explicit Declarator(std::string id);
+    explicit Declarator();
     virtual ~Declarator() = default;
     virtual void Accept(Visitor* visitor) override;
-    std::string GetId() const;
-    void SetId(const std::string& id);
+    virtual std::string GetId() const = 0;
+    virtual void SetId(const std::string& id) = 0;
+};
+
+///////////////////////////////////////////////
+
+class IdentifierDeclarator : public Declarator {
+public:
+    explicit IdentifierDeclarator(std::string id);
+    virtual ~IdentifierDeclarator() = default;
+    virtual void Accept(Visitor* visitor) override;
+    std::string GetId() const override;
+    void SetId(const std::string& id) override;
 
 private:
     std::string id_;
+};
+
+///////////////////////////////////////////////
+
+class ParameterList;
+
+class FunctionDeclarator : public Declarator {
+public:
+    explicit FunctionDeclarator(std::unique_ptr<Declarator> declarator);
+    explicit FunctionDeclarator(std::unique_ptr<Declarator> declarator,
+                                std::unique_ptr<ParameterList> parameters);
+    virtual ~FunctionDeclarator() = default;
+    void Accept(Visitor* visitor) override;
+    Declarator* GetDeclarator() const;
+    ParameterList* GetParameters() const;
+    bool HasParameters() const;
+    std::string GetId() const override;
+    void SetId(const std::string& id) override;
+
+private:
+    std::unique_ptr<Declarator> declarator_;
+    std::optional<std::unique_ptr<ParameterList>> parameters_;
 };
 
 ///////////////////////////////////////////////
@@ -88,4 +121,35 @@ public:
 private:
     std::unique_ptr<TypeSpecification> type_;
     std::unique_ptr<InitDeclarator> declaration_;
+};
+
+///////////////////////////////////////////////
+
+class ParameterDeclaration : public BaseElement {
+public:
+    ParameterDeclaration(std::unique_ptr<TypeSpecification> type,
+                         std::unique_ptr<Declarator> declarator);
+    virtual ~ParameterDeclaration() = default;
+    void Accept(Visitor* visitor) override;
+    TypeSpecification* GetType() const;
+    Declarator* GetDeclarator() const;
+
+private:
+    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<Declarator> declarator_;
+};
+
+///////////////////////////////////////////////
+
+class ParameterList : public BaseElement {
+public:
+    ParameterList();
+    virtual ~ParameterList() = default;
+    void Accept(Visitor* visitor) override;
+    void AddParameter(std::unique_ptr<ParameterDeclaration> parameter);
+    const std::vector<std::unique_ptr<ParameterDeclaration>>& GetParameters() const;
+    std::vector<std::unique_ptr<ParameterDeclaration>>& GetParameters();
+
+private:
+    std::vector<std::unique_ptr<ParameterDeclaration>> parameters_;
 };

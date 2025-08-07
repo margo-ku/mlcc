@@ -27,4 +27,10 @@ public:
     virtual void Visit(JumpStatement* statement) = 0;
     virtual void Visit(WhileStatement* statement) = 0;
     virtual void Visit(ForStatement* statement) = 0;
+    virtual void Visit(ParameterDeclaration* declaration) = 0;
+    virtual void Visit(ParameterList* list) = 0;
+    virtual void Visit(FunctionCallExpression* expression) = 0;
+    virtual void Visit(ArgumentExpressionList* list) = 0;
+    virtual void Visit(IdentifierDeclarator* declarator) = 0;
+    virtual void Visit(FunctionDeclarator* declarator) = 0;
 };

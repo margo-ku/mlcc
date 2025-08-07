@@ -73,3 +73,42 @@ void AssignmentExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 Expression* AssignmentExpression::GetLeftExpression() const { return left_.get(); }
 
 Expression* AssignmentExpression::GetRightExpression() const { return right_.get(); }
+
+///////////////////////////////////////////////
+
+ArgumentExpressionList::ArgumentExpressionList() {}
+
+void ArgumentExpressionList::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+const std::vector<std::unique_ptr<Expression>>& ArgumentExpressionList::GetArguments()
+    const {
+    return arguments_;
+}
+
+std::vector<std::unique_ptr<Expression>>& ArgumentExpressionList::GetArguments() {
+    return arguments_;
+}
+
+void ArgumentExpressionList::AddArgument(std::unique_ptr<Expression> argument) {
+    arguments_.push_back(std::move(argument));
+}
+
+///////////////////////////////////////////////
+
+FunctionCallExpression::FunctionCallExpression(std::unique_ptr<Expression> function)
+    : function_(std::move(function)) {}
+
+FunctionCallExpression::FunctionCallExpression(
+    std::unique_ptr<Expression> function,
+    std::unique_ptr<ArgumentExpressionList> arguments)
+    : function_(std::move(function)), arguments_(std::move(arguments)) {}
+
+void FunctionCallExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* FunctionCallExpression::GetFunction() const { return function_.get(); }
+
+ArgumentExpressionList* FunctionCallExpression::GetArguments() const {
+    return arguments_.has_value() ? arguments_.value().get() : nullptr;
+}
+
+bool FunctionCallExpression::HasArguments() const { return arguments_.has_value(); }
