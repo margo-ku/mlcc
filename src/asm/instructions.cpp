@@ -43,6 +43,48 @@ void MovInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>&
     src_ = ops[1];
 }
 
+MovzInstruction::MovzInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16,
+                                 int shift)
+    : dst_(dst), imm16_(imm16), shift_(shift) {}
+
+std::vector<std::shared_ptr<ASMOperand>> MovzInstruction::GetOperands() const {
+    return {dst_};
+}
+
+void MovzInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& new_operands) {
+    assert(new_operands.size() == 1);
+    dst_ = new_operands[0];
+}
+
+std::string MovzInstruction::ToString() const {
+    if (shift_ == 0) {
+        return "movz " + dst_->ToString() + ", #" + std::to_string(imm16_);
+    }
+    return "movz " + dst_->ToString() + ", #" + std::to_string(imm16_) + ", lsl #" +
+           std::to_string(shift_);
+}
+
+MovkInstruction::MovkInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16,
+                                 int shift)
+    : dst_(dst), imm16_(imm16), shift_(shift) {}
+
+std::vector<std::shared_ptr<ASMOperand>> MovkInstruction::GetOperands() const {
+    return {dst_};
+}
+
+void MovkInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& new_operands) {
+    assert(new_operands.size() == 1);
+    dst_ = new_operands[0];
+}
+
+std::string MovkInstruction::ToString() const {
+    if (shift_ == 0) return "movk " + dst_->ToString() + ", #" + std::to_string(imm16_);
+    return "movk " + dst_->ToString() + ", #" + std::to_string(imm16_) + ", lsl #" +
+           std::to_string(shift_);
+}
+
 ///////////////////////////////////////////////
 
 BinaryInstruction::BinaryInstruction(BinaryOp op, std::shared_ptr<ASMOperand> dst,
@@ -196,6 +238,10 @@ std::string BranchInstruction::ToString() const {
         return "b " + label_;
     }
 
+    if (type_ == BranchType::Call) {
+        return "bl " + label_;
+    }
+
     std::string cond;
     switch (cond_) {
         case Condition::Eq:
@@ -237,6 +283,16 @@ std::string LoadInstruction::ToString() const {
     return "ldr " + dst_->ToString() + ", " + address_->ToString();
 }
 
+std::vector<std::shared_ptr<ASMOperand>> LoadInstruction::GetOperands() const {
+    return {dst_, address_};
+}
+
+void LoadInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    address_ = ops[1];
+}
+
 ///////////////////////////////////////////////
 
 StoreInstruction::StoreInstruction(std::shared_ptr<ASMOperand> src,
@@ -245,6 +301,16 @@ StoreInstruction::StoreInstruction(std::shared_ptr<ASMOperand> src,
 
 std::string StoreInstruction::ToString() const {
     return "str " + src_->ToString() + ", " + address_->ToString();
+}
+
+std::vector<std::shared_ptr<ASMOperand>> StoreInstruction::GetOperands() const {
+    return {src_, address_};
+}
+
+void StoreInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    src_ = ops[0];
+    address_ = ops[1];
 }
 
 ///////////////////////////////////////////////
@@ -270,3 +336,31 @@ std::string LoadPairInstruction::ToString() const {
     return "ldp " + dst1_->ToString() + ", " + dst2_->ToString() + ", " +
            address_->ToString();
 }
+
+///////////////////////////////////////////////
+
+AllocateStackInstruction::AllocateStackInstruction(std::shared_ptr<ASMOperand> size)
+    : size_(std::move(size)) {}
+
+std::string AllocateStackInstruction::ToString() const {
+    return "sub sp, sp, " + size_->ToString();
+}
+
+void AllocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
+    size_ = std::move(size);
+}
+
+///////////////////////////////////////////////
+
+DeallocateStackInstruction::DeallocateStackInstruction(std::shared_ptr<ASMOperand> size)
+    : size_(std::move(size)) {}
+
+std::string DeallocateStackInstruction::ToString() const {
+    return "add sp, sp, " + size_->ToString();
+}
+
+void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
+    size_ = std::move(size);
+}
+
+///////////////////////////////////////////////

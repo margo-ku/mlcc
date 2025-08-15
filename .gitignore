@@ -6,6 +6,3 @@ compile_commands.json
 *.swp
 
 program*
-
-sem_analysis.*
-types.*

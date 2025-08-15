@@ -9,7 +9,7 @@
 enum class BinaryOp { Add, Sub, Mul, SDiv, And, Orr, Eor, Lsl, Asr };
 enum class UnaryOp { Neg, Mvn };
 enum class Condition { Eq, Ne, Lt, Le, Gt, Ge };
-enum class BranchType { Unconditional, Conditional };
+enum class BranchType { Unconditional, Conditional, Call };
 
 class ASMInstruction {
 public:
@@ -56,6 +56,36 @@ public:
 private:
     std::shared_ptr<ASMOperand> dst_;
     std::shared_ptr<ASMOperand> src_;
+};
+
+class MovzInstruction : public ASMInstruction {
+public:
+    MovzInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16, int shift);
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    std::string ToString() const override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    uint16_t imm16_;
+    int shift_;
+};
+
+class MovkInstruction : public ASMInstruction {
+public:
+    MovkInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16, int shift);
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    std::string ToString() const override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    uint16_t imm16_;
+    int shift_;
 };
 
 ///////////////////////////////////////////////
@@ -144,6 +174,10 @@ public:
     LoadInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> address);
     std::string ToString() const override;
 
+    virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    virtual void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
 private:
     std::shared_ptr<ASMOperand> dst_, address_;
 };
@@ -168,6 +202,10 @@ public:
                      std::shared_ptr<ASMOperand> address);
     std::string ToString() const override;
 
+    virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    virtual void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
 private:
     std::shared_ptr<ASMOperand> src_, address_;
 };
@@ -185,3 +223,27 @@ private:
     std::shared_ptr<ASMOperand> src2_;
     std::shared_ptr<ASMOperand> address_;
 };
+
+///////////////////////////////////////////////
+
+class AllocateStackInstruction : public ASMInstruction {
+public:
+    explicit AllocateStackInstruction(std::shared_ptr<ASMOperand> size);
+    std::string ToString() const override;
+    void ChangeSize(std::shared_ptr<ASMOperand> size);
+
+private:
+    std::shared_ptr<ASMOperand> size_;
+};
+
+class DeallocateStackInstruction : public ASMInstruction {
+public:
+    explicit DeallocateStackInstruction(std::shared_ptr<ASMOperand> size);
+    std::string ToString() const override;
+    void ChangeSize(std::shared_ptr<ASMOperand> size);
+
+private:
+    std::shared_ptr<ASMOperand> size_;
+};
+
+///////////////////////////////////////////////

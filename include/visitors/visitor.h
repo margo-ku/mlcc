@@ -10,8 +10,6 @@ public:
     virtual void Visit(ItemList* item_list) = 0;
     virtual void Visit(FunctionDefinition* function) = 0;
     virtual void Visit(TypeSpecification* type) = 0;
-    virtual void Visit(Declarator* declarator) = 0;
-    virtual void Visit(InitDeclarator* declarator) = 0;
     virtual void Visit(Declaration* declaration) = 0;
     virtual void Visit(Expression* expression) = 0;
     virtual void Visit(IdExpression* expression) = 0;

@@ -34,16 +34,6 @@ void PrintVisitor::Visit(FunctionDefinition* function) {
 
 void PrintVisitor::Visit(TypeSpecification* type) { stream_ << type->GetTypeName(); }
 
-void PrintVisitor::Visit(Declarator* declarator) { stream_ << declarator->GetId(); }
-
-void PrintVisitor::Visit(InitDeclarator* declarator) {
-    declarator->GetDeclarator()->Accept(this);
-    if (declarator->HasInitializer()) {
-        stream_ << " = ";
-        declarator->GetInitializer()->Accept(this);
-    }
-}
-
 void PrintVisitor::Visit(Declaration* declaration) {
     PrintTabs();
     stream_ << "Declaraion: ";
@@ -292,6 +282,10 @@ void PrintVisitor::Visit(ArgumentExpressionList* list) {
 
 void PrintVisitor::Visit(IdentifierDeclarator* declarator) {
     stream_ << declarator->GetId();
+    if (declarator->HasInitializer()) {
+        stream_ << " = ";
+        declarator->GetInitializer()->Accept(this);
+    }
 }
 
 void PrintVisitor::Visit(FunctionDeclarator* declarator) {

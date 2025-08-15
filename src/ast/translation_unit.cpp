@@ -3,7 +3,8 @@
 #include "include/visitors/visitor.h"
 
 void TranslationUnit::AddExternalDeclaration(std::unique_ptr<BaseElement> declaration) {
-    if (dynamic_cast<FunctionDefinition*>(declaration.get())) {
+    if (dynamic_cast<FunctionDefinition*>(declaration.get()) ||
+        dynamic_cast<Declaration*>(declaration.get())) {
         external_declarations_.push_back(std::move(declaration));
     } else {
         throw std::invalid_argument(

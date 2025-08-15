@@ -12,6 +12,8 @@ Immediate::Immediate(int value) : value_(value) {}
 
 std::string Immediate::ToString() const { return "#" + std::to_string(value_); }
 
+int Immediate::GetValue() const { return value_; }
+
 ///////////////////////////////////////////////
 
 Pseudo::Pseudo(const std::string& name) : name_(name) {}

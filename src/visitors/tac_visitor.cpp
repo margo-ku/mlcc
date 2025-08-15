@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "include/ast/declarations.h"
+
 TACInstruction::TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
                                const std::string& rhs)
     : op_(op), dst_(dst), lhs_(lhs), rhs_(rhs) {}
@@ -22,8 +24,8 @@ std::string TACInstruction::ToString() const {
         switch (op) {
             case OpCode::Label:
                 return "label";
-            case OpCode::Global:
-                return "global";
+            case OpCode::Function:
+                return "function";
             case OpCode::Return:
                 return "return";
             case OpCode::Assign:
@@ -74,6 +76,10 @@ std::string TACInstruction::ToString() const {
                 return "<<";
             case OpCode::RightShift:
                 return ">>";
+            case OpCode::Call:
+                return "call";
+            case OpCode::Param:
+                return "param";
         }
         return "unknown";
     };
@@ -82,8 +88,8 @@ std::string TACInstruction::ToString() const {
         case OpCode::Label:
             out << label_ << ":";
             break;
-        case OpCode::Global:
-            out << ".globl " << label_;
+        case OpCode::Function:
+            out << "function " << label_ << " with " << lhs_ << " args";
             break;
         case OpCode::Return:
             if (!label_.empty())
@@ -111,6 +117,12 @@ std::string TACInstruction::ToString() const {
         case OpCode::LeftShift:
         case OpCode::RightShift:
             out << dst_ << " = " << lhs_ << " " << OpToStr(op_) << " " << rhs_;
+            break;
+        case OpCode::Call:
+            out << dst_ << " = call " << lhs_ << " " << rhs_;
+            break;
+        case OpCode::Param:
+            out << "param " << label_;
             break;
         case OpCode::Not:
         case OpCode::BinaryNot:
@@ -147,40 +159,47 @@ const std::string& TACInstruction::GetLabel() const { return label_; }
 TACVisitor::TACVisitor() {}
 
 void TACVisitor::Visit(TranslationUnit* translation_unit) {
-    for (auto& declaration : translation_unit->GetExternalDeclarations()) {
+    const auto& declarations = translation_unit->GetExternalDeclarations();
+    for (auto& declaration : declarations) {
         declaration->Accept(this);
     }
 }
 
 void TACVisitor::Visit(ItemList* item_list) {
-    for (auto& item : item_list->GetItems()) {
+    const auto& items = item_list->GetItems();
+    for (auto& item : items) {
         item->Accept(this);
     }
 }
 
 void TACVisitor::Visit(FunctionDefinition* function) {
-    std::string name = "_" + function->GetDeclarator()->GetId();
-    instructions_.emplace_back(TACInstruction::OpCode::Global, name);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, name);
+    auto declarator = dynamic_cast<FunctionDeclarator*>(function->GetDeclarator());
+    auto params = declarator->GetParameters();
+
+    int param_count = 0;
+    if (params) {
+        param_count = params->GetParameters().size();
+    }
+
+    std::string name = "_" + declarator->GetId();
+
+    instructions_.emplace_back();
+
+    instructions_.back().emplace_back(TACInstruction::OpCode::Function, name,
+                                      std::to_string(param_count));
+
+    if (params) {
+        params->Accept(this);
+    }
+
     function->GetBody()->Accept(this);
 }
 
 void TACVisitor::Visit(TypeSpecification* type) {}
 
-void TACVisitor::Visit(Declarator* declarator) {}
-
-void TACVisitor::Visit(InitDeclarator* declarator) {
-    std::string dst = declarator->GetDeclarator()->GetId();
-    std::string src = "0";
-    if (declarator->HasInitializer()) {
-        declarator->GetInitializer()->Accept(this);
-        src = GetTop();
-    }
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, dst, src);
-}
-
 void TACVisitor::Visit(Declaration* declaration) {
-    declaration->GetDeclaration()->Accept(this);
+    auto decl = declaration->GetDeclaration();
+    decl->Accept(this);
 }
 
 void TACVisitor::Visit(Expression* expression) { stack_.push("1"); }
@@ -211,12 +230,13 @@ void TACVisitor::Visit(UnaryExpression* expression) {
             op_code = TACInstruction::OpCode::BinaryNot;
             break;
     }
-    instructions_.emplace_back(op_code, variable_name, src);
+    instructions_.back().emplace_back(op_code, variable_name, src);
     stack_.push(variable_name);
 }
 
 void TACVisitor::Visit(BinaryExpression* expression) {
     BinaryExpression::BinaryOperator op = expression->GetOp();
+
     if (op == BinaryExpression::BinaryOperator::Or) {
         ProcessBinaryOr(expression);
         return;
@@ -229,10 +249,12 @@ void TACVisitor::Visit(BinaryExpression* expression) {
 
     expression->GetLeftExpression()->Accept(this);
     std::string lhs = GetTop();
+
     expression->GetRightExpression()->Accept(this);
     std::string rhs = GetTop();
 
     std::string variable_name = GetTemporaryName();
+
     TACInstruction::OpCode op_code;
     switch (op) {
         case BinaryExpression::BinaryOperator::Plus:
@@ -283,10 +305,13 @@ void TACVisitor::Visit(BinaryExpression* expression) {
         case BinaryExpression::BinaryOperator::RightShift:
             op_code = TACInstruction::OpCode::RightShift;
             break;
-        default:
+        case BinaryExpression::BinaryOperator::And:
+        case BinaryExpression::BinaryOperator::Or:
             break;
     }
-    instructions_.emplace_back(op_code, variable_name, lhs, rhs);
+
+    instructions_.back().emplace_back(op_code, variable_name, lhs, rhs);
+
     stack_.push(variable_name);
 }
 
@@ -298,19 +323,21 @@ void TACVisitor::Visit(ConditionalExpression* expression) {
 
     expression->GetCondition()->Accept(this);
     std::string cond = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
+    instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
 
     expression->GetLeftExpression()->Accept(this);
     std::string value = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, value);
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name,
+                                      value);
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_end);
 
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_else);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_else);
     expression->GetRightExpression()->Accept(this);
     value = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, value);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name,
+                                      value);
 
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_end);
     stack_.push(variable_name);
 }
 
@@ -321,21 +348,24 @@ void TACVisitor::Visit(AssignmentExpression* expression) {
     expression->GetRightExpression()->Accept(this);
     std::string src = GetTop();
 
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, dst, src);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, dst, src);
     stack_.push(dst);
 }
 
 void TACVisitor::Visit(CompoundStatement* statement) {
-    statement->GetBody()->Accept(this);
+    auto body = statement->GetBody();
+    body->Accept(this);
 }
 
 void TACVisitor::Visit(ReturnStatement* statement) {
     std::string value;
     if (statement->HasExpression()) {
-        statement->GetExpression()->Accept(this);
+        auto expression = statement->GetExpression();
+        expression->Accept(this);
         value = GetTop();
     }
-    instructions_.emplace_back(TACInstruction::OpCode::Return, value);
+
+    instructions_.back().emplace_back(TACInstruction::OpCode::Return, value);
 }
 
 void TACVisitor::Visit(ExpressionStatement* statement) {
@@ -351,14 +381,14 @@ void TACVisitor::Visit(SelectionStatement* statement) {
 
     statement->GetCondition()->Accept(this);
     std::string cond = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
+    instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_else, cond);
     statement->GetThenStatement()->Accept(this);
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_else);
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_else);
     if (statement->HasElseStatement()) {
         statement->GetElseStatement()->Accept(this);
     }
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_end);
 }
 
 void TACVisitor::Visit(JumpStatement* statement) {
@@ -369,7 +399,7 @@ void TACVisitor::Visit(JumpStatement* statement) {
         label += "continue";
     }
 
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label);
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label);
 }
 
 void TACVisitor::Visit(WhileStatement* statement) {
@@ -378,21 +408,22 @@ void TACVisitor::Visit(WhileStatement* statement) {
     std::string label_start = statement->GetLabel() + "_start";
 
     if (statement->GetType() == WhileStatement::LoopType::While) {
-        instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_continue);
         statement->GetCondition()->Accept(this);
         std::string cond = GetTop();
-        instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_break, cond);
+        instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_break,
+                                          cond);
         statement->GetBody()->Accept(this);
-        instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_continue);
-        instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
+        instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_continue);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_break);
     } else {
-        instructions_.emplace_back(TACInstruction::OpCode::Label, label_start);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_start);
         statement->GetBody()->Accept(this);
-        instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_continue);
         statement->GetCondition()->Accept(this);
         std::string cond = GetTop();
-        instructions_.emplace_back(TACInstruction::OpCode::If, label_start, cond);
-        instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
+        instructions_.back().emplace_back(TACInstruction::OpCode::If, label_start, cond);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_break);
     }
 }
 
@@ -402,15 +433,84 @@ void TACVisitor::Visit(ForStatement* statement) {
     std::string label_start = statement->GetLabel() + "_start";
 
     statement->GetInit()->Accept(this);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_start);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_start);
     statement->GetCondition()->Accept(this);
     std::string cond = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_break, cond);
+    instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_break, cond);
     statement->GetBody()->Accept(this);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_continue);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_continue);
     statement->GetIncrement()->Accept(this);
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_start);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_break);
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_start);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_break);
+}
+
+void TACVisitor::Visit(FunctionDeclarator* declarator) {}
+
+void TACVisitor::Visit(IdentifierDeclarator* declarator) {
+    std::string dst = declarator->GetId();
+    std::string src = "0";
+    if (declarator->HasInitializer()) {
+        declarator->GetInitializer()->Accept(this);
+        src = GetTop();
+    }
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, dst, src);
+}
+
+void TACVisitor::Visit(ParameterDeclaration* declaration) {
+    std::string param_name = declaration->GetDeclarator()->GetId();
+    stack_.push(param_name);
+}
+
+void TACVisitor::Visit(ParameterList* list) {
+    int index = 0;
+    for (auto& param : list->GetParameters()) {
+        param->Accept(this);
+        std::string param_name = GetTop();
+        std::string arg_name = "arg.." + std::to_string(index++);
+        instructions_.back().emplace_back(TACInstruction::OpCode::Assign, param_name,
+                                          arg_name);
+    }
+}
+
+void TACVisitor::Visit(FunctionCallExpression* expression) {
+    auto function = expression->GetFunction();
+
+    std::string function_name;
+    std::string arm_function_name;
+
+    if (auto id_expr = dynamic_cast<IdExpression*>(function)) {
+        function_name = id_expr->GetId();
+        arm_function_name = "_" + function_name;
+    } else if (auto func_decl = dynamic_cast<FunctionDeclarator*>(function)) {
+        function_name = func_decl->GetId();
+        arm_function_name = "_" + function_name;
+    }
+
+    if (expression->HasArguments()) {
+        expression->GetArguments()->Accept(this);
+    }
+
+    int num_args = 0;
+    if (expression->HasArguments()) {
+        num_args = expression->GetArguments()->GetArguments().size();
+    }
+
+    std::string return_value = GetTemporaryName();
+
+    instructions_.back().emplace_back(TACInstruction::OpCode::Call, return_value,
+                                      arm_function_name, std::to_string(num_args));
+
+    stack_.push(return_value);
+}
+
+void TACVisitor::Visit(ArgumentExpressionList* list) {
+    const auto& arguments = list->GetArguments();
+
+    for (size_t index = 0; index < arguments.size(); ++index) {
+        arguments[index]->Accept(this);
+        std::string src = GetTop();
+        instructions_.back().emplace_back(TACInstruction::OpCode::Param, src);
+    }
 }
 
 std::string TACVisitor::GetTemporaryName() {
@@ -437,17 +537,17 @@ void TACVisitor::ProcessBinaryOr(BinaryExpression* expression) {
 
     expression->GetLeftExpression()->Accept(this);
     std::string lhs = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::If, label_true, lhs);
+    instructions_.back().emplace_back(TACInstruction::OpCode::If, label_true, lhs);
 
     expression->GetRightExpression()->Accept(this);
     std::string rhs = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::If, label_true, rhs);
+    instructions_.back().emplace_back(TACInstruction::OpCode::If, label_true, rhs);
 
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, "0");
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_true);
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, "1");
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name, "0");
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_true);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name, "1");
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_end);
 
     stack_.push(variable_name);
 }
@@ -460,50 +560,29 @@ void TACVisitor::ProcessBinaryAnd(BinaryExpression* expression) {
 
     expression->GetLeftExpression()->Accept(this);
     std::string lhs = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_false, lhs);
+    instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_false, lhs);
 
     expression->GetRightExpression()->Accept(this);
     std::string rhs = GetTop();
-    instructions_.emplace_back(TACInstruction::OpCode::IfFalse, label_false, rhs);
+    instructions_.back().emplace_back(TACInstruction::OpCode::IfFalse, label_false, rhs);
 
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, "1");
-    instructions_.emplace_back(TACInstruction::OpCode::GoTo, label_end);
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_false);
-    instructions_.emplace_back(TACInstruction::OpCode::Assign, variable_name, "0");
-    instructions_.emplace_back(TACInstruction::OpCode::Label, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name, "1");
+    instructions_.back().emplace_back(TACInstruction::OpCode::GoTo, label_end);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_false);
+    instructions_.back().emplace_back(TACInstruction::OpCode::Assign, variable_name, "0");
+    instructions_.back().emplace_back(TACInstruction::OpCode::Label, label_end);
     stack_.push(variable_name);
 }
 
 void TACVisitor::PrintTACInstructions(std::ostream& out) const {
-    for (const auto& instr : instructions_) {
-        out << instr.ToString() << '\n';
+    for (const auto& instruction : instructions_) {
+        for (const auto& instr : instruction) {
+            out << instr.ToString() << '\n';
+        }
+        out << '\n';
     }
 }
 
-std::vector<TACInstruction> TACVisitor::GetTACInstructions() const {
+std::vector<std::vector<TACInstruction>> TACVisitor::GetTACInstructions() const {
     return instructions_;
-}
-
-void TACVisitor::Visit(FunctionDeclarator* declarator) {
-    // TODO: Implement function declarator TAC generation
-}
-
-void TACVisitor::Visit(IdentifierDeclarator* declarator) {
-    // TODO: Implement identifier declarator TAC generation
-}
-
-void TACVisitor::Visit(ParameterDeclaration* declaration) {
-    // TODO: Implement parameter declaration TAC generation
-}
-
-void TACVisitor::Visit(ParameterList* list) {
-    // TODO: Implement parameter list TAC generation
-}
-
-void TACVisitor::Visit(FunctionCallExpression* expression) {
-    // TODO: Implement function call TAC generation
-}
-
-void TACVisitor::Visit(ArgumentExpressionList* list) {
-    // TODO: Implement argument list TAC generation
 }

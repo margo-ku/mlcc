@@ -82,7 +82,6 @@ set(
 set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
-        src/visitors/semantic_visitor.cpp
         src/visitors/tac_visitor.cpp
 )
 

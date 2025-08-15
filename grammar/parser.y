@@ -15,7 +15,6 @@
     class ItemList;
     class FunctionDefinition;
     class Declarator;
-    class InitDeclarator;
     class Declaration;
     class TypeSpecification;
     class Statement;
@@ -38,6 +37,7 @@
     class ParameterDeclaration;
     class IdentifierDeclarator;
     class FunctionDeclarator;
+    class FunctionCallExpression;
 };
 
 %define parse.trace
@@ -89,7 +89,7 @@
 %type <std::unique_ptr<FunctionDefinition>> function_definition
 %type <std::unique_ptr<TypeSpecification>> declaration_specifiers
 %type <std::unique_ptr<Declarator>> declarator
-%type <std::unique_ptr<InitDeclarator>> init_declarator
+%type <std::unique_ptr<Declarator>> init_declarator
 %type <std::unique_ptr<Declaration>> declaration
 %type <std::unique_ptr<CompoundStatement>> compound_statement
 %type <std::unique_ptr<ItemList>> item_list
@@ -131,10 +131,11 @@ start:
 
 translation_unit:
     external_declaration { $$ = std::make_unique<TranslationUnit>(); $$->AddExternalDeclaration(std::move($1)); }
-    | external_declaration translation_unit { $2->AddExternalDeclaration(std::move($1)); $$ = std::move($2); };
+    | translation_unit external_declaration { $1->AddExternalDeclaration(std::move($2)); $$ = std::move($1); };
 
 external_declaration:
-    function_definition { $$ = std::move($1); };
+    function_definition { $$ = std::move($1); }
+    | declaration { $$ = std::move($1); };
 
 function_definition:
     declaration_specifiers declarator compound_statement { $$ = std::make_unique<FunctionDefinition>(std::move($1), std::move($2), std::move($3)); };
@@ -147,16 +148,16 @@ type_specifier:
 
 declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
-    | declarator LPAREN RPAREN { $$ = std::move($1); }
-    | declarator LPAREN VOID RPAREN { $$ = std::move($1); }
+    | declarator LPAREN RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1)); }
+    | declarator LPAREN VOID RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1)); }
     | declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); };
 
 declaration:
     declaration_specifiers init_declarator SEMI { $$ = std::make_unique<Declaration>(std::move($1), std::move($2)); };
 
 init_declarator:
-    declarator { $$ = std::make_unique<InitDeclarator>(std::move($1)); }
-    | declarator ASSIGNMENT initializer { $$ = std::make_unique<InitDeclarator>(std::move($1), std::move($3)); };
+    declarator { $$ = std::move($1); }
+    | declarator ASSIGNMENT initializer { $1->SetInitializer(std::move($3)); $$ = std::move($1); };
 
 initializer:
     assignment_expression { $$ = std::move($1); };
@@ -298,5 +299,5 @@ argument_expression_list:
 %%
 
 void yy::parser::error(const location_type& l, const std::string& m) {
-  std::cerr << l << ": " << m << '\n';
+  std::cerr << "Parsing error at line " << l.begin.line << ", column " << l.begin.column << ": " << m << std::endl;
 }

@@ -22,14 +22,6 @@ void LoopAnalyzer::Visit(FunctionDefinition* function) {
 
 void LoopAnalyzer::Visit(TypeSpecification* type) {}
 
-void LoopAnalyzer::Visit(Declarator* declarator) {}
-
-void LoopAnalyzer::Visit(InitDeclarator* declarator) {
-    if (declarator->HasInitializer()) {
-        declarator->GetInitializer()->Accept(this);
-    }
-}
-
 void LoopAnalyzer::Visit(Declaration* declaration) {
     declaration->GetDeclaration()->Accept(this);
 }
@@ -86,7 +78,7 @@ void LoopAnalyzer::Visit(SelectionStatement* statement) {
 
 void LoopAnalyzer::Visit(JumpStatement* statement) {
     if (loop_ids_.empty()) {
-        errors_.push_back("semantic error: jump statement outside of loop");
+        errors_.push_back("jump statement outside of loop");
         return;
     }
     statement->SetLabel(loop_ids_.top());
@@ -139,7 +131,11 @@ void LoopAnalyzer::Visit(ArgumentExpressionList* list) {
     }
 }
 
-void LoopAnalyzer::Visit(IdentifierDeclarator* declarator) {}
+void LoopAnalyzer::Visit(IdentifierDeclarator* declarator) {
+    if (declarator->HasInitializer()) {
+        declarator->GetInitializer()->Accept(this);
+    }
+}
 
 void LoopAnalyzer::Visit(FunctionDeclarator* declarator) {
     if (declarator->HasParameters()) {

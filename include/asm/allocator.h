@@ -1,25 +1,30 @@
 #pragma once
 
-#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "operands.h"
+
+struct Frame {
+    std::unordered_map<std::string, int> offsets_;
+    int current_offset_ = 0;
+};
 
 class FrameStackAllocator {
 public:
     FrameStackAllocator();
 
-    int GetOffset(const std::string& name, int size = 4);
+    int GetOffset(const std::string& name, int size = 8);
 
     int GetTotalFrameSize() const;
     int GetAlignedFrameSize(int alignment = 16) const;
 
+    void PushFrame();
+    void PopFrame();
+
 private:
-    std::unordered_map<std::string, int> offsets_;
-    int current_offset_;
+    std::vector<Frame> frames_;
 };
 
 ///////////////////////////////////////////////

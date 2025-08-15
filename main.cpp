@@ -56,7 +56,8 @@ int RunCompiler(const std::string& original_file, const std::string& preprocesse
         std::cout << "Running mlcc compiler: " << std::endl;
     }
 
-    return driver.CompileFile(preprocessed_file);
+    int result = driver.CompileFile(preprocessed_file);
+    return result;
 }
 
 std::string RunPreprocessor(const std::string& filename, const Options& opts) {

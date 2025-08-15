@@ -1,20 +1,27 @@
 #include "include/asm/allocator.h"
 
-FrameStackAllocator::FrameStackAllocator() : current_offset_(0) {}
+FrameStackAllocator::FrameStackAllocator() {}
+
+void FrameStackAllocator::PushFrame() { frames_.emplace_back(); }
+
+void FrameStackAllocator::PopFrame() { frames_.pop_back(); }
 
 int FrameStackAllocator::GetOffset(const std::string& name, int size) {
-    if (!offsets_.contains(name)) {
-        current_offset_ += size;
-        offsets_[name] = current_offset_;
+    auto& frame = frames_.back();
+    if (!frame.offsets_.contains(name)) {
+        frame.current_offset_ += size;
+        frame.offsets_[name] = frame.current_offset_;
     }
-    return -offsets_.at(name);
+    return -frame.offsets_.at(name);
 }
 
-int FrameStackAllocator::GetTotalFrameSize() const { return current_offset_; }
+int FrameStackAllocator::GetTotalFrameSize() const {
+    return frames_.back().current_offset_;
+}
 
 int FrameStackAllocator::GetAlignedFrameSize(int alignment) const {
-    int padding = (alignment - (current_offset_ % alignment)) % alignment;
-    return current_offset_ + padding;
+    int padding = (alignment - (frames_.back().current_offset_ % alignment)) % alignment;
+    return frames_.back().current_offset_ + padding;
 }
 
 ///////////////////////////////////////////////

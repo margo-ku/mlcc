@@ -12,8 +12,6 @@ public:
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
     void Visit(TypeSpecification* type) override;
-    void Visit(Declarator* declarator) override;
-    void Visit(InitDeclarator* declarator) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;

@@ -25,6 +25,7 @@ class Immediate : public ASMOperand {
 public:
     explicit Immediate(int value);
     std::string ToString() const override;
+    int GetValue() const;
 
 private:
     int value_;

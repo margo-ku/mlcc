@@ -51,15 +51,25 @@ bool Driver::Scan() {
 
 bool Driver::Parse() {
     parser_.set_debug_level(debug_parse);
-    return parser_() == 0;
+    int result = parser_();
+    if (result != 0) {
+        std::cerr << "Parsing error: Parser failed with exit code " << result
+                  << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool Driver::AnalyzeSemantics() {
+    if (debug_output) {
+        std::cout << "Analyzing semantics..." << std::endl;
+    }
     SemanticAnalyzer analyzer;
     analyzer.Analyze(translation_unit_.get());
     if (analyzer.HasErrors()) {
+        std::cerr << "Semantic error:" << std::endl;
         for (const auto& error : analyzer.GetErrors()) {
-            std::cerr << error << std::endl;
+            std::cerr << "  " << error << std::endl;
         }
         return false;
     }
@@ -67,6 +77,10 @@ bool Driver::AnalyzeSemantics() {
 }
 
 bool Driver::GenerateTAC() {
+    if (debug_output) {
+        std::cout << "Starting TAC generation..." << std::endl;
+    }
+
     TACVisitor tac_visitor;
     translation_unit_->Accept(&tac_visitor);
     tac_instructions_ = tac_visitor.GetTACInstructions();
@@ -76,11 +90,25 @@ bool Driver::GenerateTAC() {
         std::cout << "Generated TAC: " << tac_file << std::endl;
     }
     std::ofstream out(tac_file);
+    if (!out.is_open()) {
+        std::cerr << "TAC generation error: Cannot open TAC output file: " << tac_file
+                  << std::endl;
+        return false;
+    }
     tac_visitor.PrintTACInstructions(out);
+
+    if (debug_output) {
+        std::cout << "TAC generation completed successfully" << std::endl;
+    }
+
     return true;
 }
 
 bool Driver::GenerateASM() {
+    if (debug_output) {
+        std::cout << "Starting ASM generation..." << std::endl;
+    }
+
     LinearIRBuilder builder(tac_instructions_);
     builder.Build();
 
@@ -89,7 +117,17 @@ bool Driver::GenerateASM() {
         std::cout << "Generated ASM: " << asm_file << std::endl;
     }
     std::ofstream out(asm_file);
+    if (!out.is_open()) {
+        std::cerr << "Assembly generation error: Cannot open assembly output file: "
+                  << asm_file << std::endl;
+        return false;
+    }
     builder.Print(out);
+
+    if (debug_output) {
+        std::cout << "ASM generation completed successfully" << std::endl;
+    }
+
     return true;
 }
 

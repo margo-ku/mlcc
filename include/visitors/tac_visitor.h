@@ -1,5 +1,5 @@
 #pragma once
-#include <fstream>
+#include <stack>
 #include <vector>
 
 #include "visitor.h"
@@ -8,7 +8,7 @@ class TACInstruction {
 public:
     enum class OpCode {
         Label,
-        Global,
+        Function,
         Return,
         Assign,
         Add,
@@ -34,6 +34,8 @@ public:
         BitwiseOr,
         LeftShift,
         RightShift,
+        Call,
+        Param,
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
@@ -65,8 +67,6 @@ public:
     virtual void Visit(ItemList* item_list) override;
     virtual void Visit(FunctionDefinition* function) override;
     virtual void Visit(TypeSpecification* type) override;
-    virtual void Visit(Declarator* declarator) override;
-    virtual void Visit(InitDeclarator* declarator) override;
     virtual void Visit(Declaration* declaration) override;
     virtual void Visit(Expression* expression) override;
     virtual void Visit(IdExpression* expression) override;
@@ -89,7 +89,7 @@ public:
     virtual void Visit(IdentifierDeclarator* declarator) override;
     virtual void Visit(FunctionDeclarator* declarator) override;
 
-    std::vector<TACInstruction> GetTACInstructions() const;
+    std::vector<std::vector<TACInstruction>> GetTACInstructions() const;
     void PrintTACInstructions(std::ostream& out) const;
 
 private:
@@ -97,7 +97,7 @@ private:
     std::string GetUniqueLabelId();
     std::string GetTop();
 
-    std::vector<TACInstruction> instructions_;
+    std::vector<std::vector<TACInstruction>> instructions_;
     std::stack<std::string> stack_;
     size_t temp_count_ = 0;
     size_t label_id_ = 0;

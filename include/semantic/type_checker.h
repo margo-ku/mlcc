@@ -1,5 +1,10 @@
 #pragma once
 
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "include/semantic/types.h"
 #include "include/visitors/visitor.h"
 
 class TypeChecker : public Visitor {
@@ -10,8 +15,6 @@ public:
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
     void Visit(TypeSpecification* type) override;
-    void Visit(Declarator* declarator) override;
-    void Visit(InitDeclarator* declarator) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;
@@ -38,4 +41,7 @@ public:
 
 private:
     std::vector<std::string> errors_;
+    std::unordered_map<std::string, std::unique_ptr<TypeInfo>> symbol_table_;
+
+    static bool IsFunctionDeclarator(Declarator* declarator);
 };

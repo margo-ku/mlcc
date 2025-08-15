@@ -1,5 +1,6 @@
 #pragma once
-#include <fstream>
+
+#include <iostream>
 
 #include "visitor.h"
 
@@ -10,8 +11,6 @@ public:
     virtual void Visit(ItemList* item_list) override;
     virtual void Visit(FunctionDefinition* function) override;
     virtual void Visit(TypeSpecification* type) override;
-    virtual void Visit(Declarator* declarator) override;
-    virtual void Visit(InitDeclarator* declarator) override;
     virtual void Visit(Declaration* declaration) override;
     virtual void Visit(Expression* expression) override;
     virtual void Visit(IdExpression* expression) override;
@@ -33,6 +32,7 @@ public:
     virtual void Visit(ArgumentExpressionList* list) override;
     virtual void Visit(IdentifierDeclarator* declarator) override;
     virtual void Visit(FunctionDeclarator* declarator) override;
+
 private:
     std::ostream& stream_;
     size_t number_of_tabs_;

@@ -35,7 +35,8 @@ private:
     void ScanBegin();
     void ScanEnd();
 
-    std::string ReplaceExtension(const std::string& filename, const std::string& new_ext) const;
+    std::string ReplaceExtension(const std::string& filename,
+                                 const std::string& new_ext) const;
 
     std::string file_;
     std::string original_filename_;
@@ -46,5 +47,5 @@ private:
     yy::parser parser_;
     std::unique_ptr<TranslationUnit> translation_unit_;
 
-    std::vector<TACInstruction> tac_instructions_;
+    std::vector<std::vector<TACInstruction>> tac_instructions_;
 };
