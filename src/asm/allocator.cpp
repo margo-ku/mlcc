@@ -6,22 +6,53 @@ void FrameStackAllocator::PushFrame() { frames_.emplace_back(); }
 
 void FrameStackAllocator::PopFrame() { frames_.pop_back(); }
 
-int FrameStackAllocator::GetOffset(const std::string& name, int size) {
+int FrameStackAllocator::GetLocalOffset(const std::string& name, int size) {
     auto& frame = frames_.back();
-    if (!frame.offsets_.contains(name)) {
-        frame.current_offset_ += size;
-        frame.offsets_[name] = frame.current_offset_;
+
+    if (!frame.offsets.contains(name)) {
+        frame.current_offset += size;
+        frame.offsets[name] = frame.current_offset;
     }
-    return -frame.offsets_.at(name);
+    return -frame.offsets.at(name);
+}
+
+int FrameStackAllocator::GetArgumentOffset(std::string name, int size) const {
+    if (name.find("arg..") == std::string::npos) {
+        throw std::runtime_error("Invalid argument name: " + name);
+    }
+    name = name.substr(5);
+    int index = 0;
+    try {
+        index = std::stoi(name);
+    } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("Invalid argument name: " + name);
+    }
+
+    if (index < 8) {
+        throw std::runtime_error("Argument should be on the stack");
+    }
+
+    return 16 + (index - 8) * 8;  // 16 (FP + LR) + offset
+}
+
+int FrameStackAllocator::GetArgumentOffsetForCaller(int index, int size) const {
+    return index * size;
 }
 
 int FrameStackAllocator::GetTotalFrameSize() const {
-    return frames_.back().current_offset_;
+    return frames_.back().current_offset;
 }
 
 int FrameStackAllocator::GetAlignedFrameSize(int alignment) const {
-    int padding = (alignment - (frames_.back().current_offset_ % alignment)) % alignment;
-    return frames_.back().current_offset_ + padding;
+    int size = frames_.back().current_offset;
+    int padding = (alignment - (size % alignment)) % alignment;
+    return size + padding;
+}
+
+int FrameStackAllocator::ReserveStackArguments(size_t arg_count) {
+    int size = arg_count * 8;
+    int padding = (16 - (size % 16)) % 16;
+    return size + padding;
 }
 
 ///////////////////////////////////////////////

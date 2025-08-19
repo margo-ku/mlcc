@@ -339,27 +339,35 @@ std::string LoadPairInstruction::ToString() const {
 
 ///////////////////////////////////////////////
 
-AllocateStackInstruction::AllocateStackInstruction(std::shared_ptr<ASMOperand> size)
-    : size_(std::move(size)) {}
+AllocateStackInstruction::AllocateStackInstruction(std::shared_ptr<ASMOperand> size,
+                                                   bool final_size)
+    : size_(std::move(size)), final_size_(final_size) {}
 
 std::string AllocateStackInstruction::ToString() const {
     return "sub sp, sp, " + size_->ToString();
 }
 
 void AllocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
+    if (final_size_) {
+        return;
+    }
     size_ = std::move(size);
 }
 
 ///////////////////////////////////////////////
 
-DeallocateStackInstruction::DeallocateStackInstruction(std::shared_ptr<ASMOperand> size)
-    : size_(std::move(size)) {}
+DeallocateStackInstruction::DeallocateStackInstruction(std::shared_ptr<ASMOperand> size,
+                                                       bool final_size)
+    : size_(std::move(size)), final_size_(final_size) {}
 
 std::string DeallocateStackInstruction::ToString() const {
     return "add sp, sp, " + size_->ToString();
 }
 
 void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
+    if (final_size_) {
+        return;
+    }
     size_ = std::move(size);
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <queue>
 #include <vector>
 
 #include "allocator.h"
@@ -18,6 +19,7 @@ public:
 private:
     std::vector<std::vector<TACInstruction>> tac_instructions_;
     std::vector<std::vector<std::shared_ptr<ASMInstruction>>> asm_instructions_;
+    std::queue<std::shared_ptr<ASMOperand>> pending_args_;
     FrameStackAllocator stack_allocator_;
     TempRegisterAllocator reg_allocator_;
 

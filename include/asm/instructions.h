@@ -228,22 +228,26 @@ private:
 
 class AllocateStackInstruction : public ASMInstruction {
 public:
-    explicit AllocateStackInstruction(std::shared_ptr<ASMOperand> size);
+    explicit AllocateStackInstruction(std::shared_ptr<ASMOperand> size,
+                                      bool final_size = false);
     std::string ToString() const override;
     void ChangeSize(std::shared_ptr<ASMOperand> size);
 
 private:
     std::shared_ptr<ASMOperand> size_;
+    bool final_size_;
 };
 
 class DeallocateStackInstruction : public ASMInstruction {
 public:
-    explicit DeallocateStackInstruction(std::shared_ptr<ASMOperand> size);
+    explicit DeallocateStackInstruction(std::shared_ptr<ASMOperand> size,
+                                        bool final_size = false);
     std::string ToString() const override;
     void ChangeSize(std::shared_ptr<ASMOperand> size);
 
 private:
     std::shared_ptr<ASMOperand> size_;
+    bool final_size_;
 };
 
 ///////////////////////////////////////////////

@@ -102,7 +102,7 @@ void LinearIRBuilder::ResolveOperands() {
 
         for (size_t index = 0; index < operands.size(); ++index) {
             if (auto pseudo = std::dynamic_pointer_cast<Pseudo>(operands[index])) {
-                int offset = stack_allocator_.GetOffset(pseudo->GetName(), 8);
+                int offset = stack_allocator_.GetLocalOffset(pseudo->GetName(), 8);
                 operands[index] = std::make_shared<MemoryOperand>(base, offset);
             }
 
@@ -119,6 +119,16 @@ void LinearIRBuilder::ResolveOperands() {
 
                 auto reg = reg_allocator_.Allocate();
                 temps.push_back(reg);
+
+                if (isStore) {
+                    before.push_back(std::make_shared<LoadInstruction>(reg, memory));
+                    operands[index] = reg;
+                    continue;
+                } else if (isLoad) {
+                    after.push_back(std::make_shared<StoreInstruction>(reg, memory));
+                    operands[index] = reg;
+                    continue;
+                }
 
                 bool is_dst = (index == 0 &&
                                !IsPureInputInstruction(instr));  // convention: dst first
@@ -331,22 +341,34 @@ void LinearIRBuilder::LowerFunction(const TACInstruction& instr) {
 
 void LinearIRBuilder::LowerParam(const TACInstruction& instr) {
     auto src = MakeOperand(instr.GetLabel());
-    if (param_index_ < 8) {
-        auto dst = std::make_shared<Register>("w" + std::to_string(param_index_++));
-        Emit(std::make_shared<MovInstruction>(dst, src));
-    } else {
-        auto x29 = std::make_shared<Register>("x29");
-        int offset =
-            stack_allocator_.GetOffset("arg.." + std::to_string(param_index_++), 8);
-        Emit(std::make_shared<StoreInstruction>(
-            src, std::make_shared<MemoryOperand>(x29, offset)));
-    }
+    pending_args_.push(src);
 }
 
 void LinearIRBuilder::LowerCall(const TACInstruction& instr) {
-    param_index_ = 0;
     SaveCallerRegisters();
+    int index = 0;
+    while (!pending_args_.empty() && index < 8) {
+        auto arg = pending_args_.front();
+        pending_args_.pop();
+        auto dst = std::make_shared<Register>("w" + std::to_string(index));
+        Emit(std::make_shared<MovInstruction>(dst, arg));
+        ++index;
+    }
+    int stack_args_size = stack_allocator_.ReserveStackArguments(pending_args_.size());
+
+    auto sp = std::make_shared<Register>("sp");
+    Emit(std::make_shared<AllocateStackInstruction>(
+        std::make_shared<Immediate>(stack_args_size), true));
+    int pending_args_size = pending_args_.size();
+    for (size_t index = 0; index < pending_args_size; ++index) {
+        int offset = stack_allocator_.GetArgumentOffsetForCaller(index, 8);
+        auto mem = std::make_shared<MemoryOperand>(sp, offset);
+        Emit(std::make_shared<StoreInstruction>(pending_args_.front(), mem));
+        pending_args_.pop();
+    }
     Emit(std::make_shared<BranchInstruction>(BranchType::Call, instr.GetLhs()));
+    Emit(std::make_shared<DeallocateStackInstruction>(
+        std::make_shared<Immediate>(stack_args_size), true));
     if (!instr.GetDst().empty()) {
         auto dst = MakeOperand(instr.GetDst());
         auto w0 = std::make_shared<Register>("w0");
@@ -363,13 +385,10 @@ void LinearIRBuilder::MaterializeFormalParameters() {
             auto wi = std::make_shared<Register>("w" + std::to_string(index));
             Emit(std::make_shared<MovInstruction>(dstPseudo, wi));
         } else {
-            int stack_arg_index = index - 8;
-            int incoming_offset = 16 + 8 * stack_arg_index;
+            int incoming_offset =
+                stack_allocator_.GetArgumentOffset("arg.." + std::to_string(index), 8);
             auto mem = std::make_shared<MemoryOperand>(x29, incoming_offset);
-            auto tmp = reg_allocator_.Allocate();
-            Emit(std::make_shared<LoadInstruction>(tmp, mem));
-            Emit(std::make_shared<MovInstruction>(dstPseudo, tmp));
-            reg_allocator_.Free(tmp);
+            Emit(std::make_shared<LoadInstruction>(dstPseudo, mem));
         }
     }
 }
@@ -401,8 +420,6 @@ void LinearIRBuilder::AddFunctionPrologue() {
 
     asm_instructions_.back().push_back(std::make_shared<AllocateStackInstruction>(
         std::make_shared<Immediate>(temp_stack_size)));
-
-    stack_allocator_.PushFrame();
 }
 
 void LinearIRBuilder::AddFunctionEpilogue() {
@@ -416,9 +433,6 @@ void LinearIRBuilder::AddFunctionEpilogue() {
     auto sp = std::make_shared<Register>("sp");
     auto x29 = std::make_shared<Register>("x29");
     auto x30 = std::make_shared<Register>("x30");
-
-    asm_instructions_.back().push_back(std::make_shared<DeallocateStackInstruction>(
-        std::make_shared<Immediate>(temp_stack_size)));
 
     asm_instructions_.back().push_back(std::make_shared<MovInstruction>(sp, x29));
 
