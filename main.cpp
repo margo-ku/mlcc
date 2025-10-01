@@ -122,6 +122,8 @@ int main(int argc, char* argv[]) {
             if (!opts.keep_tac) {
                 std::filesystem::path tac_file = path.replace_extension(".tac.txt");
                 std::filesystem::remove(tac_file);
+                tac_file = path.replace_extension(".tac_optimized.txt");
+                std::filesystem::remove(tac_file);
             }
         }
     }

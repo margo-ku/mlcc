@@ -80,6 +80,12 @@ set(
 )
 
 set(
+        OPTIMIZER_SOURCES
+        src/optimizer/asm_optimizer.cpp
+        src/optimizer/tac_optimizer.cpp
+)
+
+set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
         src/visitors/tac_visitor.cpp
@@ -99,6 +105,7 @@ add_executable(
         ${ASM_SOURCES}
         ${AST_SOURCES}
         ${DRIVER_SOURCES}
+        ${OPTIMIZER_SOURCES}
         ${VISITOR_SOURCES}
         ${SEMANTIC_SOURCES}
         ${BISON_MyParser_OUTPUTS}

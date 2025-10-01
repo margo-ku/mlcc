@@ -20,7 +20,7 @@ void LinearIRBuilder::Build() {
         AddFunctionEpilogue();
         ResolveOperands();
         ChangeStackSize();
-        RunPeepholeOptimization();
+        optimizer_.Optimize(asm_instructions_.back());
         stack_allocator_.PopFrame();
     }
 }
@@ -159,23 +159,6 @@ void LinearIRBuilder::ResolveOperands() {
             reg_allocator_.Free(temps.back());
             temps.pop_back();
         }
-    }
-
-    asm_instructions_.back() = std::move(new_instructions);
-}
-
-// mov x, x
-void LinearIRBuilder::RunPeepholeOptimization() {
-    std::vector<std::shared_ptr<ASMInstruction>> new_instructions;
-    for (auto& instr : asm_instructions_.back()) {
-        auto mov = std::dynamic_pointer_cast<MovInstruction>(instr);
-        if (mov) {
-            auto operands = mov->GetOperands();
-            if (operands[0]->ToString() == operands[1]->ToString()) {
-                continue;
-            }
-        }
-        new_instructions.push_back(instr);
     }
 
     asm_instructions_.back() = std::move(new_instructions);
@@ -475,6 +458,11 @@ std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateI
     std::shared_ptr<ASMOperand> dst, uint64_t value) {
     std::vector<std::shared_ptr<ASMInstruction>> out;
 
+    bool is_32bit = false;
+    if (auto reg = std::dynamic_pointer_cast<Register>(dst)) {
+        is_32bit = reg->ToString().starts_with("w");
+    }
+
     uint16_t parts[4];
     for (int index = 0; index < 4; ++index) {
         parts[index] = static_cast<uint16_t>((value >> (index * 16)) & 0xFFFFu);
@@ -492,9 +480,10 @@ std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateI
         return out;
     }
 
+    int max_shift = is_32bit ? 1 : 3;
     out.push_back(
         std::make_shared<MovzInstruction>(dst, parts[first_nonzero], first_nonzero * 16));
-    for (int index = 0; index < 4; ++index) {
+    for (int index = 0; index <= max_shift; ++index) {
         if (index == first_nonzero) {
             continue;
         }

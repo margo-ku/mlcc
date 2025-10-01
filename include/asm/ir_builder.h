@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "allocator.h"
+#include "include/optimizer/asm_optimizer.h"
 #include "include/visitors/tac_visitor.h"
 #include "instructions.h"
 #include "operands.h"
@@ -22,6 +23,7 @@ private:
     std::queue<std::shared_ptr<ASMOperand>> pending_args_;
     FrameStackAllocator stack_allocator_;
     TempRegisterAllocator reg_allocator_;
+    ASMOptimizer optimizer_;
 
     std::string exit_label_ = "exit";
     int param_index_ = 0;
@@ -29,7 +31,6 @@ private:
 
     void LowerInstruction(const TACInstruction& instr);
     void ResolveOperands();
-    void RunPeepholeOptimization();
 
     void LowerAssign(const TACInstruction& instr);
     void LowerUnaryOp(const TACInstruction& instr);

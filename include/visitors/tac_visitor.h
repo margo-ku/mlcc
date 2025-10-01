@@ -91,6 +91,8 @@ public:
 
     std::vector<std::vector<TACInstruction>> GetTACInstructions() const;
     void PrintTACInstructions(std::ostream& out) const;
+    static void PrintTACInstructions(
+        std::ostream& out, const std::vector<std::vector<TACInstruction>>& instructions);
 
 private:
     std::string GetTemporaryName();
@@ -105,3 +107,6 @@ private:
     void ProcessBinaryOr(BinaryExpression* expression);
     void ProcessBinaryAnd(BinaryExpression* expression);
 };
+
+void PrintTACInstructions(std::ostream& out,
+                          const std::vector<std::vector<TACInstruction>>& instructions);

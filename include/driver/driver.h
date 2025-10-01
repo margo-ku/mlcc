@@ -30,6 +30,7 @@ private:
     bool Parse();
     bool AnalyzeSemantics();
     bool GenerateTAC();
+    bool OptimizeTAC();
     bool GenerateASM();
 
     void ScanBegin();

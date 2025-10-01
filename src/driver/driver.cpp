@@ -1,6 +1,7 @@
 #include "include/driver/driver.h"
 
 #include "include/asm/ir_builder.h"
+#include "include/optimizer/tac_optimizer.h"
 #include "include/semantic/analyzer.h"
 #include "include/visitors/print_visitor.h"
 
@@ -21,7 +22,7 @@ int Driver::CompileFile(const std::string& filename) {
     }
 
     if (ok && compile) {
-        ok = AnalyzeSemantics() && GenerateTAC() && GenerateASM();
+        ok = AnalyzeSemantics() && GenerateTAC() && OptimizeTAC() && GenerateASM();
     }
 
     ScanEnd();
@@ -99,6 +100,29 @@ bool Driver::GenerateTAC() {
 
     if (debug_output) {
         std::cout << "TAC generation completed successfully" << std::endl;
+    }
+
+    return true;
+}
+
+bool Driver::OptimizeTAC() {
+    if (debug_output) {
+        std::cout << "Starting TAC optimizations..." << std::endl;
+    }
+    TACOptimizer optimizer;
+    optimizer.Optimize(tac_instructions_);
+
+    std::string tac_file = ReplaceExtension(original_filename_, ".tac_optimized.txt");
+    std::ofstream out(tac_file);
+    if (!out.is_open()) {
+        std::cerr << "TAC optimization error: Cannot open TAC output file: " << tac_file
+                  << std::endl;
+        return false;
+    }
+    PrintTACInstructions(out, tac_instructions_);
+
+    if (debug_output) {
+        std::cout << "TAC optimizations completed successfully" << std::endl;
     }
 
     return true;

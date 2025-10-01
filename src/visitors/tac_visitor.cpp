@@ -575,7 +575,12 @@ void TACVisitor::ProcessBinaryAnd(BinaryExpression* expression) {
 }
 
 void TACVisitor::PrintTACInstructions(std::ostream& out) const {
-    for (const auto& instruction : instructions_) {
+    PrintTACInstructions(out, instructions_);
+}
+
+void TACVisitor::PrintTACInstructions(
+    std::ostream& out, const std::vector<std::vector<TACInstruction>>& instructions) {
+    for (const auto& instruction : instructions) {
         for (const auto& instr : instruction) {
             out << instr.ToString() << '\n';
         }
@@ -585,4 +590,9 @@ void TACVisitor::PrintTACInstructions(std::ostream& out) const {
 
 std::vector<std::vector<TACInstruction>> TACVisitor::GetTACInstructions() const {
     return instructions_;
+}
+
+void PrintTACInstructions(std::ostream& out,
+                          const std::vector<std::vector<TACInstruction>>& instructions) {
+    TACVisitor::PrintTACInstructions(out, instructions);
 }
