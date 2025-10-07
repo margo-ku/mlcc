@@ -154,6 +154,11 @@ const std::string& TACInstruction::GetRhs() const { return rhs_; }
 
 const std::string& TACInstruction::GetLabel() const { return label_; }
 
+bool TACInstruction::operator==(const TACInstruction& other) const {
+    return op_ == other.op_ && dst_ == other.dst_ && lhs_ == other.lhs_ &&
+           rhs_ == other.rhs_ && label_ == other.label_;
+}
+
 ///////////////////////////////////////////////
 
 TACVisitor::TACVisitor() {}

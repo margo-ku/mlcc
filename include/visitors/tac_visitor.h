@@ -52,6 +52,8 @@ public:
     const std::string& GetRhs() const;
     const std::string& GetLabel() const;
 
+    bool operator==(const TACInstruction& other) const;
+
 private:
     OpCode op_;
     std::string dst_;

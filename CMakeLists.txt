@@ -83,6 +83,8 @@ set(
         OPTIMIZER_SOURCES
         src/optimizer/asm_optimizer.cpp
         src/optimizer/tac_optimizer.cpp
+        src/optimizer/control_flow_graph.cpp
+        src/optimizer/control_flow_utils.cpp
 )
 
 set(
@@ -112,5 +114,7 @@ add_executable(
         ${FLEX_MyScanner_OUTPUTS}
 )
 
+target_compile_options(mlcc PRIVATE -g -O0 -fsanitize=address -fno-omit-frame-pointer)
+target_link_options(mlcc PRIVATE -fsanitize=address)
 target_include_directories(mlcc PRIVATE ${GENERATED_DIR})
 target_include_directories(mlcc PRIVATE ${mlcc_SOURCE_DIR})
