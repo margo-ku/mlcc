@@ -18,6 +18,7 @@ public:
     virtual void Visit(BinaryExpression* expression) = 0;
     virtual void Visit(ConditionalExpression* expression) = 0;
     virtual void Visit(AssignmentExpression* expression) = 0;
+    virtual void Visit(CastExpression* expression) = 0;
     virtual void Visit(CompoundStatement* statement) = 0;
     virtual void Visit(ReturnStatement* statement) = 0;
     virtual void Visit(ExpressionStatement* statement) = 0;

@@ -251,3 +251,31 @@ private:
 };
 
 ///////////////////////////////////////////////
+
+class ExtendInstruction : public ASMInstruction {
+public:
+    ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_, src_;
+};
+
+class TruncateInstruction : public ASMInstruction {
+public:
+    TruncateInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_, src_;
+};
+
+///////////////////////////////////////////////

@@ -37,9 +37,9 @@ class TempRegisterAllocator {
 public:
     TempRegisterAllocator();
 
-    std::shared_ptr<Register> Allocate();
+    std::shared_ptr<Register> Allocate(ASMOperand::Size size = ASMOperand::Size::Byte4);
     void Free(const std::shared_ptr<Register>& reg);
 
 private:
-    std::set<std::string> registers_;
+    std::set<int> available_regs_;
 };

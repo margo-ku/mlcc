@@ -32,6 +32,7 @@ public:
     void SetInitializer(std::unique_ptr<Expression> initializer) override;
     Expression* GetInitializer() const override;
     bool HasInitializer() const override;
+    std::unique_ptr<Expression> ExtractInitializer();
 
 private:
     std::string id_;
@@ -69,11 +70,13 @@ class TypeSpecification : public BaseElement {
 public:
     enum class Type {
         Int = 0,
+        Long = 1,
     };
-    explicit TypeSpecification(std::string type_name);
+    explicit TypeSpecification(Type type);
     virtual ~TypeSpecification() = default;
     void Accept(Visitor* visitor) override;
     std::string GetTypeName() const;
+    Type GetType() const;
 
 private:
     Type type_;

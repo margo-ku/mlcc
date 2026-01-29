@@ -99,6 +99,13 @@ set(
         src/semantic/loop_analyzer.cpp
         src/semantic/symbol_resolver.cpp
         src/semantic/type_checker.cpp
+        src/semantic/symbol_table.cpp
+)
+
+set(
+        TYPES_SOURCES
+        src/types/function_type.cpp
+        src/types/primitive_type.cpp
 )
 
 add_executable(
@@ -110,6 +117,7 @@ add_executable(
         ${OPTIMIZER_SOURCES}
         ${VISITOR_SOURCES}
         ${SEMANTIC_SOURCES}
+        ${TYPES_SOURCES}
         ${BISON_MyParser_OUTPUTS}
         ${FLEX_MyScanner_OUTPUTS}
 )

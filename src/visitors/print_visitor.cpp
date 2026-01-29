@@ -1,5 +1,7 @@
 #include "include/visitors/print_visitor.h"
 
+#include "include/ast/expressions.h"
+
 PrintVisitor::PrintVisitor(std::ostream& stream) : stream_(stream), number_of_tabs_(0) {}
 
 void PrintVisitor::Visit(TranslationUnit* translation_unit) {
@@ -48,7 +50,7 @@ void PrintVisitor::Visit(Expression* expression) {}
 void PrintVisitor::Visit(IdExpression* expression) { stream_ << expression->GetId(); }
 
 void PrintVisitor::Visit(PrimaryExpression* expression) {
-    stream_ << expression->GetValue();
+    stream_ << expression->ToString();
 }
 
 void PrintVisitor::Visit(UnaryExpression* expression) {
@@ -146,6 +148,13 @@ void PrintVisitor::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     stream_ << " = ";
     expression->GetRightExpression()->Accept(this);
+}
+
+void PrintVisitor::Visit(CastExpression* expression) {
+    stream_ << "(";
+    expression->GetType()->Accept(this);
+    stream_ << ")";
+    expression->GetExpression()->Accept(this);
 }
 
 void PrintVisitor::Visit(CompoundStatement* statement) {

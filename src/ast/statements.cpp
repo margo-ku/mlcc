@@ -26,6 +26,19 @@ Expression* ReturnStatement::GetExpression() const {
     return expression_ ? expression_->get() : nullptr;
 }
 
+std::unique_ptr<Expression> ReturnStatement::ExtractExpression() {
+    if (!expression_) {
+        return nullptr;
+    }
+    auto result = std::move(*expression_);
+    expression_.reset();
+    return result;
+}
+
+void ReturnStatement::SetExpression(std::unique_ptr<Expression> expression) {
+    expression_ = std::move(expression);
+}
+
 ///////////////////////////////////////////////
 
 ExpressionStatement::ExpressionStatement() = default;

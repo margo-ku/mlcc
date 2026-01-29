@@ -1,15 +1,14 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
-#include "include/semantic/types.h"
+#include "include/semantic/symbol_table.h"
 #include "include/visitors/visitor.h"
 
 class TypeChecker : public Visitor {
 public:
-    TypeChecker();
+    explicit TypeChecker(SymbolTable& symbol_table);
     ~TypeChecker();
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
@@ -23,6 +22,7 @@ public:
     void Visit(BinaryExpression* expression) override;
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
+    void Visit(CastExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -40,8 +40,21 @@ public:
     const std::vector<std::string>& GetErrors() const;
 
 private:
-    std::vector<std::string> errors_;
-    std::unordered_map<std::string, std::unique_ptr<TypeInfo>> symbol_table_;
+    TypeRef ResolvePrimitiveType(TypeSpecification* type);
+    std::unique_ptr<TypeSpecification> GetTypeSpecification(TypeRef type);
+    TypeRef GetCommonType(TypeRef type1, TypeRef type2);
+    TypeRef ResolveFunctionType(Declarator* declarator, TypeSpecification* return_type);
+    void ReportError(const std::string& message);
+    bool CanCast(TypeRef from, TypeRef to);
+    std::unique_ptr<Expression> WrapWithCast(std::unique_ptr<Expression> expression,
+                                             TypeRef target_type);
+    bool ProcessFunctionDeclaration(FunctionDeclarator* func_declarator,
+                                    TypeSpecification* return_type_spec,
+                                    bool is_definition);
+    bool ProcessIdentifierDeclaration(IdentifierDeclarator* id_declarator,
+                                      TypeRef declared_type);
 
-    static bool IsFunctionDeclarator(Declarator* declarator);
+    std::vector<std::string> errors_;
+    SymbolTable& symbol_table_;
+    TypeRef current_return_type_;
 };

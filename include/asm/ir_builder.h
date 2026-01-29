@@ -5,6 +5,7 @@
 
 #include "allocator.h"
 #include "include/optimizer/asm_optimizer.h"
+#include "include/semantic/symbol_table.h"
 #include "include/visitors/tac_visitor.h"
 #include "instructions.h"
 #include "operands.h"
@@ -12,7 +13,8 @@
 class LinearIRBuilder {
 public:
     explicit LinearIRBuilder(
-        const std::vector<std::vector<TACInstruction>>& tac_instructions);
+        const std::vector<std::vector<TACInstruction>>& tac_instructions,
+        SymbolTable& symbol_table);
 
     void Build();
     void Print(std::ostream& out) const;
@@ -24,8 +26,10 @@ private:
     FrameStackAllocator stack_allocator_;
     TempRegisterAllocator reg_allocator_;
     ASMOptimizer optimizer_;
+    SymbolTable& symbol_table_;
 
     std::string exit_label_ = "exit";
+    std::string current_function_name_;
     int param_index_ = 0;
     int current_param_count_ = 0;
 
@@ -42,6 +46,8 @@ private:
     void LowerParam(const TACInstruction& instr);
     void LowerCall(const TACInstruction& instr);
     void LowerFunction(const TACInstruction& instr);
+    void LowerExtend(const TACInstruction& instr);
+    void LowerTruncate(const TACInstruction& instr);
 
     void AddFunctionPrologue();
     void AddFunctionEpilogue();
@@ -56,6 +62,7 @@ private:
 
     bool IsPureInputInstruction(const std::shared_ptr<ASMInstruction>& instr);
     std::string GetCurrentExitLabel() const;
+    std::shared_ptr<Register> GetReturnRegister() const;
 
     std::vector<std::shared_ptr<ASMInstruction>> MakeLoadImmediateInstrs(
         std::shared_ptr<ASMOperand> dst, uint64_t value);

@@ -7,31 +7,32 @@
 class PrintVisitor : public Visitor {
 public:
     explicit PrintVisitor(std::ostream& stream);
-    virtual void Visit(TranslationUnit* translation_unit) override;
-    virtual void Visit(ItemList* item_list) override;
-    virtual void Visit(FunctionDefinition* function) override;
-    virtual void Visit(TypeSpecification* type) override;
-    virtual void Visit(Declaration* declaration) override;
-    virtual void Visit(Expression* expression) override;
-    virtual void Visit(IdExpression* expression) override;
-    virtual void Visit(PrimaryExpression* expression) override;
-    virtual void Visit(UnaryExpression* expression) override;
-    virtual void Visit(BinaryExpression* expression) override;
-    virtual void Visit(ConditionalExpression* expression) override;
-    virtual void Visit(AssignmentExpression* expression) override;
-    virtual void Visit(CompoundStatement* statement) override;
-    virtual void Visit(ReturnStatement* statement) override;
-    virtual void Visit(ExpressionStatement* statement) override;
-    virtual void Visit(SelectionStatement* statement) override;
-    virtual void Visit(JumpStatement* statement) override;
-    virtual void Visit(WhileStatement* statement) override;
-    virtual void Visit(ForStatement* statement) override;
-    virtual void Visit(ParameterDeclaration* declaration) override;
-    virtual void Visit(ParameterList* list) override;
-    virtual void Visit(FunctionCallExpression* expression) override;
-    virtual void Visit(ArgumentExpressionList* list) override;
-    virtual void Visit(IdentifierDeclarator* declarator) override;
-    virtual void Visit(FunctionDeclarator* declarator) override;
+    void Visit(TranslationUnit* translation_unit) override;
+    void Visit(ItemList* item_list) override;
+    void Visit(FunctionDefinition* function) override;
+    void Visit(TypeSpecification* type) override;
+    void Visit(Declaration* declaration) override;
+    void Visit(Expression* expression) override;
+    void Visit(IdExpression* expression) override;
+    void Visit(PrimaryExpression* expression) override;
+    void Visit(UnaryExpression* expression) override;
+    void Visit(BinaryExpression* expression) override;
+    void Visit(ConditionalExpression* expression) override;
+    void Visit(AssignmentExpression* expression) override;
+    void Visit(CastExpression* expression) override;
+    void Visit(CompoundStatement* statement) override;
+    void Visit(ReturnStatement* statement) override;
+    void Visit(ExpressionStatement* statement) override;
+    void Visit(SelectionStatement* statement) override;
+    void Visit(JumpStatement* statement) override;
+    void Visit(WhileStatement* statement) override;
+    void Visit(ForStatement* statement) override;
+    void Visit(ParameterDeclaration* declaration) override;
+    void Visit(ParameterList* list) override;
+    void Visit(FunctionCallExpression* expression) override;
+    void Visit(ArgumentExpressionList* list) override;
+    void Visit(IdentifierDeclarator* declarator) override;
+    void Visit(FunctionDeclarator* declarator) override;
 
 private:
     std::ostream& stream_;

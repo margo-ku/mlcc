@@ -33,6 +33,8 @@ public:
     void Accept(Visitor* visitor) override;
     bool HasExpression() const;
     Expression* GetExpression() const;
+    std::unique_ptr<Expression> ExtractExpression();
+    void SetExpression(std::unique_ptr<Expression> expression);
 
 private:
     std::optional<std::unique_ptr<Expression>> expression_;

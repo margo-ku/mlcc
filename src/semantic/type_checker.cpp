@@ -1,6 +1,13 @@
 #include "include/semantic/type_checker.h"
 
-TypeChecker::TypeChecker() {}
+#include "include/ast/declarations.h"
+#include "include/ast/expressions.h"
+#include "include/semantic/symbol_table.h"
+#include "include/types/function_type.h"
+#include "include/types/primitive_type.h"
+#include "include/types/type.h"
+
+TypeChecker::TypeChecker(SymbolTable& symbol_table) : symbol_table_(symbol_table) {}
 
 TypeChecker::~TypeChecker() {}
 
@@ -18,60 +25,245 @@ void TypeChecker::Visit(ItemList* item_list) {
 
 void TypeChecker::Visit(FunctionDefinition* function) {
     function->GetDeclarator()->Accept(this);
-    std::string func_name = function->GetDeclarator()->GetId();
-    auto func_type = dynamic_cast<FunctionType*>(symbol_table_[func_name].get());
-    if (!func_type) {
-        errors_.push_back("'" + func_name + "' is not a function");
+
+    if (auto func_declarator =
+            dynamic_cast<FunctionDeclarator*>(function->GetDeclarator())) {
+        if (!ProcessFunctionDeclaration(func_declarator, function->GetReturnType(),
+                                        true)) {
+            return;
+        }
+        if (func_declarator->HasParameters()) {
+            func_declarator->GetParameters()->Accept(this);
+        }
+    } else {
+        ReportError("function definition has non-function declarator");
         return;
     }
-    if (func_type->IsDefined()) {
-        errors_.push_back("function '" + function->GetDeclarator()->GetId() +
-                          "' is already defined");
-        return;
-    }
-    func_type->SetDefined();
+
+    current_return_type_ = ResolvePrimitiveType(function->GetReturnType());
     function->GetBody()->Accept(this);
+    current_return_type_ = nullptr;
 }
 
 void TypeChecker::Visit(TypeSpecification* type) {}
 
 void TypeChecker::Visit(Declaration* declaration) {
-    declaration->GetDeclaration()->Accept(this);
+    Declarator* declarator = declaration->GetDeclaration();
+    declarator->Accept(this);
+
+    TypeSpecification* type_spec = declaration->GetType();
+    TypeRef type = ResolvePrimitiveType(type_spec);
+    if (!type) {
+        ReportError("internal error: declaration has no type specification");
+        return;
+    }
+
+    if (auto func_declarator = dynamic_cast<FunctionDeclarator*>(declarator)) {
+        if (!ProcessFunctionDeclaration(func_declarator, type_spec, false)) {
+            return;
+        }
+    } else if (auto id_declarator = dynamic_cast<IdentifierDeclarator*>(declarator)) {
+        if (!ProcessIdentifierDeclaration(id_declarator, type)) {
+            return;
+        }
+    } else {
+        ReportError("declaration has unknown declarator type");
+        return;
+    }
 }
 
 void TypeChecker::Visit(Expression* expression) {}
 
 void TypeChecker::Visit(IdExpression* expression) {
-    if (symbol_table_.contains(expression->GetId())) {
-        auto var_type =
-            dynamic_cast<VariableType*>(symbol_table_[expression->GetId()].get());
-        if (!var_type || var_type->type != VariableType::PrimitiveType::Int) {
-            errors_.push_back("variable '" + expression->GetId() + "' is not int");
+    std::string name = expression->GetId();
+    if (SymbolInfo* info = symbol_table_.FindByUniqueName(name)) {
+        if (!info->type) {
+            ReportError("type of '" + name + "' is not set");
             return;
         }
+        expression->SetTypeRef(info->type);
+    } else {
+        ReportError("there is no symbol_info about '" + name + "' in symbol table");
     }
 }
 
-void TypeChecker::Visit(PrimaryExpression* expression) {}
+void TypeChecker::Visit(PrimaryExpression* expression) {
+    std::visit(
+        [this, &expression](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, int>) {
+                expression->SetTypeRef(PrimitiveType::GetInt32());
+            } else if constexpr (std::is_same_v<T, long>) {
+                expression->SetTypeRef(PrimitiveType::GetInt64());
+            } else {
+                ReportError("unsupported primary expression type");
+            }
+        },
+        expression->GetValue());
+}
 
 void TypeChecker::Visit(UnaryExpression* expression) {
     expression->GetExpression()->Accept(this);
+
+    TypeRef operand_type = expression->GetExpression()->GetTypeRef();
+    if (!operand_type || !operand_type->IsIntegral()) {
+        ReportError("unary operator requires integral operand");
+        return;
+    }
+
+    switch (expression->GetOp()) {
+        case UnaryExpression::UnaryOperator::Minus:
+        case UnaryExpression::UnaryOperator::Plus:
+        case UnaryExpression::UnaryOperator::BinaryNot:
+            expression->SetTypeRef(operand_type);
+            break;
+        case UnaryExpression::UnaryOperator::Not:
+            expression->SetTypeRef(PrimitiveType::GetInt32());
+            break;
+    }
 }
 
 void TypeChecker::Visit(BinaryExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
+
+    TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
+    TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
+
+    if (!left_type || !left_type->IsIntegral()) {
+        ReportError("left operand of binary expression must be an integral type");
+        return;
+    }
+    if (!right_type || !right_type->IsIntegral()) {
+        ReportError("right operand of binary expression must be an integral type");
+        return;
+    }
+
+    TypeRef common_type = GetCommonType(left_type, right_type);
+
+    std::unique_ptr<Expression> wrapped_left_expr =
+        WrapWithCast(expression->ExtractLeftExpression(), common_type);
+    if (!wrapped_left_expr) {
+        return;
+    }
+    expression->SetLeftExpression(std::move(wrapped_left_expr));
+
+    std::unique_ptr<Expression> wrapped_right_expr =
+        WrapWithCast(expression->ExtractRightExpression(), common_type);
+    if (!wrapped_right_expr) {
+        return;
+    }
+    expression->SetRightExpression(std::move(wrapped_right_expr));
+
+    switch (expression->GetOp()) {
+        case BinaryExpression::BinaryOperator::And:
+        case BinaryExpression::BinaryOperator::Or:
+        case BinaryExpression::BinaryOperator::Less:
+        case BinaryExpression::BinaryOperator::Greater:
+        case BinaryExpression::BinaryOperator::LessEqual:
+        case BinaryExpression::BinaryOperator::GreaterEqual:
+        case BinaryExpression::BinaryOperator::Equal:
+        case BinaryExpression::BinaryOperator::NotEqual: {
+            expression->SetTypeRef(PrimitiveType::GetInt32());
+            break;
+        }
+        default: {
+            expression->SetTypeRef(common_type);
+            break;
+        }
+    }
 }
 
 void TypeChecker::Visit(ConditionalExpression* expression) {
     expression->GetCondition()->Accept(this);
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
+
+    TypeRef cond_type = expression->GetCondition()->GetTypeRef();
+    TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
+    TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
+
+    if (!cond_type || !cond_type->IsIntegral()) {
+        ReportError("conditional expression condition must be an integral type");
+        return;
+    }
+    if (!left_type || !left_type->IsIntegral()) {
+        ReportError("conditional expression left operand must be an integral type");
+        return;
+    }
+    if (!right_type || !right_type->IsIntegral()) {
+        ReportError("conditional expression right operand must be an integral type");
+        return;
+    }
+
+    TypeRef common_type = GetCommonType(left_type, right_type);
+
+    std::unique_ptr<Expression> wrapped_left_expr =
+        WrapWithCast(expression->ExtractLeftExpression(), common_type);
+    if (!wrapped_left_expr) {
+        return;
+    }
+    expression->SetLeftExpression(std::move(wrapped_left_expr));
+
+    std::unique_ptr<Expression> wrapped_right_expr =
+        WrapWithCast(expression->ExtractRightExpression(), common_type);
+    if (!wrapped_right_expr) {
+        return;
+    }
+    expression->SetRightExpression(std::move(wrapped_right_expr));
+
+    expression->SetTypeRef(common_type);
 }
 
 void TypeChecker::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
+
+    TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
+    TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
+
+    if (!left_type || !left_type->IsIntegral()) {
+        ReportError("left operand of assignment must be an integral type");
+        return;
+    }
+    if (!right_type || !right_type->IsIntegral()) {
+        ReportError("right operand of assignment must be an integral type");
+        return;
+    }
+
+    if (!right_type->Equals(left_type)) {
+        std::unique_ptr<Expression> wrapped_right_expr =
+            WrapWithCast(expression->ExtractRightExpression(), left_type);
+        if (!wrapped_right_expr) {
+            return;
+        }
+        expression->SetRightExpression(std::move(wrapped_right_expr));
+    }
+
+    expression->SetTypeRef(left_type);
+}
+
+void TypeChecker::Visit(CastExpression* expression) {
+    Expression* inner = expression->GetExpression();
+    if (!inner->GetTypeRef()) {
+        inner->Accept(this);
+    }
+
+    TypeRef from_type = inner->GetTypeRef();
+    TypeRef to_type = ResolvePrimitiveType(expression->GetType());
+
+    if (!from_type || !to_type) {
+        ReportError("invalid types in cast expression");
+        return;
+    }
+
+    if (!CanCast(from_type, to_type)) {
+        ReportError("cannot cast expression of type '" + from_type->ToString() +
+                    "' to '" + to_type->ToString() + "'");
+        return;
+    }
+
+    expression->SetTypeRef(to_type);
 }
 
 void TypeChecker::Visit(CompoundStatement* statement) {
@@ -81,6 +273,17 @@ void TypeChecker::Visit(CompoundStatement* statement) {
 void TypeChecker::Visit(ReturnStatement* statement) {
     if (statement->HasExpression()) {
         statement->GetExpression()->Accept(this);
+
+        if (current_return_type_) {
+            TypeRef expr_type = statement->GetExpression()->GetTypeRef();
+            if (expr_type && !expr_type->Equals(current_return_type_)) {
+                std::unique_ptr<Expression> wrapped =
+                    WrapWithCast(statement->ExtractExpression(), current_return_type_);
+                if (wrapped) {
+                    statement->SetExpression(std::move(wrapped));
+                }
+            }
+        }
     }
 }
 
@@ -108,13 +311,13 @@ void TypeChecker::Visit(WhileStatement* statement) {
 void TypeChecker::Visit(ForStatement* statement) {
     BaseElement* init = statement->GetInit();
     if (!dynamic_cast<Declaration*>(init) && !dynamic_cast<Expression*>(init)) {
-        errors_.push_back("for statement has invalid initialization");
+        ReportError("for statement has invalid initialization");
         return;
     }
 
     if (auto decl = dynamic_cast<Declaration*>(init)) {
         if (dynamic_cast<FunctionDeclarator*>(decl->GetDeclaration())) {
-            errors_.push_back("function declaration in for loop header");
+            ReportError("function declaration in for loop header");
             return;
         }
     }
@@ -125,7 +328,35 @@ void TypeChecker::Visit(ForStatement* statement) {
 }
 
 void TypeChecker::Visit(ParameterDeclaration* declaration) {
-    declaration->GetDeclarator()->Accept(this);
+    Declarator* declarator = declaration->GetDeclarator();
+    declarator->Accept(this);
+
+    TypeSpecification* type_spec = declaration->GetType();
+    TypeRef type = ResolvePrimitiveType(type_spec);
+    if (!type) {
+        ReportError("internal error: parameter declaration has no declarator");
+        return;
+    }
+
+    if (auto func_declarator = dynamic_cast<FunctionDeclarator*>(declarator)) {
+        ReportError("parameter '" + func_declarator->GetId() + "' cannot be a function");
+        return;
+    } else if (auto id_declarator = dynamic_cast<IdentifierDeclarator*>(declarator)) {
+        std::string name = id_declarator->GetId();
+        SymbolInfo* info = symbol_table_.FindByUniqueName(name);
+        if (!info) {
+            ReportError("internal error: symbol not found for parameter '" + name + "'");
+            return;
+        }
+        if (info->type) {
+            ReportError("parameter '" + name + "' already has a type");
+            return;
+        }
+        info->type = type;
+    } else {
+        ReportError("unknown parameter declarator type");
+        return;
+    }
 }
 
 void TypeChecker::Visit(ParameterList* list) {
@@ -135,34 +366,63 @@ void TypeChecker::Visit(ParameterList* list) {
 }
 
 void TypeChecker::Visit(FunctionCallExpression* expression) {
-    auto func_expr = dynamic_cast<IdExpression*>(expression->GetFunction());
-    std::string id = func_expr->GetId();
-    if (!symbol_table_.contains(id)) {
-        errors_.push_back("function '" + id + "' is not declared");
+    Expression* function_expression = expression->GetFunction();
+    if (!function_expression) {
+        ReportError("function call has no function expression");
         return;
     }
-    auto func_type = dynamic_cast<FunctionType*>(symbol_table_[id].get());
-    if (!func_type) {
-        errors_.push_back("'" + id + "' is not a function");
+    function_expression->Accept(this);
+
+    TypeRef function_type = function_expression->GetTypeRef();
+    if (!function_type) {
+        ReportError("cannot resolve type of function in call expression");
         return;
     }
 
-    int args_count = 0;
-    if (expression->HasArguments()) {
-        args_count = expression->GetArguments()->GetArguments().size();
-    }
-    if (args_count != func_type->parameter_count) {
-        errors_.push_back("function '" + id + "' expects " +
-                          std::to_string(func_type->parameter_count) +
-                          " arguments, but " + std::to_string(args_count) +
-                          " were provided");
+    FunctionType* func_type = dynamic_cast<FunctionType*>(function_type.get());
+    if (!function_type) {
+        ReportError("called expression is not a function");
         return;
     }
-    if (expression->HasArguments()) {
-        expression->GetArguments()->Accept(this);
+
+    size_t expected = func_type->GetParameterCount();
+    size_t provided = 0;
+    if (expression->HasArguments() && expression->GetArguments()) {
+        provided = expression->GetArguments()->GetArguments().size();
     }
+
+    if (provided != expected) {
+        ReportError("function '" + func_type->ToString() + "' expects " +
+                    std::to_string(expected) + " arguments, but " +
+                    std::to_string(provided) + " were provided");
+        return;
+    }
+
+    if (provided > 0) {
+        auto& args = expression->GetArguments()->GetArguments();
+        for (size_t index = 0; index < provided; ++index) {
+            args[index]->Accept(this);
+            TypeRef arg_type = args[index]->GetTypeRef();
+            TypeRef param_type = func_type->GetParamTypes()[index];
+            if (!arg_type || !arg_type->IsIntegral()) {
+                ReportError("argument " + std::to_string(index) +
+                            " of function call must be an integral type");
+                return;
+            }
+
+            if (!arg_type->Equals(param_type)) {
+                std::unique_ptr<Expression> wrapped =
+                    WrapWithCast(std::move(args[index]), param_type);
+                if (!wrapped) {
+                    return;
+                }
+                args[index] = std::move(wrapped);
+            }
+        }
+    }
+
+    expression->SetTypeRef(func_type->GetReturnType());
 }
-
 void TypeChecker::Visit(ArgumentExpressionList* list) {
     for (auto& argument : list->GetArguments()) {
         argument->Accept(this);
@@ -171,54 +431,227 @@ void TypeChecker::Visit(ArgumentExpressionList* list) {
 
 void TypeChecker::Visit(IdentifierDeclarator* declarator) {
     std::string id = declarator->GetId();
-    if (symbol_table_.contains(id)) {
-        errors_.push_back("variable '" + id + "' is already declared");
-        return;
-    }
-    symbol_table_[id] = std::make_unique<VariableType>(VariableType::PrimitiveType::Int);
-    if (declarator->HasInitializer()) {
-        declarator->GetInitializer()->Accept(this);
+    SymbolInfo* info = symbol_table_.FindByUniqueName(id);
+    if (!info || info->type && !info->type->IsIntegral()) {
+        ReportError("id declarator'" + declarator->GetId() +
+                    "' is not an integral variable");
     }
 }
 
 void TypeChecker::Visit(FunctionDeclarator* declarator) {
     Declarator* inner = declarator->GetDeclarator();
-    if (IsFunctionDeclarator(inner)) {
-        errors_.push_back("function '" + declarator->GetId() +
-                          "' cannot return function");
+    if (auto func_decl = dynamic_cast<FunctionDeclarator*>(inner)) {
+        ReportError("function declarator'" + declarator->GetId() +
+                    "' cannot be a function");
         return;
     }
 
-    int param_count = 0;
-    if (declarator->HasParameters()) {
-        param_count = declarator->GetParameters()->GetParameters().size();
-    }
-
-    std::string id = declarator->GetId();
-    if (symbol_table_.contains(id)) {
-        auto existing = symbol_table_[id].get();
-        if (existing->IsVariable()) {
-            errors_.push_back("variable '" + id + "' is already declared");
-            return;
-        }
-
-        auto prev_func = dynamic_cast<FunctionType*>(existing);
-        if (!prev_func) {
-            errors_.push_back("internal type error for '" + id + "'");
-            return;
-        }
-
-        if (prev_func->parameter_count != param_count) {
-            errors_.push_back("function '" + id + "' has different parameter count");
-            return;
-        }
-    } else {
-        symbol_table_[id] = std::make_unique<FunctionType>(param_count);
+    auto id_decl = dynamic_cast<IdentifierDeclarator*>(inner);
+    std::string name = id_decl->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(name);
+    if (!info || info->type && info->type->IsIntegral()) {
+        ReportError("function declarator'" + declarator->GetId() +
+                    "' is an integral variable");
     }
 }
 
+////////////////////////////////////////////////////////////////////
+
 const std::vector<std::string>& TypeChecker::GetErrors() const { return errors_; }
 
-bool TypeChecker::IsFunctionDeclarator(Declarator* declarator) {
-    return dynamic_cast<FunctionDeclarator*>(declarator) != nullptr;
+void TypeChecker::ReportError(const std::string& message) { errors_.push_back(message); }
+
+bool TypeChecker::CanCast(TypeRef from, TypeRef to) {
+    if (!from || !to) {
+        return false;
+    }
+
+    if (from->Equals(to)) {
+        return true;
+    }
+
+    if (!from->IsIntegral() || !to->IsIntegral()) {
+        return false;
+    }
+
+    if (from->Equals(PrimitiveType::GetInt32()) &&
+        to->Equals(PrimitiveType::GetInt64())) {
+        return true;
+    }
+
+    if (from->Equals(PrimitiveType::GetInt64()) &&
+        to->Equals(PrimitiveType::GetInt32())) {
+        return true;
+    }
+
+    return false;
+}
+
+std::unique_ptr<Expression> TypeChecker::WrapWithCast(
+    std::unique_ptr<Expression> expression, TypeRef target_type) {
+    TypeRef from_type = expression->GetTypeRef();
+    if (!from_type) {
+        expression->Accept(this);
+        from_type = expression->GetTypeRef();
+    }
+
+    if (!from_type->Equals(target_type)) {
+        if (CanCast(from_type, target_type)) {
+            auto cast_expr = std::make_unique<CastExpression>(
+                std::move(GetTypeSpecification(target_type)), std::move(expression));
+
+            cast_expr->SetTypeRef(target_type);
+            return cast_expr;
+        } else {
+            ReportError("cannot cast expression of type '" + from_type->ToString() +
+                        "' to '" + target_type->ToString() + "'");
+            return nullptr;
+        }
+    }
+    return expression;
+}
+
+TypeRef TypeChecker::GetCommonType(TypeRef type1, TypeRef type2) {
+    if (type1->Equals(type2)) {
+        return type1;
+    }
+    return PrimitiveType::GetInt64();
+}
+
+TypeRef TypeChecker::ResolvePrimitiveType(TypeSpecification* type) {
+    if (!type) {
+        ReportError("type specification is empty");
+        return nullptr;
+    }
+
+    switch (type->GetType()) {
+        case TypeSpecification::Type::Int:
+            return PrimitiveType::GetInt32();
+        case TypeSpecification::Type::Long:
+            return PrimitiveType::GetInt64();
+        default:
+            ReportError("type specification is invalid");
+            return nullptr;
+    }
+}
+
+std::unique_ptr<TypeSpecification> TypeChecker::GetTypeSpecification(TypeRef type) {
+    if (!type) {
+        return nullptr;
+    }
+    if (type->Equals(PrimitiveType::GetInt32())) {
+        return std::make_unique<TypeSpecification>(TypeSpecification::Type::Int);
+    } else if (type->Equals(PrimitiveType::GetInt64())) {
+        return std::make_unique<TypeSpecification>(TypeSpecification::Type::Long);
+    }
+    return nullptr;
+}
+
+TypeRef TypeChecker::ResolveFunctionType(Declarator* declarator,
+                                         TypeSpecification* return_type_spec) {
+    if (!return_type_spec) {
+        ReportError("type specification of return type is empty");
+        return nullptr;
+    }
+    TypeRef return_type = ResolvePrimitiveType(return_type_spec);
+    if (!return_type) {
+        return nullptr;
+    }
+
+    std::vector<TypeRef> param_types;
+    if (auto func_declarator = dynamic_cast<FunctionDeclarator*>(declarator)) {
+        if (func_declarator->HasParameters()) {
+            ParameterList* list = func_declarator->GetParameters();
+            if (list) {
+                const auto& params = list->GetParameters();
+                for (const auto& param_ptr : params) {
+                    if (!param_ptr) {
+                        continue;
+                    }
+                    ParameterDeclaration* param = param_ptr.get();
+                    if (!param) {
+                        continue;
+                    }
+
+                    TypeSpecification* param_type_spec = param->GetType();
+                    if (!param) {
+                        ReportError("Parameter has no type");
+                        return nullptr;
+                    }
+                    TypeRef param_type = ResolvePrimitiveType(param_type_spec);
+                    if (!param_type) {
+                        ReportError("Parameter has invalid type");
+                        return nullptr;
+                    }
+                    param_types.push_back(param_type);
+                }
+            }
+        }
+    }
+    return std::make_shared<FunctionType>(return_type, std::move(param_types));
+}
+
+bool TypeChecker::ProcessFunctionDeclaration(FunctionDeclarator* func_declarator,
+                                             TypeSpecification* return_type_spec,
+                                             bool is_definition) {
+    TypeRef func_type = ResolveFunctionType(func_declarator, return_type_spec);
+    if (!func_type) {
+        return false;
+    }
+
+    std::string func_name = func_declarator->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(func_name);
+    if (!info) {
+        ReportError("internal error: symbol exists but pointer not found for '" +
+                    func_name + "'");
+        return false;
+    } else if (is_definition && info->is_defined) {
+        ReportError("function '" + func_name + "' is already defined");
+        return false;
+    } else if (is_definition) {
+        info->is_defined = true;
+    }
+
+    if (info->type) {
+        if (!info->type->Equals(func_type)) {
+            ReportError("function '" + func_name +
+                        "' has been already declared with different type");
+            return false;
+        }
+    } else {
+        info->type = func_type;
+    }
+    return true;
+}
+
+bool TypeChecker::ProcessIdentifierDeclaration(IdentifierDeclarator* id_declarator,
+                                               TypeRef declared_type) {
+    std::string unique_name = id_declarator->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(unique_name);
+    if (!info) {
+        ReportError("internal error: symbol not found for '" + unique_name + "'");
+        return false;
+    } else if (info->type || info->is_defined) {
+        // to do: duplicate declarations
+        ReportError("symbol '" + unique_name + "' is already declared/defined");
+        return false;
+    }
+
+    info->type = declared_type;
+    if (id_declarator->HasInitializer()) {
+        Expression* init = id_declarator->GetInitializer();
+        if (init) {
+            init->Accept(this);
+            TypeRef expr_type = init->GetTypeRef();
+            if (!expr_type->Equals(declared_type)) {
+                std::unique_ptr<Expression> wrapped_init =
+                    WrapWithCast(id_declarator->ExtractInitializer(), declared_type);
+                if (!wrapped_init) {
+                    return false;
+                }
+                id_declarator->SetInitializer(std::move(wrapped_init));
+            }
+        }
+    }
+    return true;
 }

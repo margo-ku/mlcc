@@ -1,6 +1,8 @@
 #include "include/semantic/loop_analyzer.h"
 
-LoopAnalyzer::LoopAnalyzer() {}
+#include "include/ast/expressions.h"
+
+LoopAnalyzer::LoopAnalyzer(SymbolTable& symbol_table) : symbol_table_(symbol_table) {}
 
 LoopAnalyzer::~LoopAnalyzer() {}
 
@@ -50,6 +52,11 @@ void LoopAnalyzer::Visit(ConditionalExpression* expression) {
 void LoopAnalyzer::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
+}
+
+void LoopAnalyzer::Visit(CastExpression* expression) {
+    expression->GetType()->Accept(this);
+    expression->GetExpression()->Accept(this);
 }
 
 void LoopAnalyzer::Visit(CompoundStatement* statement) {

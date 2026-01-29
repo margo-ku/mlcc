@@ -1,19 +1,13 @@
 #pragma once
 
-#include <unordered_map>
 #include <vector>
 
+#include "include/semantic/symbol_table.h"
 #include "include/visitors/visitor.h"
-
-struct SymbolInfo {
-    enum class LinkageKind { External, Internal, None };
-    std::string name;
-    LinkageKind linkage;
-};
 
 class SymbolResolver : public Visitor {
 public:
-    SymbolResolver();
+    explicit SymbolResolver(SymbolTable& symbol_table);
     virtual ~SymbolResolver();
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
@@ -27,6 +21,7 @@ public:
     void Visit(BinaryExpression* expression) override;
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
+    void Visit(CastExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -45,20 +40,7 @@ public:
 
 private:
     std::vector<std::string> errors_;
-    std::vector<std::unordered_map<std::string, SymbolInfo>> scopes_;
-    std::unordered_map<std::string, int> name_counters_;
-
-    void EnterScope();
-    void ExitScope();
-
-    bool IsInCurrentScope(const std::string& id) const;
-    bool IsDeclaredInAnyScope(const std::string& id) const;
-
-    void AddToCurrentScope(const std::string& original_name,
-                           const std::string& unique_name,
-                           SymbolInfo::LinkageKind linkage);
-    std::string GenerateUniqueName(const std::string& base);
-    std::string GetUniqueName(const std::string& original_name);
 
     bool suppress_next_compound_scope_ = false;
+    SymbolTable& symbol_table_;
 };

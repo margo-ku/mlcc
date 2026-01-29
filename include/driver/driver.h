@@ -5,6 +5,7 @@
 #include <string>
 
 #include "include/ast/translation_unit.h"
+#include "include/semantic/symbol_table.h"
 #include "include/visitors/tac_visitor.h"
 #include "parser.hh"
 #include "scanner.h"
@@ -47,6 +48,6 @@ private:
     Scanner scanner_;
     yy::parser parser_;
     std::unique_ptr<TranslationUnit> translation_unit_;
-
+    SymbolTable symbol_table_;
     std::vector<std::vector<TACInstruction>> tac_instructions_;
 };

@@ -75,10 +75,11 @@
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION COMMA
 %token ASSIGNMENT
-%token INT VOID
+%token INT LONG VOID
 %token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
 %token <std::string> ID
-%token <int> NUMBER
+%token <int> INT_NUMBER
+%token <long> LONG_NUMBER
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -104,6 +105,7 @@
 %type <std::unique_ptr<Expression>> primary_expression
 %type <std::unique_ptr<Expression>> postfix_expression
 %type <std::unique_ptr<Expression>> unary_expression
+%type <std::unique_ptr<Expression>> cast_expression
 %type <std::unique_ptr<Expression>> additive_expression
 %type <std::unique_ptr<Expression>> shift_expression
 %type <std::unique_ptr<Expression>> multiplicative_expression
@@ -144,7 +146,8 @@ declaration_specifiers:
     type_specifier { $$ = std::move($1); };
 
 type_specifier:
-    INT { $$ = std::make_unique<TypeSpecification>("int"); };
+    INT { $$ = std::make_unique<TypeSpecification>(TypeSpecification::Type::Int); }
+    | LONG { $$ = std::make_unique<TypeSpecification>(TypeSpecification::Type::Long); }
 
 declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
@@ -270,10 +273,14 @@ additive_expression:
     | additive_expression MINUS multiplicative_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Minus, std::move($1), std::move($3)); };
 
 multiplicative_expression:
+    cast_expression { $$ = std::move($1); }
+    | multiplicative_expression STAR cast_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mul, std::move($1), std::move($3)); }
+    | multiplicative_expression SLASH cast_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Div, std::move($1), std::move($3)); }
+    | multiplicative_expression MOD cast_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mod, std::move($1), std::move($3)); };
+
+cast_expression:
     unary_expression { $$ = std::move($1); }
-    | multiplicative_expression STAR unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mul, std::move($1), std::move($3)); }
-    | multiplicative_expression SLASH unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Div, std::move($1), std::move($3)); }
-    | multiplicative_expression MOD unary_expression { $$ = std::make_unique<BinaryExpression>(BinaryExpression::BinaryOperator::Mod, std::move($1), std::move($3)); };
+    | LPAREN type_specifier RPAREN unary_expression { $$ = std::make_unique<CastExpression>(std::move($2), std::move($4)); };
 
 unary_expression:
     postfix_expression { $$ = std::move($1); }
@@ -289,7 +296,10 @@ postfix_expression:
 
 primary_expression:
     ID { $$ = std::make_unique<IdExpression>($1); }
-    | NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | INT_NUMBER { 
+        $$ = std::make_unique<PrimaryExpression>($1); }
+    | LONG_NUMBER { 
+        $$ = std::make_unique<PrimaryExpression>($1); }
     | LPAREN expression RPAREN { $$ = std::move($2); };
 
 argument_expression_list:

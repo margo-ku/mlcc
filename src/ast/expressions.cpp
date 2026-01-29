@@ -1,16 +1,25 @@
 #include "include/ast/expressions.h"
 
+#include "include/types/type.h"
 #include "include/visitors/visitor.h"
 
 void Expression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
+TypeRef Expression::GetTypeRef() const { return type_ref_; }
+
+void Expression::SetTypeRef(TypeRef type) { type_ref_ = type; }
+
 ///////////////////////////////////////////////
 
-PrimaryExpression::PrimaryExpression(int value) : value_(value) {}
+PrimaryExpression::PrimaryExpression(ValueType value) : value_(std::move(value)) {}
 
 void PrimaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-int PrimaryExpression::GetValue() const { return value_; }
+std::string PrimaryExpression::ToString() const {
+    return std::visit(ValueToString{}, value_);
+}
+
+PrimaryExpression::ValueType PrimaryExpression::GetValue() const { return value_; }
 
 ///////////////////////////////////////////////
 
@@ -47,6 +56,22 @@ Expression* BinaryExpression::GetLeftExpression() const { return left_.get(); }
 
 Expression* BinaryExpression::GetRightExpression() const { return right_.get(); }
 
+void BinaryExpression::SetLeftExpression(std::unique_ptr<Expression> expression) {
+    left_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> BinaryExpression::ExtractLeftExpression() {
+    return std::move(left_);
+}
+
+void BinaryExpression::SetRightExpression(std::unique_ptr<Expression> expression) {
+    right_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> BinaryExpression::ExtractRightExpression() {
+    return std::move(right_);
+}
+
 ///////////////////////////////////////////////
 
 ConditionalExpression::ConditionalExpression(std::unique_ptr<Expression> cond,
@@ -62,6 +87,22 @@ Expression* ConditionalExpression::GetLeftExpression() const { return left_.get(
 
 Expression* ConditionalExpression::GetRightExpression() const { return right_.get(); }
 
+void ConditionalExpression::SetLeftExpression(std::unique_ptr<Expression> expression) {
+    left_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> ConditionalExpression::ExtractLeftExpression() {
+    return std::move(left_);
+}
+
+void ConditionalExpression::SetRightExpression(std::unique_ptr<Expression> expression) {
+    right_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> ConditionalExpression::ExtractRightExpression() {
+    return std::move(right_);
+}
+
 ///////////////////////////////////////////////
 
 AssignmentExpression::AssignmentExpression(std::unique_ptr<Expression> left,
@@ -73,6 +114,14 @@ void AssignmentExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 Expression* AssignmentExpression::GetLeftExpression() const { return left_.get(); }
 
 Expression* AssignmentExpression::GetRightExpression() const { return right_.get(); }
+
+void AssignmentExpression::SetRightExpression(std::unique_ptr<Expression> expression) {
+    right_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> AssignmentExpression::ExtractRightExpression() {
+    return std::move(right_);
+}
 
 ///////////////////////////////////////////////
 
@@ -112,3 +161,15 @@ ArgumentExpressionList* FunctionCallExpression::GetArguments() const {
 }
 
 bool FunctionCallExpression::HasArguments() const { return arguments_.has_value(); }
+
+///////////////////////////////////////////////
+
+CastExpression::CastExpression(std::unique_ptr<TypeSpecification> type,
+                               std::unique_ptr<Expression> expression)
+    : type_(std::move(type)), expression_(std::move(expression)) {}
+
+void CastExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+TypeSpecification* CastExpression::GetType() const { return type_.get(); }
+
+Expression* CastExpression::GetExpression() const { return expression_.get(); }

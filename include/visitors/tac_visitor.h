@@ -2,6 +2,8 @@
 #include <stack>
 #include <vector>
 
+#include "include/ast/expressions.h"
+#include "include/semantic/symbol_table.h"
 #include "visitor.h"
 
 class TACInstruction {
@@ -36,6 +38,8 @@ public:
         RightShift,
         Call,
         Param,
+        SignExtend,
+        Truncate
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
@@ -64,32 +68,33 @@ private:
 
 class TACVisitor : public Visitor {
 public:
-    explicit TACVisitor();
-    virtual void Visit(TranslationUnit* translation_unit) override;
-    virtual void Visit(ItemList* item_list) override;
-    virtual void Visit(FunctionDefinition* function) override;
-    virtual void Visit(TypeSpecification* type) override;
-    virtual void Visit(Declaration* declaration) override;
-    virtual void Visit(Expression* expression) override;
-    virtual void Visit(IdExpression* expression) override;
-    virtual void Visit(PrimaryExpression* expression) override;
-    virtual void Visit(UnaryExpression* expression) override;
-    virtual void Visit(BinaryExpression* expression) override;
-    virtual void Visit(ConditionalExpression* expression) override;
-    virtual void Visit(AssignmentExpression* expression) override;
-    virtual void Visit(CompoundStatement* statement) override;
-    virtual void Visit(ReturnStatement* statement) override;
-    virtual void Visit(ExpressionStatement* statement) override;
-    virtual void Visit(SelectionStatement* statement) override;
-    virtual void Visit(JumpStatement* statement) override;
-    virtual void Visit(WhileStatement* statement) override;
-    virtual void Visit(ForStatement* statement) override;
-    virtual void Visit(ParameterDeclaration* declaration) override;
-    virtual void Visit(ParameterList* list) override;
-    virtual void Visit(FunctionCallExpression* expression) override;
-    virtual void Visit(ArgumentExpressionList* list) override;
-    virtual void Visit(IdentifierDeclarator* declarator) override;
-    virtual void Visit(FunctionDeclarator* declarator) override;
+    explicit TACVisitor(SymbolTable& symbol_table);
+    void Visit(TranslationUnit* translation_unit) override;
+    void Visit(ItemList* item_list) override;
+    void Visit(FunctionDefinition* function) override;
+    void Visit(TypeSpecification* type) override;
+    void Visit(Declaration* declaration) override;
+    void Visit(Expression* expression) override;
+    void Visit(IdExpression* expression) override;
+    void Visit(PrimaryExpression* expression) override;
+    void Visit(UnaryExpression* expression) override;
+    void Visit(BinaryExpression* expression) override;
+    void Visit(ConditionalExpression* expression) override;
+    void Visit(AssignmentExpression* expression) override;
+    void Visit(CastExpression* expression) override;
+    void Visit(CompoundStatement* statement) override;
+    void Visit(ReturnStatement* statement) override;
+    void Visit(ExpressionStatement* statement) override;
+    void Visit(SelectionStatement* statement) override;
+    void Visit(JumpStatement* statement) override;
+    void Visit(WhileStatement* statement) override;
+    void Visit(ForStatement* statement) override;
+    void Visit(ParameterDeclaration* declaration) override;
+    void Visit(ParameterList* list) override;
+    void Visit(FunctionCallExpression* expression) override;
+    void Visit(ArgumentExpressionList* list) override;
+    void Visit(IdentifierDeclarator* declarator) override;
+    void Visit(FunctionDeclarator* declarator) override;
 
     std::vector<std::vector<TACInstruction>> GetTACInstructions() const;
     void PrintTACInstructions(std::ostream& out) const;
@@ -97,10 +102,12 @@ public:
         std::ostream& out, const std::vector<std::vector<TACInstruction>>& instructions);
 
 private:
+    std::string AllocateTemporary(TypeRef type);
     std::string GetTemporaryName();
     std::string GetUniqueLabelId();
     std::string GetTop();
 
+    SymbolTable& symbol_table_;
     std::vector<std::vector<TACInstruction>> instructions_;
     std::stack<std::string> stack_;
     size_t temp_count_ = 0;

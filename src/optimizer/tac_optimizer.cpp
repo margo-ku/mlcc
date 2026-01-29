@@ -1,6 +1,5 @@
 #include "include/optimizer/tac_optimizer.h"
 
-#include <iostream>
 #include <unordered_set>
 
 #include "include/optimizer/control_flow_utils.h"

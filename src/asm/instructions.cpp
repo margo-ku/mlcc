@@ -372,3 +372,64 @@ void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
 }
 
 ///////////////////////////////////////////////
+
+ExtendInstruction::ExtendInstruction(std::shared_ptr<ASMOperand> dst,
+                                     std::shared_ptr<ASMOperand> src)
+    : dst_(dst), src_(src) {}
+
+std::string ExtendInstruction::ToString() const {
+    auto dst_str = dst_->ToString();
+    auto src_str = src_->ToString();
+
+    bool dst_is_x = !dst_str.empty() && dst_str[0] == 'x';
+    bool src_is_w = !src_str.empty() && src_str[0] == 'w';
+    assert(dst_is_x || src_is_w);
+
+    if (dst_is_x && src_is_w) {
+        return "sxtw " + dst_str + ", " + src_str;
+    }
+    return "mov " + dst_str + ", " + src_str;
+}
+
+std::vector<std::shared_ptr<ASMOperand>> ExtendInstruction::GetOperands() const {
+    return {dst_, src_};
+}
+
+void ExtendInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    src_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+TruncateInstruction::TruncateInstruction(std::shared_ptr<ASMOperand> dst,
+                                         std::shared_ptr<ASMOperand> src)
+    : dst_(dst), src_(src) {}
+
+std::string TruncateInstruction::ToString() const {
+    auto dst_str = dst_->ToString();
+    auto src_str = src_->ToString();
+
+    bool dst_is_w = !dst_str.empty() && dst_str[0] == 'w';
+    bool src_is_x = !src_str.empty() && src_str[0] == 'x';
+    assert(dst_is_w || src_is_x);
+
+    if (dst_is_w && src_is_x) {
+        src_str[0] = 'w';
+    }
+    return "mov " + dst_str + ", " + src_str;
+}
+
+std::vector<std::shared_ptr<ASMOperand>> TruncateInstruction::GetOperands() const {
+    return {dst_, src_};
+}
+
+void TruncateInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    src_ = ops[1];
+}
+
+///////////////////////////////////////////////

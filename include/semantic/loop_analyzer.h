@@ -2,11 +2,12 @@
 
 #include <stack>
 
+#include "include/semantic/symbol_table.h"
 #include "include/visitors/visitor.h"
 
 class LoopAnalyzer : public Visitor {
 public:
-    LoopAnalyzer();
+    explicit LoopAnalyzer(SymbolTable& symbol_table);
     virtual ~LoopAnalyzer();
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
@@ -20,6 +21,7 @@ public:
     void Visit(BinaryExpression* expression) override;
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
+    void Visit(CastExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -40,6 +42,7 @@ private:
     std::vector<std::string> errors_;
     std::stack<std::string> loop_ids_;
     size_t loop_id_counter_ = 0;
+    SymbolTable& symbol_table_;
 
     std::string GenerateLoopId();
 };

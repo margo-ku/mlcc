@@ -1,25 +1,63 @@
 #pragma once
+#include <memory>
+#include <variant>
+
 #include "include/ast/translation_unit.h"
+#include "include/types/type.h"
 
 class Visitor;
+class TypeSpecification;
 
 class Expression : public BaseElement {
 public:
     virtual ~Expression() = default;
     virtual void Accept(Visitor* visitor);
+    TypeRef GetTypeRef() const;
+    void SetTypeRef(TypeRef type);
+
+private:
+    TypeRef type_ref_;
 };
 
 ///////////////////////////////////////////////
 
 class PrimaryExpression : public Expression {
 public:
-    explicit PrimaryExpression(int value);
+    using ValueType = std::variant<int, long>;  // std::variant<int, long, bool, char,
+                                                // unsigned int, unsigned long>;
+    explicit PrimaryExpression(ValueType value);
+    template <typename T>
+    explicit PrimaryExpression(T value) : value_(value) {
+        static_assert(std::is_same_v<T, int> || std::is_same_v<T, long>,
+                      "PrimaryExpression supports only int and long for now");
+    }
+
     virtual ~PrimaryExpression() = default;
     void Accept(Visitor* visitor) override;
-    int GetValue() const;
+
+    template <typename T>
+    bool Holds() const {
+        return std::holds_alternative<T>(value_);
+    }
+
+    template <typename T>
+    T Get() const {
+        return std::get<T>(value_);
+    }
+
+    PrimaryExpression::ValueType GetValue() const;
+
+    std::string ToString() const;
 
 private:
-    int value_;
+    ValueType value_;
+
+    struct ValueToString {
+        std::string operator()(int value) const { return std::to_string(value); }
+        std::string operator()(long value) const { return std::to_string(value); }
+        std::string operator()(bool value) const { return value ? "true" : "false"; }
+        std::string operator()(char value) const { return std::string("'") + value; }
+    };
 };
 
 ///////////////////////////////////////////////
@@ -90,6 +128,10 @@ public:
     BinaryOperator GetOp() const;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
+    void SetLeftExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractLeftExpression();
+    void SetRightExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractRightExpression();
 
 private:
     BinaryOperator op_;
@@ -109,6 +151,10 @@ public:
     Expression* GetCondition() const;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
+    void SetLeftExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractLeftExpression();
+    void SetRightExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractRightExpression();
 
 private:
     std::unique_ptr<Expression> cond_;
@@ -126,6 +172,8 @@ public:
     void Accept(Visitor* visitor) override;
     Expression* GetLeftExpression() const;
     Expression* GetRightExpression() const;
+    void SetRightExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractRightExpression();
 
 private:
     std::unique_ptr<Expression> left_;
@@ -163,4 +211,20 @@ public:
 private:
     std::unique_ptr<Expression> function_;
     std::optional<std::unique_ptr<ArgumentExpressionList>> arguments_;
+};
+
+///////////////////////////////////////////////
+
+class CastExpression : public Expression {
+public:
+    CastExpression(std::unique_ptr<TypeSpecification> type,
+                   std::unique_ptr<Expression> expression);
+    virtual ~CastExpression() = default;
+    void Accept(Visitor* visitor) override;
+    TypeSpecification* GetType() const;
+    Expression* GetExpression() const;
+
+private:
+    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<Expression> expression_;
 };

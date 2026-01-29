@@ -36,7 +36,7 @@ int FrameStackAllocator::GetArgumentOffset(std::string name, int size) const {
 }
 
 int FrameStackAllocator::GetArgumentOffsetForCaller(int index, int size) const {
-    return index * size;
+    return index * 8;
 }
 
 int FrameStackAllocator::GetTotalFrameSize() const {
@@ -58,22 +58,27 @@ int FrameStackAllocator::ReserveStackArguments(size_t arg_count) {
 ///////////////////////////////////////////////
 
 TempRegisterAllocator::TempRegisterAllocator() {
-    registers_ = {"w9", "w10", "w11", "w12", "w13", "w14", "w15"};
+    available_regs_ = {9, 10, 11, 12, 13, 14, 15};
 }
 
-std::shared_ptr<Register> TempRegisterAllocator::Allocate() {
-    if (registers_.empty()) {
+std::shared_ptr<Register> TempRegisterAllocator::Allocate(ASMOperand::Size size) {
+    if (available_regs_.empty()) {
         throw std::runtime_error("Out of temporary registers");
     }
-    auto it = registers_.begin();
-    std::string reg = *it;
-    registers_.erase(it);
-    return std::make_shared<Register>(reg);
+    auto it = available_regs_.begin();
+    int reg_num = *it;
+    available_regs_.erase(it);
+
+    std::string prefix = (size == ASMOperand::Size::Byte8) ? "x" : "w";
+    return std::make_shared<Register>(prefix + std::to_string(reg_num));
 }
 
 void TempRegisterAllocator::Free(const std::shared_ptr<Register>& reg) {
     std::string name = reg->ToString();
-    if (!registers_.contains(name)) {
-        registers_.insert(name);
+    if (name.empty()) {
+        return;
     }
+
+    int reg_num = std::stoi(name.substr(1));
+    available_regs_.insert(reg_num);
 }

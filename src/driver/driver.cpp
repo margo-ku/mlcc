@@ -65,7 +65,7 @@ bool Driver::AnalyzeSemantics() {
     if (debug_output) {
         std::cout << "Analyzing semantics..." << std::endl;
     }
-    SemanticAnalyzer analyzer;
+    SemanticAnalyzer analyzer(symbol_table_);
     analyzer.Analyze(translation_unit_.get());
     if (analyzer.HasErrors()) {
         std::cerr << "Semantic error:" << std::endl;
@@ -82,7 +82,7 @@ bool Driver::GenerateTAC() {
         std::cout << "Starting TAC generation..." << std::endl;
     }
 
-    TACVisitor tac_visitor;
+    TACVisitor tac_visitor(symbol_table_);
     translation_unit_->Accept(&tac_visitor);
     tac_instructions_ = tac_visitor.GetTACInstructions();
 
@@ -133,7 +133,7 @@ bool Driver::GenerateASM() {
         std::cout << "Starting ASM generation..." << std::endl;
     }
 
-    LinearIRBuilder builder(tac_instructions_);
+    LinearIRBuilder builder(tac_instructions_, symbol_table_);
     builder.Build();
 
     std::string asm_file = ReplaceExtension(original_filename_, ".s");

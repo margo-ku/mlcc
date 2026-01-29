@@ -1,6 +1,15 @@
 #include "include/semantic/analyzer.h"
 
-SemanticAnalyzer::SemanticAnalyzer() {}
+#include "include/semantic/loop_analyzer.h"
+#include "include/semantic/symbol_resolver.h"
+#include "include/semantic/symbol_table.h"
+#include "include/semantic/type_checker.h"
+
+SemanticAnalyzer::SemanticAnalyzer(SymbolTable& symbol_table)
+    : symbol_table_(symbol_table),
+      symbol_resolver_(symbol_table),
+      type_checker_(symbol_table),
+      loop_analyzer_(symbol_table) {}
 
 SemanticAnalyzer::~SemanticAnalyzer() {}
 

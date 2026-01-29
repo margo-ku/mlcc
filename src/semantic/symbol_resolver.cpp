@@ -2,7 +2,9 @@
 
 #include "include/ast/expressions.h"
 
-SymbolResolver::SymbolResolver() { EnterScope(); }
+SymbolResolver::SymbolResolver(SymbolTable& symbol_table) : symbol_table_(symbol_table) {
+    symbol_table_.EnterScope();
+}
 
 SymbolResolver::~SymbolResolver() {}
 
@@ -26,24 +28,23 @@ void SymbolResolver::Visit(FunctionDefinition* function) {
         return;
     }
 
-    std::string original_name = function_declarator->GetId();
-    if (IsInCurrentScope(original_name)) {
-        auto& existing_symbol = scopes_.back()[original_name];
-        if (existing_symbol.linkage != SymbolInfo::LinkageKind::External) {
-            errors_.push_back("duplicate declaration of variable '" + original_name +
-                              "'");
-            return;
-        }
+    std::string name = function_declarator->GetId();
+    auto existing = symbol_table_.Lookup(name);
+    if (symbol_table_.IsInCurrentScope(name) &&
+        existing->linkage != SymbolInfo::LinkageKind::External) {
+        errors_.push_back("duplicate declaration of variable '" + name + "'");
+        return;
     }
-    AddToCurrentScope(original_name, original_name, SymbolInfo::LinkageKind::External);
 
-    EnterScope();
+    symbol_table_.Declare(name, {name, name, SymbolInfo::LinkageKind::External});
+
+    symbol_table_.EnterScope();
     suppress_next_compound_scope_ = true;
     if (function_declarator->HasParameters()) {
         function_declarator->GetParameters()->Accept(this);
     }
     function->GetBody()->Accept(this);
-    ExitScope();
+    symbol_table_.ExitScope();
 }
 
 void SymbolResolver::Visit(TypeSpecification* type) {}
@@ -56,11 +57,12 @@ void SymbolResolver::Visit(Expression* expression) {}
 
 void SymbolResolver::Visit(IdExpression* expression) {
     std::string original_name = expression->GetId();
-    if (!IsDeclaredInAnyScope(original_name)) {
+    auto info = symbol_table_.Lookup(original_name);
+    if (!info) {
         errors_.push_back("use of undeclared variable '" + original_name + "'");
         return;
     }
-    expression->SetId(GetUniqueName(original_name));
+    expression->SetId(info->name);
 }
 
 void SymbolResolver::Visit(PrimaryExpression* expression) {}
@@ -89,16 +91,21 @@ void SymbolResolver::Visit(AssignmentExpression* expression) {
     expression->GetRightExpression()->Accept(this);
 }
 
+void SymbolResolver::Visit(CastExpression* expression) {
+    expression->GetType()->Accept(this);
+    expression->GetExpression()->Accept(this);
+}
+
 void SymbolResolver::Visit(CompoundStatement* statement) {
     bool suppress_next_compound_scope = suppress_next_compound_scope_;
     suppress_next_compound_scope_ = false;
 
     if (!suppress_next_compound_scope) {
-        EnterScope();
+        symbol_table_.EnterScope();
     }
     statement->GetBody()->Accept(this);
     if (!suppress_next_compound_scope) {
-        ExitScope();
+        symbol_table_.ExitScope();
     }
 }
 
@@ -130,12 +137,12 @@ void SymbolResolver::Visit(WhileStatement* statement) {
 }
 
 void SymbolResolver::Visit(ForStatement* statement) {
-    EnterScope();
+    symbol_table_.EnterScope();
     statement->GetInit()->Accept(this);
     statement->GetCondition()->Accept(this);
     statement->GetIncrement()->Accept(this);
     statement->GetBody()->Accept(this);
-    ExitScope();
+    symbol_table_.ExitScope();
 }
 
 void SymbolResolver::Visit(ParameterDeclaration* declaration) {
@@ -167,13 +174,15 @@ void SymbolResolver::Visit(ArgumentExpressionList* list) {
 
 void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
     std::string original_name = declarator->GetId();
-    if (IsInCurrentScope(original_name)) {
+    if (symbol_table_.IsInCurrentScope(original_name)) {
         errors_.push_back("duplicate declaration of variable '" + original_name + "'");
         return;
     }
-    std::string unique_name = GenerateUniqueName(original_name);
+    std::string unique_name = symbol_table_.GenerateUniqueName(original_name);
     declarator->SetId(unique_name);
-    AddToCurrentScope(original_name, unique_name, SymbolInfo::LinkageKind::None);
+    SymbolInfo info{unique_name, original_name, SymbolInfo::LinkageKind::None, nullptr};
+    symbol_table_.Declare(original_name, info);
+
     if (declarator->HasInitializer()) {
         declarator->GetInitializer()->Accept(this);
     }
@@ -181,65 +190,22 @@ void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
 
 void SymbolResolver::Visit(FunctionDeclarator* declarator) {
     std::string original_name = declarator->GetId();
-
-    if (IsInCurrentScope(original_name)) {
-        auto& existing_symbol = scopes_.back()[original_name];
-
-        if (existing_symbol.linkage != SymbolInfo::LinkageKind::External) {
-            errors_.push_back("duplicate declaration of variable '" + original_name +
-                              "'");
+    if (symbol_table_.IsInCurrentScope(original_name)) {
+        auto existing = symbol_table_.Lookup(original_name);
+        if (existing->linkage != SymbolInfo::LinkageKind::External) {
+            errors_.push_back("duplicate declaration of '" + original_name + "'");
             return;
         }
     }
-    AddToCurrentScope(original_name, original_name, SymbolInfo::LinkageKind::External);
+    SymbolInfo info{original_name, original_name, SymbolInfo::LinkageKind::External,
+                    nullptr};
+    symbol_table_.Declare(original_name, info);
+
     if (declarator->HasParameters()) {
-        EnterScope();
+        symbol_table_.EnterScope();
         declarator->GetParameters()->Accept(this);
-        ExitScope();
+        symbol_table_.ExitScope();
     }
 }
 
 const std::vector<std::string>& SymbolResolver::GetErrors() const { return errors_; }
-
-void SymbolResolver::EnterScope() { scopes_.emplace_back(); }
-
-void SymbolResolver::ExitScope() { scopes_.pop_back(); }
-
-bool SymbolResolver::IsInCurrentScope(const std::string& name) const {
-    return scopes_.back().count(name) > 0;
-}
-
-bool SymbolResolver::IsDeclaredInAnyScope(const std::string& name) const {
-    for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
-        if (it->count(name) > 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-std::string SymbolResolver::GenerateUniqueName(const std::string& base) {
-    int count = name_counters_[base]++;
-    return base + "." + std::to_string(count);
-}
-
-std::string SymbolResolver::GetUniqueName(const std::string& original_name) {
-    for (auto it = scopes_.rbegin(); it != scopes_.rend(); ++it) {
-        if (it->contains(original_name)) {
-            return it->at(original_name).name;
-        }
-    }
-    errors_.push_back("variable not found: " + original_name);
-    return "";
-}
-
-void SymbolResolver::AddToCurrentScope(const std::string& original_name,
-                                       const std::string& unique_name,
-                                       SymbolInfo::LinkageKind linkage) {
-    if (linkage == SymbolInfo::LinkageKind::External && IsInCurrentScope(original_name) &&
-        scopes_.back()[original_name].linkage == SymbolInfo::LinkageKind::External) {
-        return;
-    }
-
-    scopes_.back()[original_name] = SymbolInfo{unique_name, linkage};
-}

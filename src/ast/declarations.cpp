@@ -22,6 +22,13 @@ Expression* IdentifierDeclarator::GetInitializer() const { return initializer_->
 
 bool IdentifierDeclarator::HasInitializer() const { return initializer_.has_value(); }
 
+std::unique_ptr<Expression> IdentifierDeclarator::ExtractInitializer() {
+    if (initializer_.has_value()) {
+        return std::move(initializer_.value());
+    }
+    return nullptr;
+}
+
 ///////////////////////////////////////////////
 
 FunctionDeclarator::FunctionDeclarator(std::unique_ptr<Declarator> declarator)
@@ -56,15 +63,18 @@ bool FunctionDeclarator::HasInitializer() const { return false; }
 
 ///////////////////////////////////////////////
 
-TypeSpecification::TypeSpecification(std::string type_name) {
-    if (type_name == "int") {
-        type_ = Type::Int;
-    } else {
-        throw std::invalid_argument("Unknown type specifier: " + type_name);
+TypeSpecification::TypeSpecification(Type type) : type_(type) {}
+
+TypeSpecification::Type TypeSpecification::GetType() const { return type_; }
+
+std::string TypeSpecification::GetTypeName() const {
+    switch (type_) {
+        case Type::Int:
+            return "int";
+        case Type::Long:
+            return "long";
     }
 }
-
-std::string TypeSpecification::GetTypeName() const { return "int"; }
 
 void TypeSpecification::Accept(Visitor* visitor) { visitor->Visit(this); }
 

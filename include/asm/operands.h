@@ -5,7 +5,21 @@
 
 class ASMOperand {
 public:
+    enum class Size {
+        Byte1 = 1,
+        Byte2 = 2,
+        Byte4 = 4,
+        Byte8 = 8,
+    };
+
+    explicit ASMOperand(Size size);
+    virtual ~ASMOperand() = default;
+
     virtual std::string ToString() const = 0;
+    virtual Size GetSize() const;
+
+protected:
+    Size size_;
 };
 
 ///////////////////////////////////////////////
@@ -23,19 +37,19 @@ private:
 
 class Immediate : public ASMOperand {
 public:
-    explicit Immediate(int value);
+    explicit Immediate(long long value);
     std::string ToString() const override;
-    int GetValue() const;
+    long long GetValue() const;
 
 private:
-    int value_;
+    long long value_;
 };
 
 ///////////////////////////////////////////////
 
 class Pseudo : public ASMOperand {
 public:
-    explicit Pseudo(const std::string& name);
+    Pseudo(const std::string& name, Size size);
     std::string ToString() const override;
 
     const std::string& GetName() const;
@@ -50,7 +64,8 @@ class MemoryOperand : public ASMOperand {
 public:
     enum class Mode { Offset, PreIndexed, PostIndexed };
 
-    MemoryOperand(std::shared_ptr<Register> base, int offset, Mode mode = Mode::Offset);
+    MemoryOperand(std::shared_ptr<Register> base, int offset, Size size,
+                  Mode mode = Mode::Offset);
 
     std::string ToString() const override;
 
