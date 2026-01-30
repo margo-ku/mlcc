@@ -12,6 +12,8 @@ struct Options {
     bool debug_output = false;
     bool keep_asm = false;
     bool keep_tac = false;
+    bool compile_only = false;  // -c flag: compile to .o, don't link
+    std::string output_file;
     std::vector<std::string> files;
 };
 
@@ -34,6 +36,15 @@ Options ParseCommandLine(int argc, char* argv[]) {
             opts.keep_asm = true;
         } else if (arg == "--keep-tac") {
             opts.keep_tac = true;
+        } else if (arg == "-c") {
+            opts.compile_only = true;
+        } else if (arg == "-o") {
+            if (i + 1 < argc) {
+                opts.output_file = argv[++i];
+            } else {
+                std::cerr << "Error: -o requires an argument\n";
+                exit(1);
+            }
         } else {
             opts.files.push_back(arg);
         }
@@ -101,9 +112,21 @@ int main(int argc, char* argv[]) {
         if (opts.compile) {
             std::filesystem::path path(file);
             std::string asm_file = path.replace_extension(".s").string();
-            std::string out_file = path.replace_extension("").string();
 
-            std::string clang_cmd = "clang " + asm_file + " -o " + out_file;
+            std::string out_file;
+            if (!opts.output_file.empty()) {
+                out_file = opts.output_file;
+            } else if (opts.compile_only) {
+                out_file = path.replace_extension(".o").string();
+            } else {
+                out_file = path.replace_extension("").string();
+            }
+
+            std::string clang_cmd = "clang ";
+            if (opts.compile_only) {
+                clang_cmd += "-c ";
+            }
+            clang_cmd += asm_file + " -o " + out_file;
 
             if (opts.debug_output) {
                 std::cout << "Running: " << clang_cmd << std::endl;
