@@ -39,6 +39,7 @@ public:
         Call,
         Param,
         SignExtend,
+        ZeroExtend,
         Truncate
     };
 

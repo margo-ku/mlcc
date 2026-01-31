@@ -46,7 +46,7 @@ private:
     void LowerParam(const TACInstruction& instr);
     void LowerCall(const TACInstruction& instr);
     void LowerFunction(const TACInstruction& instr);
-    void LowerExtend(const TACInstruction& instr);
+    void LowerExtend(const TACInstruction& instr, bool is_signed);
     void LowerTruncate(const TACInstruction& instr);
 
     void AddFunctionPrologue();
@@ -60,6 +60,7 @@ private:
     std::shared_ptr<ASMOperand> MakeOperand(const std::string& value);
     void Emit(std::shared_ptr<ASMInstruction> instr);
 
+    bool IsSignedOperand(const std::string& name) const;
     bool IsPureInputInstruction(const std::shared_ptr<ASMInstruction>& instr);
     std::string GetCurrentExitLabel() const;
     std::shared_ptr<Register> GetReturnRegister() const;

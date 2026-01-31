@@ -6,9 +6,26 @@
 
 #include "operands.h"
 
-enum class BinaryOp { Add, Sub, Mul, SDiv, And, Orr, Eor, Lsl, Asr };
+enum class BinaryOp { Add, Sub, Mul, SDiv, UDiv, And, Orr, Eor, Lsl, Asr, Lsr };
 enum class UnaryOp { Neg, Mvn };
-enum class Condition { Eq, Ne, Lt, Le, Gt, Ge };
+// Signed: Lt, Le, Gt, Ge
+// Unsigned: Lo, Ls, Hi, Hs
+enum class Condition { Eq, Ne, Lt, Le, Gt, Ge, Lo, Ls, Hi, Hs };
+
+inline std::string ConditionToStr(Condition cond) {
+    switch (cond) {
+        case Condition::Eq: return "eq";
+        case Condition::Ne: return "ne";
+        case Condition::Lt: return "lt";
+        case Condition::Le: return "le";
+        case Condition::Gt: return "gt";
+        case Condition::Ge: return "ge";
+        case Condition::Lo: return "lo";
+        case Condition::Ls: return "ls";
+        case Condition::Hi: return "hi";
+        case Condition::Hs: return "hs";
+    }
+}
 enum class BranchType { Unconditional, Conditional, Call };
 
 class ASMInstruction {
@@ -254,7 +271,7 @@ private:
 
 class ExtendInstruction : public ASMInstruction {
 public:
-    ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src, bool is_signed);
     std::string ToString() const override;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
@@ -263,6 +280,7 @@ public:
 
 private:
     std::shared_ptr<ASMOperand> dst_, src_;
+    bool is_signed_;
 };
 
 class TruncateInstruction : public ASMInstruction {

@@ -1,5 +1,7 @@
 #include "include/optimizer/tac_optimizer.h"
 
+#include <algorithm>
+#include <cctype>
 #include <unordered_set>
 
 #include "include/optimizer/control_flow_utils.h"
@@ -91,9 +93,9 @@ bool TACOptimizer::TryFoldBinary(const TACInstruction& in, TACInstruction& out) 
         return false;
     }
 
-    int lhs = std::stoi(in.GetLhs());
-    int rhs = std::stoi(in.GetRhs());
-    int result = EvaluateBinaryOp(in.GetOp(), lhs, rhs);
+    long long lhs = std::stoll(in.GetLhs());
+    long long rhs = std::stoll(in.GetRhs());
+    long long result = EvaluateBinaryOp(in.GetOp(), lhs, rhs);
 
     out = TACInstruction(TACInstruction::OpCode::Assign, in.GetDst(),
                          std::to_string(result));
@@ -105,8 +107,8 @@ bool TACOptimizer::TryFoldUnary(const TACInstruction& in, TACInstruction& out) {
         return false;
     }
 
-    int operand = std::stoi(in.GetLhs());
-    int result = EvaluateUnaryOp(in.GetOp(), operand);
+    long long operand = std::stoll(in.GetLhs());
+    long long result = EvaluateUnaryOp(in.GetOp(), operand);
 
     out = TACInstruction(TACInstruction::OpCode::Assign, in.GetDst(),
                          std::to_string(result));
@@ -119,7 +121,7 @@ bool TACOptimizer::TryFoldCondition(const TACInstruction& in, TACInstruction& ou
         return true;
     }
 
-    int condition = std::stoi(in.GetLhs());
+    long long condition = std::stoll(in.GetLhs());
     changed = true;
 
     if (in.GetOp() == TACInstruction::OpCode::If) {
@@ -138,15 +140,19 @@ bool TACOptimizer::TryFoldCondition(const TACInstruction& in, TACInstruction& ou
 }
 
 bool TACOptimizer::IsConstant(const std::string& operand) {
-    try {
-        std::stoi(operand);
-        return true;
-    } catch (const std::exception&) {
+    if (operand.empty()) return false;
+    auto it = operand.begin();
+    if (*it == '-' || *it == '+') {
+        ++it;
+    }
+    if (it == operand.end()) {
         return false;
     }
+    return std::all_of(it, operand.end(), ::isdigit);
 }
 
-int TACOptimizer::EvaluateBinaryOp(TACInstruction::OpCode op, int lhs, int rhs) {
+long long TACOptimizer::EvaluateBinaryOp(TACInstruction::OpCode op, long long lhs,
+                                         long long rhs) {
     switch (op) {
         case TACInstruction::OpCode::Add:
             return lhs + rhs;
@@ -185,7 +191,7 @@ int TACOptimizer::EvaluateBinaryOp(TACInstruction::OpCode op, int lhs, int rhs) 
     }
 }
 
-int TACOptimizer::EvaluateUnaryOp(TACInstruction::OpCode op, int operand) {
+long long TACOptimizer::EvaluateUnaryOp(TACInstruction::OpCode op, long long operand) {
     switch (op) {
         case TACInstruction::OpCode::Plus:
             return +operand;

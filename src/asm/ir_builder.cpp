@@ -85,7 +85,9 @@ void LinearIRBuilder::LowerInstruction(const TACInstruction& instr) {
             return LowerCall(instr);
 
         case Op::SignExtend:
-            return LowerExtend(instr);
+            return LowerExtend(instr, true);
+        case Op::ZeroExtend:
+            return LowerExtend(instr, false);
         case Op::Truncate:
             return LowerTruncate(instr);
 
@@ -211,10 +213,19 @@ void LinearIRBuilder::LowerUnaryOp(const TACInstruction& instr) {
     }
 }
 
+bool LinearIRBuilder::IsSignedOperand(const std::string& name) const {
+    if (!name.empty() && (name[0] == '-' || (name[0] >= '0' && name[0] <= '9'))) {
+        return true;
+    }
+    return symbol_table_.FindByUniqueName(name)->type->IsSigned();
+}
+
 void LinearIRBuilder::LowerBinaryOp(const TACInstruction& instr) {
     auto dst = MakeOperand(instr.GetDst());
     auto lhs = MakeOperand(instr.GetLhs());
     auto rhs = MakeOperand(instr.GetRhs());
+
+    bool is_signed = IsSignedOperand(instr.GetDst());
 
     BinaryOp op;
     if (instr.GetOp() == TACInstruction::OpCode::Add) {
@@ -224,7 +235,7 @@ void LinearIRBuilder::LowerBinaryOp(const TACInstruction& instr) {
     } else if (instr.GetOp() == TACInstruction::OpCode::Mul) {
         op = BinaryOp::Mul;
     } else if (instr.GetOp() == TACInstruction::OpCode::Div) {
-        op = BinaryOp::SDiv;
+        op = is_signed ? BinaryOp::SDiv : BinaryOp::UDiv;
     } else if (instr.GetOp() == TACInstruction::OpCode::BitwiseAnd) {
         op = BinaryOp::And;
     } else if (instr.GetOp() == TACInstruction::OpCode::BitwiseOr) {
@@ -234,7 +245,7 @@ void LinearIRBuilder::LowerBinaryOp(const TACInstruction& instr) {
     } else if (instr.GetOp() == TACInstruction::OpCode::LeftShift) {
         op = BinaryOp::Lsl;
     } else if (instr.GetOp() == TACInstruction::OpCode::RightShift) {
-        op = BinaryOp::Asr;
+        op = is_signed ? BinaryOp::Asr : BinaryOp::Lsr;
     } else {
         throw std::runtime_error("Unknown binary operation");
     }
@@ -247,11 +258,14 @@ void LinearIRBuilder::LowerMod(const TACInstruction& instr) {
     auto lhs = MakeOperand(instr.GetLhs());
     auto rhs = MakeOperand(instr.GetRhs());
 
+    bool is_signed = IsSignedOperand(instr.GetDst());
+    auto div_op = is_signed ? BinaryOp::SDiv : BinaryOp::UDiv;
+
     auto size = dst->GetSize();
     std::string reg_prefix = (size == ASMOperand::Size::Byte8) ? "x" : "w";
     auto temp = std::make_shared<Register>(reg_prefix + "1");
 
-    Emit(std::make_shared<BinaryInstruction>(BinaryOp::SDiv, temp, lhs, rhs));
+    Emit(std::make_shared<BinaryInstruction>(div_op, temp, lhs, rhs));
     Emit(std::make_shared<BinaryInstruction>(BinaryOp::Mul, temp, temp, rhs));
     Emit(std::make_shared<BinaryInstruction>(BinaryOp::Sub, dst, lhs, temp));
 }
@@ -263,19 +277,21 @@ void LinearIRBuilder::LowerComparison(const TACInstruction& instr) {
 
     Emit(std::make_shared<CompareInstruction>(lhs, rhs));
 
+    bool is_signed = IsSignedOperand(instr.GetLhs());
+
     Condition cond;
     switch (instr.GetOp()) {
         case TACInstruction::OpCode::Less:
-            cond = Condition::Lt;
+            cond = is_signed ? Condition::Lt : Condition::Lo;
             break;
         case TACInstruction::OpCode::LessEqual:
-            cond = Condition::Le;
+            cond = is_signed ? Condition::Le : Condition::Ls;
             break;
         case TACInstruction::OpCode::Greater:
-            cond = Condition::Gt;
+            cond = is_signed ? Condition::Gt : Condition::Hi;
             break;
         case TACInstruction::OpCode::GreaterEqual:
-            cond = Condition::Ge;
+            cond = is_signed ? Condition::Ge : Condition::Hs;
             break;
         case TACInstruction::OpCode::Equal:
             cond = Condition::Eq;
@@ -435,7 +451,7 @@ void LinearIRBuilder::MaterializeFormalParameters() {
 
 std::shared_ptr<ASMOperand> LinearIRBuilder::MakeOperand(const std::string& value) {
     try {
-        long long imm = std::stoll(value);
+        long long imm = std::stoull(value);
         return std::make_shared<Immediate>(imm);
     } catch (...) {
     }
@@ -577,10 +593,10 @@ std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateI
     return out;
 }
 
-void LinearIRBuilder::LowerExtend(const TACInstruction& instr) {
+void LinearIRBuilder::LowerExtend(const TACInstruction& instr, bool is_signed) {
     auto dst = MakeOperand(instr.GetDst());
     auto src = MakeOperand(instr.GetLhs());
-    Emit(std::make_shared<ExtendInstruction>(dst, src));
+    Emit(std::make_shared<ExtendInstruction>(dst, src, is_signed));
 }
 
 void LinearIRBuilder::LowerTruncate(const TACInstruction& instr) {

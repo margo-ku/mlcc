@@ -66,17 +66,50 @@ private:
 
 ///////////////////////////////////////////////
 
+struct TypeSpecifierSet {
+    enum class Specifier { Int, Long, Signed, Unsigned };
+
+    bool has_signed = false;
+    bool has_unsigned = false;
+    bool has_int = false;
+    bool has_long = false;
+
+    void Add(Specifier spec) {
+        switch (spec) {
+            case Specifier::Int:
+                has_int = true;
+                break;
+            case Specifier::Long:
+                has_long = true;
+                break;
+            case Specifier::Signed:
+                has_signed = true;
+                break;
+            case Specifier::Unsigned:
+                has_unsigned = true;
+                break;
+        }
+    }
+};
+
+///////////////////////////////////////////////
+
 class TypeSpecification : public BaseElement {
 public:
     enum class Type {
         Int = 0,
         Long = 1,
+        UInt = 2,
+        ULong = 3,
     };
     explicit TypeSpecification(Type type);
+    explicit TypeSpecification(const TypeSpecifierSet& specifiers);
     virtual ~TypeSpecification() = default;
     void Accept(Visitor* visitor) override;
     std::string GetTypeName() const;
     Type GetType() const;
+
+    static Type ResolveType(const TypeSpecifierSet& specifiers);
 
 private:
     Type type_;

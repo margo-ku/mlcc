@@ -7,6 +7,8 @@
 %define parse.assert
 
 %code requires {
+    #include "include/ast/declarations.h"
+
     class Scanner;
     class Driver;
 
@@ -80,6 +82,9 @@
 %token <std::string> ID
 %token <int> INT_NUMBER
 %token <long> LONG_NUMBER
+%token <unsigned int> UINT_NUMBER
+%token <unsigned long> ULONG_NUMBER
+%token SIGNED UNSIGNED
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -89,6 +94,8 @@
 %type <std::unique_ptr<BaseElement>> external_declaration
 %type <std::unique_ptr<FunctionDefinition>> function_definition
 %type <std::unique_ptr<TypeSpecification>> declaration_specifiers
+%type <TypeSpecifierSet> type_specifier_list
+%type <TypeSpecifierSet::Specifier> type_specifier
 %type <std::unique_ptr<Declarator>> declarator
 %type <std::unique_ptr<Declarator>> init_declarator
 %type <std::unique_ptr<Declaration>> declaration
@@ -99,7 +106,6 @@
 %type <std::unique_ptr<ReturnStatement>> return_statement
 %type <std::unique_ptr<ExpressionStatement>> expression_statement
 %type <std::unique_ptr<SelectionStatement>> selection_statement
-%type <std::unique_ptr<TypeSpecification>> type_specifier
 %type <std::unique_ptr<Expression>> initializer
 %type <std::unique_ptr<Expression>> expression
 %type <std::unique_ptr<Expression>> primary_expression
@@ -143,11 +149,17 @@ function_definition:
     declaration_specifiers declarator compound_statement { $$ = std::make_unique<FunctionDefinition>(std::move($1), std::move($2), std::move($3)); };
 
 declaration_specifiers:
-    type_specifier { $$ = std::move($1); };
+    type_specifier_list { $$ = std::make_unique<TypeSpecification>($1); };
+
+type_specifier_list:
+    type_specifier { $$ = TypeSpecifierSet{}; $$.Add($1); }
+    | type_specifier_list type_specifier { $$ = $1; $$.Add($2); };
 
 type_specifier:
-    INT { $$ = std::make_unique<TypeSpecification>(TypeSpecification::Type::Int); }
-    | LONG { $$ = std::make_unique<TypeSpecification>(TypeSpecification::Type::Long); }
+    INT { $$ = TypeSpecifierSet::Specifier::Int; }
+    | LONG { $$ = TypeSpecifierSet::Specifier::Long; }
+    | SIGNED { $$ = TypeSpecifierSet::Specifier::Signed; }
+    | UNSIGNED { $$ = TypeSpecifierSet::Specifier::Unsigned; }
 
 declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
@@ -280,7 +292,7 @@ multiplicative_expression:
 
 cast_expression:
     unary_expression { $$ = std::move($1); }
-    | LPAREN type_specifier RPAREN unary_expression { $$ = std::make_unique<CastExpression>(std::move($2), std::move($4)); };
+    | LPAREN declaration_specifiers RPAREN cast_expression { $$ = std::make_unique<CastExpression>(std::move($2), std::move($4)); };
 
 unary_expression:
     postfix_expression { $$ = std::move($1); }
@@ -296,10 +308,10 @@ postfix_expression:
 
 primary_expression:
     ID { $$ = std::make_unique<IdExpression>($1); }
-    | INT_NUMBER { 
-        $$ = std::make_unique<PrimaryExpression>($1); }
-    | LONG_NUMBER { 
-        $$ = std::make_unique<PrimaryExpression>($1); }
+    | INT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | LONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | UINT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | ULONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | LPAREN expression RPAREN { $$ = std::move($2); };
 
 argument_expression_list:

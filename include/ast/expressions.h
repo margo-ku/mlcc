@@ -23,13 +23,13 @@ private:
 
 class PrimaryExpression : public Expression {
 public:
-    using ValueType = std::variant<int, long>;  // std::variant<int, long, bool, char,
-                                                // unsigned int, unsigned long>;
+    using ValueType = std::variant<int, long, unsigned int, unsigned long>;
     explicit PrimaryExpression(ValueType value);
     template <typename T>
     explicit PrimaryExpression(T value) : value_(value) {
-        static_assert(std::is_same_v<T, int> || std::is_same_v<T, long>,
-                      "PrimaryExpression supports only int and long for now");
+        static_assert(std::is_same_v<T, int> || std::is_same_v<T, long> ||
+                      std::is_same_v<T, unsigned int> || std::is_same_v<T, unsigned long>,
+                      "PrimaryExpression supports int, long, unsigned int, unsigned long");
     }
 
     virtual ~PrimaryExpression() = default;
@@ -55,8 +55,8 @@ private:
     struct ValueToString {
         std::string operator()(int value) const { return std::to_string(value); }
         std::string operator()(long value) const { return std::to_string(value); }
-        std::string operator()(bool value) const { return value ? "true" : "false"; }
-        std::string operator()(char value) const { return std::string("'") + value; }
+        std::string operator()(unsigned int value) const { return std::to_string(value); }
+        std::string operator()(unsigned long value) const { return std::to_string(value); }
     };
 };
 

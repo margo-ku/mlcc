@@ -16,7 +16,7 @@
 id     [a-zA-Z][a-zA-Z_0-9]*
 digit       [0-9]
 int_decimal {digit}+
-int_suffix      [lL]?
+int_suffix  ([uU][lL]?|[lL][uU]?)?
 blank  [ \t\r]
 
 %{
@@ -62,6 +62,8 @@ blank  [ \t\r]
 "void"     { return yy::parser::make_VOID(loc); }
 "int"      { return yy::parser::make_INT(loc); }
 "long"     { return yy::parser::make_LONG(loc); }
+"signed"   { return yy::parser::make_SIGNED(loc); }
+"unsigned" { return yy::parser::make_UNSIGNED(loc); }
 "&"        { return yy::parser::make_BIT_AND(loc); }
 "|"        { return yy::parser::make_BIT_OR(loc); }
 "^"        { return yy::parser::make_BIT_XOR(loc); }
@@ -80,31 +82,46 @@ blank  [ \t\r]
 
 yy::parser::symbol_type ParseIntegerLiteral(const std::string &str, 
                                               const yy::parser::location_type& loc) {
-                                                errno = 0;
-    char* endptr;
+    errno = 0;
     bool has_long_suffix = false;
+    bool has_unsigned_suffix = false;
     std::string num_str = str;
-
-    if (!str.empty()) {
-        char last = str.back();
+    while (!num_str.empty()) {
+        char last = num_str.back();
         if (last == 'L' || last == 'l') {
             has_long_suffix = true;
-            num_str = str.substr(0, str.length() - 1);
+            num_str.pop_back();
+        } else if (last == 'U' || last == 'u') {
+            has_unsigned_suffix = true;
+            num_str.pop_back();
+        } else {
+            break;
         }
     }
 
-    long value = strtol(num_str.c_str(), &endptr, 10);
+    char* endptr;
+    unsigned long long value = strtoull(num_str.c_str(), &endptr, 10);
     if (errno == ERANGE) {
         throw yy::parser::syntax_error(loc, "integer out of range: " + str);
     }
 
-    if (has_long_suffix) {
-        return yy::parser::make_LONG_NUMBER(value, loc);
-    } else {
-        if (value >= INT_MIN && value <= INT_MAX) {
-            return yy::parser::make_INT_NUMBER((int)value, loc);
+    if (has_unsigned_suffix && has_long_suffix) {
+        return yy::parser::make_ULONG_NUMBER(static_cast<unsigned long>(value), loc);
+    } else if (has_unsigned_suffix) {
+        if (value <= UINT_MAX) {
+            return yy::parser::make_UINT_NUMBER(static_cast<unsigned int>(value), loc);
         } else {
-            return yy::parser::make_LONG_NUMBER(value, loc);
+            return yy::parser::make_ULONG_NUMBER(static_cast<unsigned long>(value), loc);
+        }
+    } else if (has_long_suffix) {
+        return yy::parser::make_LONG_NUMBER(static_cast<long>(value), loc);
+    } else {
+        if (value <= INT_MAX) {
+            return yy::parser::make_INT_NUMBER(static_cast<int>(value), loc);
+        } else if (value <= LONG_MAX) {
+            return yy::parser::make_LONG_NUMBER(static_cast<long>(value), loc);
+        } else {
+            return yy::parser::make_ULONG_NUMBER(static_cast<unsigned long>(value), loc);
         }
     }
 }

@@ -84,6 +84,8 @@ std::string TACInstruction::ToString() const {
                 return "param";
             case OpCode::SignExtend:
                 return "sign extend";
+            case OpCode::ZeroExtend:
+                return "zero extend";
             case OpCode::Truncate:
                 return "truncate";
         }
@@ -135,6 +137,7 @@ std::string TACInstruction::ToString() const {
         case OpCode::Plus:
         case OpCode::Minus:
         case OpCode::SignExtend:
+        case OpCode::ZeroExtend:
         case OpCode::Truncate:
             out << dst_ << " = " << OpToStr(op_) << " " << lhs_;
             break;
@@ -371,15 +374,19 @@ void TACVisitor::Visit(CastExpression* expression) {
     std::string dst = AllocateTemporary(expression->GetTypeRef());
     TypeRef from_type = expression->GetExpression()->GetTypeRef();
     TypeRef to_type = expression->GetTypeRef();
-
-    if (from_type && to_type && from_type->Equals(to_type)) {
-        instructions_.back().emplace_back(TACInstruction::OpCode::Assign, dst, src);
-    } else if (from_type && to_type && from_type->IsInt() && to_type->IsLong()) {
-        instructions_.back().emplace_back(TACInstruction::OpCode::SignExtend, dst, src);
-    } else {
-        instructions_.back().emplace_back(TACInstruction::OpCode::Truncate, dst, src);
+    if (!from_type || !to_type) {
+        throw std::runtime_error("invalid types in cast expression");
     }
 
+    if (from_type->Equals(to_type) || from_type->Size() == to_type->Size()) {
+        instructions_.back().emplace_back(TACInstruction::OpCode::Assign, dst, src);
+    } else if (from_type->Size() > to_type->Size()) {
+        instructions_.back().emplace_back(TACInstruction::OpCode::Truncate, dst, src);
+    } else if (from_type->IsSigned()) {
+        instructions_.back().emplace_back(TACInstruction::OpCode::SignExtend, dst, src);
+    } else {
+        instructions_.back().emplace_back(TACInstruction::OpCode::ZeroExtend, dst, src);
+    }
     stack_.push(dst);
 }
 

@@ -1,5 +1,7 @@
 #include "include/ast/declarations.h"
 
+#include <stdexcept>
+
 #include "include/visitors/visitor.h"
 
 Declarator::Declarator() {}
@@ -65,7 +67,22 @@ bool FunctionDeclarator::HasInitializer() const { return false; }
 
 TypeSpecification::TypeSpecification(Type type) : type_(type) {}
 
+TypeSpecification::TypeSpecification(const TypeSpecifierSet& specifiers)
+    : type_(ResolveType(specifiers)) {}
+
 TypeSpecification::Type TypeSpecification::GetType() const { return type_; }
+
+TypeSpecification::Type TypeSpecification::ResolveType(const TypeSpecifierSet& s) {
+    if (s.has_signed && s.has_unsigned) {
+        throw std::runtime_error("cannot combine 'signed' and 'unsigned'");
+    }
+
+    if (s.has_long) {
+        return s.has_unsigned ? Type::ULong : Type::Long;
+    } else {
+        return s.has_unsigned ? Type::UInt : Type::Int;
+    }
+}
 
 std::string TypeSpecification::GetTypeName() const {
     switch (type_) {
@@ -73,6 +90,10 @@ std::string TypeSpecification::GetTypeName() const {
             return "int";
         case Type::Long:
             return "long";
+        case Type::UInt:
+            return "unsigned int";
+        case Type::ULong:
+            return "unsigned long";
     }
 }
 

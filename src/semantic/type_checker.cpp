@@ -95,6 +95,10 @@ void TypeChecker::Visit(PrimaryExpression* expression) {
                 expression->SetTypeRef(PrimitiveType::GetInt32());
             } else if constexpr (std::is_same_v<T, long>) {
                 expression->SetTypeRef(PrimitiveType::GetInt64());
+            } else if constexpr (std::is_same_v<T, unsigned int>) {
+                expression->SetTypeRef(PrimitiveType::GetUInt32());
+            } else if constexpr (std::is_same_v<T, unsigned long>) {
+                expression->SetTypeRef(PrimitiveType::GetUInt64());
             } else {
                 ReportError("unsupported primary expression type");
             }
@@ -470,21 +474,8 @@ bool TypeChecker::CanCast(TypeRef from, TypeRef to) {
         return true;
     }
 
-    if (!from->IsIntegral() || !to->IsIntegral()) {
-        return false;
-    }
-
-    if (from->Equals(PrimitiveType::GetInt32()) &&
-        to->Equals(PrimitiveType::GetInt64())) {
-        return true;
-    }
-
-    if (from->Equals(PrimitiveType::GetInt64()) &&
-        to->Equals(PrimitiveType::GetInt32())) {
-        return true;
-    }
-
-    return false;
+    // All integral types can be cast to each other
+    return from->IsIntegral() && to->IsIntegral();
 }
 
 std::unique_ptr<Expression> TypeChecker::WrapWithCast(
@@ -515,7 +506,10 @@ TypeRef TypeChecker::GetCommonType(TypeRef type1, TypeRef type2) {
     if (type1->Equals(type2)) {
         return type1;
     }
-    return PrimitiveType::GetInt64();
+    if (type1->Size() == type2->Size()) {
+        return type1->IsSigned() ? type1 : type2;
+    }
+    return type1->Size() > type2->Size() ? type1 : type2;
 }
 
 TypeRef TypeChecker::ResolvePrimitiveType(TypeSpecification* type) {
@@ -529,9 +523,10 @@ TypeRef TypeChecker::ResolvePrimitiveType(TypeSpecification* type) {
             return PrimitiveType::GetInt32();
         case TypeSpecification::Type::Long:
             return PrimitiveType::GetInt64();
-        default:
-            ReportError("type specification is invalid");
-            return nullptr;
+        case TypeSpecification::Type::UInt:
+            return PrimitiveType::GetUInt32();
+        case TypeSpecification::Type::ULong:
+            return PrimitiveType::GetUInt64();
     }
 }
 
@@ -543,6 +538,10 @@ std::unique_ptr<TypeSpecification> TypeChecker::GetTypeSpecification(TypeRef typ
         return std::make_unique<TypeSpecification>(TypeSpecification::Type::Int);
     } else if (type->Equals(PrimitiveType::GetInt64())) {
         return std::make_unique<TypeSpecification>(TypeSpecification::Type::Long);
+    } else if (type->Equals(PrimitiveType::GetUInt32())) {
+        return std::make_unique<TypeSpecification>(TypeSpecification::Type::UInt);
+    } else if (type->Equals(PrimitiveType::GetUInt64())) {
+        return std::make_unique<TypeSpecification>(TypeSpecification::Type::ULong);
     }
     return nullptr;
 }

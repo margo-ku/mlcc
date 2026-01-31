@@ -13,8 +13,8 @@ private:
     bool EliminateUnreachableCode(std::vector<std::vector<TACInstruction>>& instructions);
 
     bool IsConstant(const std::string& operand);
-    int EvaluateBinaryOp(TACInstruction::OpCode op, int lhs, int rhs);
-    int EvaluateUnaryOp(TACInstruction::OpCode op, int operand);
+    long long EvaluateBinaryOp(TACInstruction::OpCode op, long long lhs, long long rhs);
+    long long EvaluateUnaryOp(TACInstruction::OpCode op, long long operand);
     bool TryFoldBinary(const TACInstruction& in, TACInstruction& out);
     bool TryFoldUnary(const TACInstruction& in, TACInstruction& out);
     bool TryFoldCondition(const TACInstruction& in, TACInstruction& out, bool& changed);

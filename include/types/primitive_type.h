@@ -3,23 +3,16 @@
 
 class PrimitiveType : public Type {
 public:
-    enum class Tag {
-        Int32,
-        Int64,
-        // Char, Bool, UInt32, UInt64
-    };
+    enum class Tag { Int32, Int64, UInt32, UInt64 };
 
-    explicit PrimitiveType(Tag tag, bool is_signed = true);
+    explicit PrimitiveType(Tag tag);
 
     Tag GetTag() const;
-    bool IsSignedFlag() const;
 
     static TypeRef GetInt32();
     static TypeRef GetInt64();
-    /*static TypeRef GetUInt32();
+    static TypeRef GetUInt32();
     static TypeRef GetUInt64();
-    static TypeRef GetChar();
-    static TypeRef GetBool();*/
 
     size_t Size() const override;
     size_t Alignment() const override;
@@ -32,6 +25,6 @@ public:
     bool Equals(const TypeRef& other) const override;
 
 private:
+    static TypeRef& GetInstance(Tag tag);
     Tag tag_;
-    bool is_signed_;
 };

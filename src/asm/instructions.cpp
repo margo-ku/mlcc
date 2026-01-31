@@ -107,6 +107,9 @@ std::string BinaryInstruction::ToString() const {
         case BinaryOp::SDiv:
             opcode = "sdiv";
             break;
+        case BinaryOp::UDiv:
+            opcode = "udiv";
+            break;
         case BinaryOp::And:
             opcode = "and";
             break;
@@ -121,6 +124,9 @@ std::string BinaryInstruction::ToString() const {
             break;
         case BinaryOp::Asr:
             opcode = "asr";
+            break;
+        case BinaryOp::Lsr:
+            opcode = "lsr";
             break;
     }
     return opcode + " " + dst_->ToString() + ", " + lhs_->ToString() + ", " +
@@ -194,28 +200,7 @@ CSetInstruction::CSetInstruction(std::shared_ptr<ASMOperand> dst, Condition cond
     : dst_(dst), cond_(cond) {}
 
 std::string CSetInstruction::ToString() const {
-    std::string cond;
-    switch (cond_) {
-        case Condition::Eq:
-            cond = "eq";
-            break;
-        case Condition::Ne:
-            cond = "ne";
-            break;
-        case Condition::Lt:
-            cond = "lt";
-            break;
-        case Condition::Le:
-            cond = "le";
-            break;
-        case Condition::Gt:
-            cond = "gt";
-            break;
-        case Condition::Ge:
-            cond = "ge";
-            break;
-    }
-    return "cset " + dst_->ToString() + ", " + cond;
+    return "cset " + dst_->ToString() + ", " + ConditionToStr(cond_);
 }
 
 std::vector<std::shared_ptr<ASMOperand>> CSetInstruction::GetOperands() const {
@@ -242,29 +227,7 @@ std::string BranchInstruction::ToString() const {
         return "bl " + label_;
     }
 
-    std::string cond;
-    switch (cond_) {
-        case Condition::Eq:
-            cond = "eq";
-            break;
-        case Condition::Ne:
-            cond = "ne";
-            break;
-        case Condition::Lt:
-            cond = "lt";
-            break;
-        case Condition::Le:
-            cond = "le";
-            break;
-        case Condition::Gt:
-            cond = "gt";
-            break;
-        case Condition::Ge:
-            cond = "ge";
-            break;
-    }
-
-    return "b" + cond + " " + label_;
+    return std::string("b.") + ConditionToStr(cond_) + " " + label_;
 }
 
 ///////////////////////////////////////////////
@@ -374,8 +337,9 @@ void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
 ///////////////////////////////////////////////
 
 ExtendInstruction::ExtendInstruction(std::shared_ptr<ASMOperand> dst,
-                                     std::shared_ptr<ASMOperand> src)
-    : dst_(dst), src_(src) {}
+                                     std::shared_ptr<ASMOperand> src,
+                                     bool is_signed)
+    : dst_(dst), src_(src), is_signed_(is_signed) {}
 
 std::string ExtendInstruction::ToString() const {
     auto dst_str = dst_->ToString();
@@ -386,7 +350,8 @@ std::string ExtendInstruction::ToString() const {
     assert(dst_is_x || src_is_w);
 
     if (dst_is_x && src_is_w) {
-        return "sxtw " + dst_str + ", " + src_str;
+        std::string op = is_signed_ ? "sxtw" : "uxtw";
+        return op + " " + dst_str + ", " + src_str;
     }
     return "mov " + dst_str + ", " + src_str;
 }
