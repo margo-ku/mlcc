@@ -12,6 +12,7 @@ TypeChecker::TypeChecker(SymbolTable& symbol_table) : symbol_table_(symbol_table
 TypeChecker::~TypeChecker() {}
 
 void TypeChecker::Visit(TranslationUnit* translation_unit) {
+    in_file_scope_ = true;
     for (auto& declaration : translation_unit->GetExternalDeclarations()) {
         declaration->Accept(this);
     }
@@ -42,7 +43,10 @@ void TypeChecker::Visit(FunctionDefinition* function) {
     }
 
     current_return_type_ = ResolvePrimitiveType(function->GetReturnType());
+    bool saved_file_scope = in_file_scope_;
+    in_file_scope_ = false;
     function->GetBody()->Accept(this);
+    in_file_scope_ = saved_file_scope;
     current_return_type_ = nullptr;
 }
 
@@ -51,6 +55,11 @@ void TypeChecker::Visit(DeclarationSpecifiers* decl_specs) {}
 void TypeChecker::Visit(TypeSpecification* type) {}
 
 void TypeChecker::Visit(Declaration* declaration) {
+    if (!declaration->GetDeclarationSpecifiers()->HasTypeSpecifier()) {
+        ReportError("declaration must have at least one type specifier");
+        return;
+    }
+
     Declarator* declarator = declaration->GetDeclaration();
     declarator->Accept(this);
 
@@ -76,7 +85,7 @@ void TypeChecker::Visit(Declaration* declaration) {
                         id_declarator->GetId() + "'");
             return;
         }
-        bool ok = info->HasLinkage()
+        bool ok = in_file_scope_
                       ? ProcessFileScopeVariable(id_declarator, type, storage_class)
                       : ProcessBlockScopeVariable(id_declarator, type, storage_class);
         if (!ok) {
@@ -336,6 +345,10 @@ void TypeChecker::Visit(ForStatement* statement) {
     }
 
     if (auto decl = dynamic_cast<Declaration*>(init)) {
+        if (decl->GetDeclarationSpecifiers()->GetStorageClass() != StorageClass::None) {
+            ReportError("storage class specifier is not allowed in for loop header");
+            return;
+        }
         if (dynamic_cast<FunctionDeclarator*>(decl->GetDeclaration())) {
             ReportError("function declaration in for loop header");
             return;
@@ -348,6 +361,9 @@ void TypeChecker::Visit(ForStatement* statement) {
 }
 
 void TypeChecker::Visit(ParameterDeclaration* declaration) {
+    StorageClass storage_class =
+        declaration->GetDeclarationSpecifiers()->GetStorageClass();
+
     Declarator* declarator = declaration->GetDeclarator();
     declarator->Accept(this);
 
@@ -363,6 +379,12 @@ void TypeChecker::Visit(ParameterDeclaration* declaration) {
         return;
     } else if (auto id_declarator = dynamic_cast<IdentifierDeclarator*>(declarator)) {
         std::string name = id_declarator->GetId();
+
+        if (storage_class != StorageClass::None) {
+            ReportError("storage class specifier is not allowed on parameter '" + name +
+                        "'");
+        }
+
         SymbolInfo* info = symbol_table_.FindByUniqueName(name);
         if (!info) {
             ReportError("internal error: symbol not found for parameter '" + name + "'");
@@ -740,6 +762,11 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
     if (storage_class == StorageClass::Extern) {
         if (id_declarator->HasInitializer()) {
             ReportError("initializer on local extern variable declaration");
+            if (!info->type) {
+                info->type = declared_type;
+                info->initial_value = SymbolInfo::InitialValue::NoInitializer;
+                info->duration = SymbolInfo::StorageDuration::Static;
+            }
             return false;
         }
         if (info->type) {

@@ -102,7 +102,7 @@ std::string TACInstruction::ToString() const {
             out << "function " << label_ << " with " << lhs_ << " args";
             break;
         case OpCode::StaticVariable:
-            out << "static variable " << dst_ << " = " << lhs_ << "global " << rhs_;
+            out << "static variable " << dst_ << " = " << lhs_ << " global " << rhs_;
             break;
         case OpCode::Return:
             if (!label_.empty()) {
@@ -494,12 +494,23 @@ void TACVisitor::Visit(ForStatement* statement) {
 void TACVisitor::Visit(FunctionDeclarator* declarator) {}
 
 void TACVisitor::Visit(IdentifierDeclarator* declarator) {
-    std::string dst = declarator->GetId();
-    std::string src = "0";
-    if (declarator->HasInitializer()) {
-        declarator->GetInitializer()->Accept(this);
-        src = GetTop();
+    const std::string dst = declarator->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(dst);
+    if (info && info->HasStaticDuration()) {
+        return;
     }
+
+    if (!declarator->HasInitializer()) {
+        return;
+    }
+
+    if (instructions_.empty()) {
+        throw std::runtime_error(
+            "internal error: automatic declarator outside of function in TACVisitor");
+    }
+
+    declarator->GetInitializer()->Accept(this);
+    const std::string src = GetTop();
     instructions_.back().emplace_back(TACInstruction::OpCode::Assign, dst, src);
 }
 

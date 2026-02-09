@@ -102,7 +102,11 @@ void TypeSpecification::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 DeclarationSpecifiers::DeclarationSpecifiers(const DeclarationSpecifierSet& specifiers)
     : type_(std::make_unique<TypeSpecification>(specifiers.type_specifiers)),
-      storage_class_(ResolveStorageClass(specifiers.storage_class_specifiers)) {}
+      storage_class_(ResolveStorageClass(specifiers.storage_class_specifiers)),
+      has_type_specifier_(specifiers.type_specifiers.has_signed ||
+                          specifiers.type_specifiers.has_unsigned ||
+                          specifiers.type_specifiers.has_int ||
+                          specifiers.type_specifiers.has_long) {}
 
 void DeclarationSpecifiers::Accept(Visitor* visitor) { visitor->Visit(this); }
 
@@ -111,6 +115,8 @@ TypeSpecification* DeclarationSpecifiers::GetTypeSpecification() const {
 }
 
 StorageClass DeclarationSpecifiers::GetStorageClass() const { return storage_class_; }
+
+bool DeclarationSpecifiers::HasTypeSpecifier() const { return has_type_specifier_; }
 
 bool DeclarationSpecifiers::IsStatic() const {
     return storage_class_ == StorageClass::Static;

@@ -159,6 +159,7 @@ public:
 
     TypeSpecification* GetTypeSpecification() const;
     StorageClass GetStorageClass() const;
+    bool HasTypeSpecifier() const;
     bool IsStatic() const;
     bool IsExtern() const;
 
@@ -167,6 +168,7 @@ public:
 private:
     std::unique_ptr<TypeSpecification> type_;
     StorageClass storage_class_ = StorageClass::None;
+    bool has_type_specifier_ = false;
 };
 
 ///////////////////////////////////////////////

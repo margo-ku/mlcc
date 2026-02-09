@@ -15,16 +15,24 @@ LinearIRBuilder::LinearIRBuilder(
 void LinearIRBuilder::Build() {
     for (auto& instructions : tac_instructions_) {
         asm_instructions_.emplace_back();
-        stack_allocator_.PushFrame();
+        using Op = TACInstruction::OpCode;
+        const bool is_function =
+            !instructions.empty() && instructions.front().GetOp() == Op::Function;
+
+        if (is_function) {
+            stack_allocator_.PushFrame();
+        }
 
         for (const auto& instruction : instructions) {
             LowerInstruction(instruction);
         }
-        AddFunctionEpilogue();
-        ResolveOperands();
-        ChangeStackSize();
-        optimizer_.Optimize(asm_instructions_.back());
-        stack_allocator_.PopFrame();
+        if (is_function) {
+            AddFunctionEpilogue();
+            ResolveOperands();
+            ChangeStackSize();
+            optimizer_.Optimize(asm_instructions_.back());
+            stack_allocator_.PopFrame();
+        }
     }
 }
 

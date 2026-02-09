@@ -60,4 +60,5 @@ private:
     std::vector<std::string> errors_;
     SymbolTable& symbol_table_;
     TypeRef current_return_type_;
+    bool in_file_scope_ = true;
 };
