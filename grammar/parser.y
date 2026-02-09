@@ -18,6 +18,7 @@
     class FunctionDefinition;
     class Declarator;
     class Declaration;
+    class DeclarationSpecifiers;
     class TypeSpecification;
     class Statement;
     class CompoundStatement;
@@ -85,6 +86,7 @@
 %token <unsigned int> UINT_NUMBER
 %token <unsigned long> ULONG_NUMBER
 %token SIGNED UNSIGNED
+%token STATIC EXTERN
 
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
@@ -93,9 +95,12 @@
 %type <std::unique_ptr<TranslationUnit>> translation_unit
 %type <std::unique_ptr<BaseElement>> external_declaration
 %type <std::unique_ptr<FunctionDefinition>> function_definition
-%type <std::unique_ptr<TypeSpecification>> declaration_specifiers
+%type <DeclarationSpecifierSet> declaration_specifier_set
+%type <DeclarationSpecifierSet> declaration_specifier_set_opt
+%type <std::unique_ptr<DeclarationSpecifiers>> declaration_specifiers
 %type <TypeSpecifierSet> type_specifier_list
 %type <TypeSpecifierSet::Specifier> type_specifier
+%type <StorageClassSpecifierSet::Specifier> storage_class_specifier
 %type <std::unique_ptr<Declarator>> declarator
 %type <std::unique_ptr<Declarator>> init_declarator
 %type <std::unique_ptr<Declaration>> declaration
@@ -149,11 +154,23 @@ function_definition:
     declaration_specifiers declarator compound_statement { $$ = std::make_unique<FunctionDefinition>(std::move($1), std::move($2), std::move($3)); };
 
 declaration_specifiers:
-    type_specifier_list { $$ = std::make_unique<TypeSpecification>($1); };
+    declaration_specifier_set { $$ = std::make_unique<DeclarationSpecifiers>($1); };
+
+declaration_specifier_set:
+    storage_class_specifier declaration_specifier_set_opt { $$ = $2; $$.Add($1); }
+    | type_specifier declaration_specifier_set_opt { $$ = $2; $$.Add($1); };
+
+declaration_specifier_set_opt:
+    %empty { $$ = DeclarationSpecifierSet{}; }
+    | declaration_specifier_set { $$ = $1; };
 
 type_specifier_list:
     type_specifier { $$ = TypeSpecifierSet{}; $$.Add($1); }
     | type_specifier_list type_specifier { $$ = $1; $$.Add($2); };
+
+storage_class_specifier:
+    STATIC { $$ = StorageClassSpecifierSet::Specifier::Static; }
+    | EXTERN { $$ = StorageClassSpecifierSet::Specifier::Extern; };
 
 type_specifier:
     INT { $$ = TypeSpecifierSet::Specifier::Int; }
@@ -292,7 +309,7 @@ multiplicative_expression:
 
 cast_expression:
     unary_expression { $$ = std::move($1); }
-    | LPAREN declaration_specifiers RPAREN cast_expression { $$ = std::make_unique<CastExpression>(std::move($2), std::move($4)); };
+    | LPAREN type_specifier_list RPAREN cast_expression { $$ = std::make_unique<CastExpression>(std::make_unique<TypeSpecification>($2), std::move($4)); };
 
 unary_expression:
     postfix_expression { $$ = std::move($1); }

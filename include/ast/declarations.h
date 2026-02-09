@@ -92,6 +92,37 @@ struct TypeSpecifierSet {
     }
 };
 
+struct StorageClassSpecifierSet {
+    enum class Specifier { Static, Extern };
+
+    bool has_static = false;
+    bool has_extern = false;
+
+    void Add(Specifier spec) {
+        switch (spec) {
+            case Specifier::Static:
+                has_static = true;
+                break;
+            case Specifier::Extern:
+                has_extern = true;
+                break;
+        }
+    }
+};
+
+struct DeclarationSpecifierSet {
+    TypeSpecifierSet type_specifiers;
+    StorageClassSpecifierSet storage_class_specifiers;
+
+    void Add(TypeSpecifierSet::Specifier spec) {
+        type_specifiers.Add(spec);
+    }
+
+    void Add(StorageClassSpecifierSet::Specifier spec) {
+        storage_class_specifiers.Add(spec);
+    }
+};
+
 ///////////////////////////////////////////////
 
 class TypeSpecification : public BaseElement {
@@ -102,6 +133,7 @@ public:
         UInt = 2,
         ULong = 3,
     };
+
     explicit TypeSpecification(Type type);
     explicit TypeSpecification(const TypeSpecifierSet& specifiers);
     virtual ~TypeSpecification() = default;
@@ -117,20 +149,43 @@ private:
 
 ///////////////////////////////////////////////
 
+enum class StorageClass { None, Static, Extern };
+
+class DeclarationSpecifiers : public BaseElement {
+public:
+    explicit DeclarationSpecifiers(const DeclarationSpecifierSet& specifiers);
+    virtual ~DeclarationSpecifiers() = default;
+    void Accept(Visitor* visitor) override;
+
+    TypeSpecification* GetTypeSpecification() const;
+    StorageClass GetStorageClass() const;
+    bool IsStatic() const;
+    bool IsExtern() const;
+
+    static StorageClass ResolveStorageClass(const StorageClassSpecifierSet& specifiers);
+
+private:
+    std::unique_ptr<TypeSpecification> type_;
+    StorageClass storage_class_ = StorageClass::None;
+};
+
+///////////////////////////////////////////////
+
 class FunctionDefinition : public BaseElement {
 public:
-    FunctionDefinition(std::unique_ptr<TypeSpecification> return_type,
+    FunctionDefinition(std::unique_ptr<DeclarationSpecifiers> decl_specs,
                        std::unique_ptr<Declarator> declarator,
                        std::unique_ptr<CompoundStatement> body);
     virtual ~FunctionDefinition() = default;
     void Accept(Visitor* visitor) override;
+    DeclarationSpecifiers* GetDeclarationSpecifiers() const;
     TypeSpecification* GetReturnType() const;
     Declarator* GetDeclarator() const;
     CompoundStatement* GetBody() const;
     int GetNumParameters() const;
 
 private:
-    std::unique_ptr<TypeSpecification> return_type_;
+    std::unique_ptr<DeclarationSpecifiers> decl_specs_;
     std::unique_ptr<Declarator> declarator_;
     std::unique_ptr<CompoundStatement> body_;
 };
@@ -139,15 +194,16 @@ private:
 
 class Declaration : public BaseElement {
 public:
-    Declaration(std::unique_ptr<TypeSpecification> type,
+    Declaration(std::unique_ptr<DeclarationSpecifiers> decl_specs,
                 std::unique_ptr<Declarator> declaration);
     virtual ~Declaration() = default;
     void Accept(Visitor* visitor) override;
+    DeclarationSpecifiers* GetDeclarationSpecifiers() const;
     TypeSpecification* GetType() const;
     Declarator* GetDeclaration() const;
 
 private:
-    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<DeclarationSpecifiers> decl_specs_;
     std::unique_ptr<Declarator> declaration_;
 };
 
@@ -155,15 +211,16 @@ private:
 
 class ParameterDeclaration : public BaseElement {
 public:
-    ParameterDeclaration(std::unique_ptr<TypeSpecification> type,
+    ParameterDeclaration(std::unique_ptr<DeclarationSpecifiers> decl_specs,
                          std::unique_ptr<Declarator> declarator);
     virtual ~ParameterDeclaration() = default;
     void Accept(Visitor* visitor) override;
+    DeclarationSpecifiers* GetDeclarationSpecifiers() const;
     TypeSpecification* GetType() const;
     Declarator* GetDeclarator() const;
 
 private:
-    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<DeclarationSpecifiers> decl_specs_;
     std::unique_ptr<Declarator> declarator_;
 };
 

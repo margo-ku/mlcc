@@ -12,6 +12,7 @@ public:
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
+    void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;

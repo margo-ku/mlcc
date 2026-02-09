@@ -55,3 +55,12 @@ std::string MemoryOperand::ToString() const {
 
     return out.str();
 }
+
+///////////////////////////////////////////////
+
+DataOperand::DataOperand(const std::string& name, Size size)
+    : ASMOperand(size), name_(name) {}
+
+std::string DataOperand::ToString() const { return "data@" + name_; }  // debug only
+
+const std::string& DataOperand::GetName() const { return name_; }

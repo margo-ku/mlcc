@@ -48,6 +48,7 @@ private:
     void LowerFunction(const TACInstruction& instr);
     void LowerExtend(const TACInstruction& instr, bool is_signed);
     void LowerTruncate(const TACInstruction& instr);
+    void LowerStaticVariable(const TACInstruction& instr);
 
     void AddFunctionPrologue();
     void AddFunctionEpilogue();

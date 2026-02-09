@@ -59,3 +59,16 @@ SymbolInfo* SymbolTable::FindByUniqueName(const std::string& unique_name) {
     }
     return nullptr;
 }
+
+bool SymbolTable::IsInFileScope() const { return scopes_.size() == 1; }
+
+const std::unordered_map<std::string, SymbolInfo>& SymbolTable::GetAllSymbols() const {
+    return all_symbols_;
+}
+
+std::string SymbolInfo::GetStringInitializer() const {
+    if (initial_value != InitialValue::Initial) {
+        return "";
+    }
+    return std::visit(InitToString{}, static_init.value());
+}

@@ -12,6 +12,7 @@ public:
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
+    void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
@@ -43,4 +44,5 @@ private:
 
     bool suppress_next_compound_scope_ = false;
     SymbolTable& symbol_table_;
+    StorageClass current_storage_class_ = StorageClass::None;
 };

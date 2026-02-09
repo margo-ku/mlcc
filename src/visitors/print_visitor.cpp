@@ -34,6 +34,10 @@ void PrintVisitor::Visit(FunctionDefinition* function) {
     number_of_tabs_--;
 }
 
+void PrintVisitor::Visit(DeclarationSpecifiers* decl_specs) {
+    decl_specs->GetTypeSpecification()->Accept(this);
+}
+
 void PrintVisitor::Visit(TypeSpecification* type) { stream_ << type->GetTypeName(); }
 
 void PrintVisitor::Visit(Declaration* declaration) {

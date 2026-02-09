@@ -10,7 +10,8 @@ class TACInstruction {
 public:
     enum class OpCode {
         Label,
-        Function,
+        Function,        // name, param_count, global
+        StaticVariable,  // name, initializer, global
         Return,
         Assign,
         Add,
@@ -40,7 +41,7 @@ public:
         Param,
         SignExtend,
         ZeroExtend,
-        Truncate
+        Truncate,
     };
 
     explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
@@ -67,12 +68,15 @@ private:
     std::string label_;
 };
 
+///////////////////////////////////////////////
+
 class TACVisitor : public Visitor {
 public:
     explicit TACVisitor(SymbolTable& symbol_table);
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
+    void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
@@ -97,6 +101,7 @@ public:
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
 
+    void AddStaticVariables();
     std::vector<std::vector<TACInstruction>> GetTACInstructions() const;
     void PrintTACInstructions(std::ostream& out) const;
     static void PrintTACInstructions(

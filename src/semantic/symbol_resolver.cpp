@@ -1,5 +1,6 @@
 #include "include/semantic/symbol_resolver.h"
 
+#include "include/ast/declarations.h"
 #include "include/ast/expressions.h"
 
 SymbolResolver::SymbolResolver(SymbolTable& symbol_table) : symbol_table_(symbol_table) {
@@ -28,15 +29,23 @@ void SymbolResolver::Visit(FunctionDefinition* function) {
         return;
     }
 
-    std::string name = function_declarator->GetId();
-    auto existing = symbol_table_.Lookup(name);
-    if (symbol_table_.IsInCurrentScope(name) &&
-        existing->linkage != SymbolInfo::LinkageKind::External) {
-        errors_.push_back("duplicate declaration of variable '" + name + "'");
+    if (!symbol_table_.IsInFileScope()) {
+        errors_.push_back("function definition is not allowed in local scope");
         return;
     }
 
-    symbol_table_.Declare(name, {name, name, SymbolInfo::LinkageKind::External});
+    std::string name = function_declarator->GetId();
+    if (symbol_table_.IsInCurrentScope(name)) {
+        auto existing = symbol_table_.Lookup(name);
+        if (existing->linkage != SymbolInfo::LinkageKind::External) {
+            errors_.push_back("conflicting declaration of '" + name + "'");
+            return;
+        }
+    } else {
+        symbol_table_.Declare(name, {.name = name,
+                                     .original_name = name,
+                                     .linkage = SymbolInfo::LinkageKind::External});
+    }
 
     symbol_table_.EnterScope();
     suppress_next_compound_scope_ = true;
@@ -47,10 +56,17 @@ void SymbolResolver::Visit(FunctionDefinition* function) {
     symbol_table_.ExitScope();
 }
 
+void SymbolResolver::Visit(DeclarationSpecifiers* decl_specs) {}
+
 void SymbolResolver::Visit(TypeSpecification* type) {}
 
 void SymbolResolver::Visit(Declaration* declaration) {
+    StorageClass saved_storage_class = current_storage_class_;
+    current_storage_class_ = declaration->GetDeclarationSpecifiers()->GetStorageClass();
+
     declaration->GetDeclaration()->Accept(this);
+
+    current_storage_class_ = saved_storage_class;
 }
 
 void SymbolResolver::Visit(Expression* expression) {}
@@ -174,14 +190,26 @@ void SymbolResolver::Visit(ArgumentExpressionList* list) {
 
 void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
     std::string original_name = declarator->GetId();
+    bool has_linkage =
+        symbol_table_.IsInFileScope() || current_storage_class_ == StorageClass::Extern;
+
     if (symbol_table_.IsInCurrentScope(original_name)) {
-        errors_.push_back("duplicate declaration of variable '" + original_name + "'");
-        return;
+        auto existing = symbol_table_.Lookup(original_name);
+        if (!has_linkage || !existing->HasLinkage()) {
+            errors_.push_back("conflicting declaration of '" + original_name + "'");
+            return;
+        }
+    } else {
+        std::string resolved_name =
+            has_linkage ? original_name : symbol_table_.GenerateUniqueName(original_name);
+        declarator->SetId(resolved_name);
+
+        symbol_table_.Declare(original_name,
+                              {.name = resolved_name,
+                               .original_name = original_name,
+                               .linkage = has_linkage ? SymbolInfo::LinkageKind::External
+                                                      : SymbolInfo::LinkageKind::None});
     }
-    std::string unique_name = symbol_table_.GenerateUniqueName(original_name);
-    declarator->SetId(unique_name);
-    SymbolInfo info{unique_name, original_name, SymbolInfo::LinkageKind::None, nullptr};
-    symbol_table_.Declare(original_name, info);
 
     if (declarator->HasInitializer()) {
         declarator->GetInitializer()->Accept(this);
@@ -190,21 +218,33 @@ void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
 
 void SymbolResolver::Visit(FunctionDeclarator* declarator) {
     std::string original_name = declarator->GetId();
+
+    if (current_storage_class_ == StorageClass::Static &&
+        !symbol_table_.IsInFileScope()) {
+        errors_.push_back("static function declaration is not allowed in local scope");
+        return;
+    }
+
     if (symbol_table_.IsInCurrentScope(original_name)) {
         auto existing = symbol_table_.Lookup(original_name);
         if (existing->linkage != SymbolInfo::LinkageKind::External) {
-            errors_.push_back("duplicate declaration of '" + original_name + "'");
+            errors_.push_back("conflicting declaration of '" + original_name + "'");
             return;
         }
+    } else {
+        symbol_table_.Declare(original_name,
+                              {.name = original_name,
+                               .original_name = original_name,
+                               .linkage = SymbolInfo::LinkageKind::External});
     }
-    SymbolInfo info{original_name, original_name, SymbolInfo::LinkageKind::External,
-                    nullptr};
-    symbol_table_.Declare(original_name, info);
 
     if (declarator->HasParameters()) {
+        StorageClass saved_storage_class = current_storage_class_;
+        current_storage_class_ = StorageClass::None;
         symbol_table_.EnterScope();
         declarator->GetParameters()->Accept(this);
         symbol_table_.ExitScope();
+        current_storage_class_ = saved_storage_class;
     }
 }
 

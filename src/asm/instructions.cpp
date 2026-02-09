@@ -337,8 +337,7 @@ void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
 ///////////////////////////////////////////////
 
 ExtendInstruction::ExtendInstruction(std::shared_ptr<ASMOperand> dst,
-                                     std::shared_ptr<ASMOperand> src,
-                                     bool is_signed)
+                                     std::shared_ptr<ASMOperand> src, bool is_signed)
     : dst_(dst), src_(src), is_signed_(is_signed) {}
 
 std::string ExtendInstruction::ToString() const {
@@ -395,6 +394,90 @@ void TruncateInstruction::SetOperands(
     assert(ops.size() == 2);
     dst_ = ops[0];
     src_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+std::string TextSectionDirective::ToString() const { return ".text"; }
+
+std::string DataSectionDirective::ToString() const { return ".data"; }
+
+StaticVariableDirective::StaticVariableDirective(const std::string& name, long long value,
+                                                 int size, bool is_global)
+    : name_(name), value_(value), size_(size), is_global_(is_global) {}
+
+std::string StaticVariableDirective::ToString() const {
+    std::string result;
+    if (is_global_) {
+        result += ".globl _" + name_ + "\n";
+    }
+    result += "_" + name_ + ":\n";
+    if (size_ == 8) {
+        result += "    .quad " + std::to_string(value_);
+    } else {
+        result += "    .long " + std::to_string(value_);
+    }
+    return result;
+}
+
+///////////////////////////////////////////////
+
+AdrpInstruction::AdrpInstruction(std::shared_ptr<ASMOperand> dst, const std::string& symbol)
+    : dst_(dst), symbol_(symbol) {}
+
+std::string AdrpInstruction::ToString() const {
+    return "adrp " + dst_->ToString() + ", " + symbol_ + "@PAGE";
+}
+
+std::vector<std::shared_ptr<ASMOperand>> AdrpInstruction::GetOperands() const {
+    return {dst_};
+}
+
+void AdrpInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 1);
+    dst_ = ops[0];
+}
+
+///////////////////////////////////////////////
+
+LoadGlobalInstruction::LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst,
+                                             std::shared_ptr<ASMOperand> base,
+                                             const std::string& symbol)
+    : dst_(dst), base_(base), symbol_(symbol) {}
+
+std::string LoadGlobalInstruction::ToString() const {
+    return "ldr " + dst_->ToString() + ", [" + base_->ToString() + ", " + symbol_ + "@PAGEOFF]";
+}
+
+std::vector<std::shared_ptr<ASMOperand>> LoadGlobalInstruction::GetOperands() const {
+    return {dst_, base_};
+}
+
+void LoadGlobalInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    base_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+StoreGlobalInstruction::StoreGlobalInstruction(std::shared_ptr<ASMOperand> src,
+                                               std::shared_ptr<ASMOperand> base,
+                                               const std::string& symbol)
+    : src_(src), base_(base), symbol_(symbol) {}
+
+std::string StoreGlobalInstruction::ToString() const {
+    return "str " + src_->ToString() + ", [" + base_->ToString() + ", " + symbol_ + "@PAGEOFF]";
+}
+
+std::vector<std::shared_ptr<ASMOperand>> StoreGlobalInstruction::GetOperands() const {
+    return {src_, base_};
+}
+
+void StoreGlobalInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    src_ = ops[0];
+    base_ = ops[1];
 }
 
 ///////////////////////////////////////////////

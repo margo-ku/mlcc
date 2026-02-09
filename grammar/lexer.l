@@ -64,6 +64,8 @@ blank  [ \t\r]
 "long"     { return yy::parser::make_LONG(loc); }
 "signed"   { return yy::parser::make_SIGNED(loc); }
 "unsigned" { return yy::parser::make_UNSIGNED(loc); }
+"static"   { return yy::parser::make_STATIC(loc); }
+"extern"   { return yy::parser::make_EXTERN(loc); }
 "&"        { return yy::parser::make_BIT_AND(loc); }
 "|"        { return yy::parser::make_BIT_OR(loc); }
 "^"        { return yy::parser::make_BIT_XOR(loc); }

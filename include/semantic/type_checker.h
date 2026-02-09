@@ -13,6 +13,7 @@ public:
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
+    void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
@@ -50,9 +51,11 @@ private:
                                              TypeRef target_type);
     bool ProcessFunctionDeclaration(FunctionDeclarator* func_declarator,
                                     TypeSpecification* return_type_spec,
-                                    bool is_definition);
-    bool ProcessIdentifierDeclaration(IdentifierDeclarator* id_declarator,
-                                      TypeRef declared_type);
+                                    StorageClass storage_class, bool is_definition);
+    bool ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
+                                  TypeRef declared_type, StorageClass storage_class);
+    bool ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
+                                   TypeRef declared_type, StorageClass storage_class);
 
     std::vector<std::string> errors_;
     SymbolTable& symbol_table_;

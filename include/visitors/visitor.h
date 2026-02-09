@@ -9,6 +9,7 @@ public:
     virtual void Visit(TranslationUnit* translation_unit) = 0;
     virtual void Visit(ItemList* item_list) = 0;
     virtual void Visit(FunctionDefinition* function) = 0;
+    virtual void Visit(DeclarationSpecifiers* decl_specs) = 0;
     virtual void Visit(TypeSpecification* type) = 0;
     virtual void Visit(Declaration* declaration) = 0;
     virtual void Visit(Expression* expression) = 0;

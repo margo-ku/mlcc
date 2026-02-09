@@ -28,6 +28,8 @@ std::string TACInstruction::ToString() const {
                 return "label";
             case OpCode::Function:
                 return "function";
+            case OpCode::StaticVariable:
+                return "static variable";
             case OpCode::Return:
                 return "return";
             case OpCode::Assign:
@@ -99,11 +101,15 @@ std::string TACInstruction::ToString() const {
         case OpCode::Function:
             out << "function " << label_ << " with " << lhs_ << " args";
             break;
+        case OpCode::StaticVariable:
+            out << "static variable " << dst_ << " = " << lhs_ << "global " << rhs_;
+            break;
         case OpCode::Return:
-            if (!label_.empty())
+            if (!label_.empty()) {
                 out << "return " << label_;
-            else
+            } else {
                 out << "return";
+            }
             break;
         case OpCode::Assign:
             out << dst_ << " = " << lhs_;
@@ -197,12 +203,13 @@ void TACVisitor::Visit(FunctionDefinition* function) {
         param_count = params->GetParameters().size();
     }
 
-    std::string name = "_" + declarator->GetId();
+    std::string name = declarator->GetId();
 
+    SymbolInfo* info = symbol_table_.FindByUniqueName(name);
+    std::string global = info->linkage == SymbolInfo::LinkageKind::Internal ? "0" : "1";
     instructions_.emplace_back();
-
     instructions_.back().emplace_back(TACInstruction::OpCode::Function, name,
-                                      std::to_string(param_count));
+                                      std::to_string(param_count), global);
 
     if (params) {
         params->Accept(this);
@@ -210,6 +217,8 @@ void TACVisitor::Visit(FunctionDefinition* function) {
 
     function->GetBody()->Accept(this);
 }
+
+void TACVisitor::Visit(DeclarationSpecifiers* decl_specs) {}
 
 void TACVisitor::Visit(TypeSpecification* type) {}
 
@@ -514,14 +523,11 @@ void TACVisitor::Visit(FunctionCallExpression* expression) {
     auto function = expression->GetFunction();
 
     std::string function_name;
-    std::string arm_function_name;
 
     if (auto id_expr = dynamic_cast<IdExpression*>(function)) {
         function_name = id_expr->GetId();
-        arm_function_name = "_" + function_name;
     } else if (auto func_decl = dynamic_cast<FunctionDeclarator*>(function)) {
         function_name = func_decl->GetId();
-        arm_function_name = "_" + function_name;
     }
 
     if (expression->HasArguments()) {
@@ -536,7 +542,7 @@ void TACVisitor::Visit(FunctionCallExpression* expression) {
     std::string return_value = AllocateTemporary(expression->GetTypeRef());
 
     instructions_.back().emplace_back(TACInstruction::OpCode::Call, return_value,
-                                      arm_function_name, std::to_string(num_args));
+                                      function_name, std::to_string(num_args));
 
     stack_.push(return_value);
 }
@@ -553,8 +559,11 @@ void TACVisitor::Visit(ArgumentExpressionList* list) {
 
 std::string TACVisitor::AllocateTemporary(TypeRef type) {
     std::string name = GetTemporaryName();
-    SymbolInfo info{name, name, SymbolInfo::LinkageKind::None, type};
-    symbol_table_.Register(info);
+    symbol_table_.Register({
+        .name = name,
+        .original_name = name,
+        .type = type,
+    });
     return name;
 }
 
@@ -640,4 +649,27 @@ std::vector<std::vector<TACInstruction>> TACVisitor::GetTACInstructions() const 
 void PrintTACInstructions(std::ostream& out,
                           const std::vector<std::vector<TACInstruction>>& instructions) {
     TACVisitor::PrintTACInstructions(out, instructions);
+}
+
+void TACVisitor::AddStaticVariables() {
+    const auto& symbols = symbol_table_.GetAllSymbols();
+    for (const auto& [name, info] : symbols) {
+        if (info.HasStaticDuration()) {
+            std::string global =
+                info.linkage == SymbolInfo::LinkageKind::Internal ? "0" : "1";
+            switch (info.initial_value) {
+                case SymbolInfo::InitialValue::Initial:
+                    instructions_.emplace_back().emplace_back(
+                        TACInstruction::OpCode::StaticVariable, name,
+                        info.GetStringInitializer(), global);
+                    continue;
+                case SymbolInfo::InitialValue::Tentative:
+                    instructions_.emplace_back().emplace_back(
+                        TACInstruction::OpCode::StaticVariable, name, "0", global);
+                    continue;
+                case SymbolInfo::InitialValue::NoInitializer:
+                    continue;
+            }
+        }
+    }
 }

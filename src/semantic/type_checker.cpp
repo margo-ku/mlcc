@@ -28,8 +28,9 @@ void TypeChecker::Visit(FunctionDefinition* function) {
 
     if (auto func_declarator =
             dynamic_cast<FunctionDeclarator*>(function->GetDeclarator())) {
-        if (!ProcessFunctionDeclaration(func_declarator, function->GetReturnType(),
-                                        true)) {
+        if (!ProcessFunctionDeclaration(
+                func_declarator, function->GetReturnType(),
+                function->GetDeclarationSpecifiers()->GetStorageClass(), true)) {
             return;
         }
         if (func_declarator->HasParameters()) {
@@ -45,6 +46,8 @@ void TypeChecker::Visit(FunctionDefinition* function) {
     current_return_type_ = nullptr;
 }
 
+void TypeChecker::Visit(DeclarationSpecifiers* decl_specs) {}
+
 void TypeChecker::Visit(TypeSpecification* type) {}
 
 void TypeChecker::Visit(Declaration* declaration) {
@@ -58,12 +61,25 @@ void TypeChecker::Visit(Declaration* declaration) {
         return;
     }
 
+    StorageClass storage_class =
+        declaration->GetDeclarationSpecifiers()->GetStorageClass();
+
     if (auto func_declarator = dynamic_cast<FunctionDeclarator*>(declarator)) {
-        if (!ProcessFunctionDeclaration(func_declarator, type_spec, false)) {
+        if (!ProcessFunctionDeclaration(func_declarator, type_spec, storage_class,
+                                        false)) {
             return;
         }
     } else if (auto id_declarator = dynamic_cast<IdentifierDeclarator*>(declarator)) {
-        if (!ProcessIdentifierDeclaration(id_declarator, type)) {
+        SymbolInfo* info = symbol_table_.FindByUniqueName(id_declarator->GetId());
+        if (!info) {
+            ReportError("internal error: symbol not found for '" +
+                        id_declarator->GetId() + "'");
+            return;
+        }
+        bool ok = info->HasLinkage()
+                      ? ProcessFileScopeVariable(id_declarator, type, storage_class)
+                      : ProcessBlockScopeVariable(id_declarator, type, storage_class);
+        if (!ok) {
             return;
         }
     } else {
@@ -592,6 +608,7 @@ TypeRef TypeChecker::ResolveFunctionType(Declarator* declarator,
 
 bool TypeChecker::ProcessFunctionDeclaration(FunctionDeclarator* func_declarator,
                                              TypeSpecification* return_type_spec,
+                                             StorageClass storage_class,
                                              bool is_definition) {
     TypeRef func_type = ResolveFunctionType(func_declarator, return_type_spec);
     if (!func_type) {
@@ -601,55 +618,191 @@ bool TypeChecker::ProcessFunctionDeclaration(FunctionDeclarator* func_declarator
     std::string func_name = func_declarator->GetId();
     SymbolInfo* info = symbol_table_.FindByUniqueName(func_name);
     if (!info) {
-        ReportError("internal error: symbol exists but pointer not found for '" +
-                    func_name + "'");
+        ReportError("internal error: symbol not found for '" + func_name + "'");
         return false;
-    } else if (is_definition && info->is_defined) {
-        ReportError("function '" + func_name + "' is already defined");
-        return false;
-    } else if (is_definition) {
-        info->is_defined = true;
     }
+
+    auto new_linkage = (storage_class == StorageClass::Static)
+                           ? SymbolInfo::LinkageKind::Internal
+                           : SymbolInfo::LinkageKind::External;
 
     if (info->type) {
         if (!info->type->Equals(func_type)) {
-            ReportError("function '" + func_name +
-                        "' has been already declared with different type");
+            ReportError("conflicting types for function '" + func_name + "'");
+            return false;
+        }
+        if (new_linkage == SymbolInfo::LinkageKind::Internal &&
+            info->linkage == SymbolInfo::LinkageKind::External) {
+            ReportError("static declaration of '" + func_name +
+                        "' follows non-static declaration");
+            return false;
+        }
+        if (is_definition && info->is_defined) {
+            ReportError("function '" + func_name + "' is already defined");
             return false;
         }
     } else {
         info->type = func_type;
+        info->linkage = new_linkage;
+    }
+
+    if (is_definition) {
+        info->is_defined = true;
     }
     return true;
 }
 
-bool TypeChecker::ProcessIdentifierDeclaration(IdentifierDeclarator* id_declarator,
-                                               TypeRef declared_type) {
-    std::string unique_name = id_declarator->GetId();
-    SymbolInfo* info = symbol_table_.FindByUniqueName(unique_name);
+bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
+                                           TypeRef declared_type,
+                                           StorageClass storage_class) {
+    std::string name = id_declarator->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(name);
     if (!info) {
-        ReportError("internal error: symbol not found for '" + unique_name + "'");
-        return false;
-    } else if (info->type || info->is_defined) {
-        // to do: duplicate declarations
-        ReportError("symbol '" + unique_name + "' is already declared/defined");
+        ReportError("internal error: symbol not found for '" + name + "'");
         return false;
     }
 
-    info->type = declared_type;
+    SymbolInfo::InitialValue new_init_value;
+    std::optional<SymbolInfo::StaticInit> new_static_init;
+
     if (id_declarator->HasInitializer()) {
-        Expression* init = id_declarator->GetInitializer();
-        if (init) {
-            init->Accept(this);
-            TypeRef expr_type = init->GetTypeRef();
-            if (!expr_type->Equals(declared_type)) {
-                std::unique_ptr<Expression> wrapped_init =
+        auto* primary = dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
+        if (!primary) {
+            ReportError("initializer of file scope variable '" + name +
+                        "' is not a constant expression");
+            return false;
+        }
+        primary->Accept(this);
+        new_init_value = SymbolInfo::InitialValue::Initial;
+        new_static_init = primary->GetValue();
+
+        TypeRef init_type = primary->GetTypeRef();
+        if (init_type && !init_type->Equals(declared_type)) {
+            auto wrapped =
+                WrapWithCast(id_declarator->ExtractInitializer(), declared_type);
+            if (!wrapped) {
+                return false;
+            }
+            id_declarator->SetInitializer(std::move(wrapped));
+        }
+    } else if (storage_class == StorageClass::Extern) {
+        new_init_value = SymbolInfo::InitialValue::NoInitializer;
+    } else {
+        new_init_value = SymbolInfo::InitialValue::Tentative;
+    }
+
+    auto new_linkage = (storage_class == StorageClass::Static)
+                           ? SymbolInfo::LinkageKind::Internal
+                           : SymbolInfo::LinkageKind::External;
+
+    if (info->type) {
+        if (!info->type->Equals(declared_type)) {
+            ReportError("conflicting types for '" + name + "'");
+            return false;
+        }
+        if (storage_class == StorageClass::Extern) {
+            new_linkage = info->linkage;
+        } else if (info->linkage != new_linkage) {
+            ReportError("conflicting linkage for '" + name + "'");
+            return false;
+        }
+        if (info->initial_value == SymbolInfo::InitialValue::Initial &&
+            new_init_value == SymbolInfo::InitialValue::Initial) {
+            ReportError("redefinition of '" + name + "'");
+            return false;
+        }
+        info->linkage = new_linkage;
+        if (new_init_value > info->initial_value) {
+            info->initial_value = new_init_value;
+            info->static_init = new_static_init;
+        }
+    } else {
+        info->type = declared_type;
+        info->linkage = new_linkage;
+        info->initial_value = new_init_value;
+        info->static_init = new_static_init;
+    }
+
+    info->duration = SymbolInfo::StorageDuration::Static;
+    return true;
+}
+
+bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
+                                            TypeRef declared_type,
+                                            StorageClass storage_class) {
+    std::string name = id_declarator->GetId();
+    SymbolInfo* info = symbol_table_.FindByUniqueName(name);
+    if (!info) {
+        ReportError("internal error: symbol not found for '" + name + "'");
+        return false;
+    }
+
+    if (storage_class == StorageClass::Extern) {
+        if (id_declarator->HasInitializer()) {
+            ReportError("initializer on local extern variable declaration");
+            return false;
+        }
+        if (info->type) {
+            if (!info->type->IsIntegral()) {
+                ReportError("function '" + name + "' redeclared as variable");
+                return false;
+            }
+            if (!info->type->Equals(declared_type)) {
+                ReportError("conflicting types for '" + name + "'");
+                return false;
+            }
+        } else {
+            info->type = declared_type;
+            info->initial_value = SymbolInfo::InitialValue::NoInitializer;
+            info->duration = SymbolInfo::StorageDuration::Static;
+        }
+        return true;
+    }
+
+    if (storage_class == StorageClass::Static) {
+        if (id_declarator->HasInitializer()) {
+            auto* primary =
+                dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
+            if (!primary) {
+                ReportError("non-constant initializer on local static variable '" + name +
+                            "'");
+                return false;
+            }
+            primary->Accept(this);
+            info->initial_value = SymbolInfo::InitialValue::Initial;
+            info->static_init = primary->GetValue();
+
+            TypeRef init_type = primary->GetTypeRef();
+            if (init_type && !init_type->Equals(declared_type)) {
+                auto wrapped =
                     WrapWithCast(id_declarator->ExtractInitializer(), declared_type);
-                if (!wrapped_init) {
+                if (!wrapped) {
                     return false;
                 }
-                id_declarator->SetInitializer(std::move(wrapped_init));
+                id_declarator->SetInitializer(std::move(wrapped));
             }
+        } else {
+            info->initial_value = SymbolInfo::InitialValue::Initial;
+            info->static_init = 0;
+        }
+        info->type = declared_type;
+        info->duration = SymbolInfo::StorageDuration::Static;
+        return true;
+    }
+
+    info->type = declared_type;
+    info->duration = SymbolInfo::StorageDuration::Automatic;
+    if (id_declarator->HasInitializer()) {
+        Expression* init = id_declarator->GetInitializer();
+        init->Accept(this);
+        TypeRef init_type = init->GetTypeRef();
+        if (init_type && !init_type->Equals(declared_type)) {
+            auto wrapped =
+                WrapWithCast(id_declarator->ExtractInitializer(), declared_type);
+            if (!wrapped) {
+                return false;
+            }
+            id_declarator->SetInitializer(std::move(wrapped));
         }
     }
     return true;

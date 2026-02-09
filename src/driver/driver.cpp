@@ -22,7 +22,7 @@ int Driver::CompileFile(const std::string& filename) {
     }
 
     if (ok && compile) {
-        ok = AnalyzeSemantics() && GenerateTAC() && OptimizeTAC() && GenerateASM();
+        ok = AnalyzeSemantics() && GenerateTAC() && GenerateASM();  // && OptimizeTAC()
     }
 
     ScanEnd();
@@ -84,6 +84,7 @@ bool Driver::GenerateTAC() {
 
     TACVisitor tac_visitor(symbol_table_);
     translation_unit_->Accept(&tac_visitor);
+    tac_visitor.AddStaticVariables();
     tac_instructions_ = tac_visitor.GetTACInstructions();
 
     std::string tac_file = ReplaceExtension(original_filename_, ".tac.txt");

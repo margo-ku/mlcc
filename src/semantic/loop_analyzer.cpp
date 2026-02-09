@@ -22,6 +22,8 @@ void LoopAnalyzer::Visit(FunctionDefinition* function) {
     function->GetBody()->Accept(this);
 }
 
+void LoopAnalyzer::Visit(DeclarationSpecifiers* decl_specs) {}
+
 void LoopAnalyzer::Visit(TypeSpecification* type) {}
 
 void LoopAnalyzer::Visit(Declaration* declaration) {

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+#include "include/asm/instructions.h"
 #include "include/asm/operands.h"
 #include "include/types/function_type.h"
 
@@ -91,6 +92,9 @@ void LinearIRBuilder::LowerInstruction(const TACInstruction& instr) {
         case Op::Truncate:
             return LowerTruncate(instr);
 
+        case Op::StaticVariable:
+            return LowerStaticVariable(instr);
+
         default:
             throw std::runtime_error("Unhandled TAC instruction: " + instr.ToString());
     }
@@ -115,6 +119,29 @@ void LinearIRBuilder::ResolveOperands() {
                 int offset = stack_allocator_.GetLocalOffset(pseudo->GetName(),
                                                              static_cast<int>(size));
                 operands[index] = std::make_shared<MemoryOperand>(base, offset, size);
+            } else if (auto data_op =
+                           std::dynamic_pointer_cast<DataOperand>(operands[index])) {
+                auto size = data_op->GetSize();
+                std::string symbol = "_" + data_op->GetName();
+
+                auto addr_reg = reg_allocator_.Allocate(ASMOperand::Size::Byte8);
+                temps.push_back(addr_reg);
+
+                before.push_back(std::make_shared<AdrpInstruction>(addr_reg, symbol));
+
+                bool is_dst = (index == 0 && !IsPureInputInstruction(instr));
+
+                auto value_reg = reg_allocator_.Allocate(size);
+                temps.push_back(value_reg);
+
+                if (is_dst) {
+                    after.push_back(std::make_shared<StoreGlobalInstruction>(
+                        value_reg, addr_reg, symbol));
+                } else {
+                    before.push_back(std::make_shared<LoadGlobalInstruction>(
+                        value_reg, addr_reg, symbol));
+                }
+                operands[index] = value_reg;
             }
         }
 
@@ -351,9 +378,14 @@ void LinearIRBuilder::LowerControl(const TACInstruction& instr) {
 }
 
 void LinearIRBuilder::LowerFunction(const TACInstruction& instr) {
-    current_function_name_ = instr.GetLabel();
-    Emit(std::make_shared<GlobalDirective>(current_function_name_));
-    Emit(std::make_shared<LabelInstruction>(current_function_name_));
+    current_function_name_ = instr.GetDst();
+    std::string asm_name = "_" + current_function_name_;
+    Emit(std::make_shared<TextSectionDirective>());
+    bool is_global = instr.GetRhs() == "1";
+    if (is_global) {
+        Emit(std::make_shared<GlobalDirective>(asm_name));
+    }
+    Emit(std::make_shared<LabelInstruction>(asm_name));
     AddFunctionPrologue();
 
     current_param_count_ = std::stoi(instr.GetLhs());
@@ -393,7 +425,8 @@ void LinearIRBuilder::LowerCall(const TACInstruction& instr) {
         Emit(std::make_shared<StoreInstruction>(arg, mem));
         pending_args_.pop();
     }
-    Emit(std::make_shared<BranchInstruction>(BranchType::Call, instr.GetLhs()));
+    std::string call_name = "_" + instr.GetLhs();
+    Emit(std::make_shared<BranchInstruction>(BranchType::Call, call_name));
     Emit(std::make_shared<DeallocateStackInstruction>(
         std::make_shared<Immediate>(stack_args_size), true));
     if (!instr.GetDst().empty()) {
@@ -409,9 +442,6 @@ void LinearIRBuilder::LowerCall(const TACInstruction& instr) {
 void LinearIRBuilder::MaterializeFormalParameters() {
     std::vector<TypeRef> param_types;
     std::string func_name = current_function_name_;
-    if (!func_name.empty() && func_name[0] == '_') {
-        func_name = func_name.substr(1);
-    }
     if (auto* info = symbol_table_.FindByUniqueName(func_name)) {
         if (auto func_type = std::dynamic_pointer_cast<FunctionType>(info->type)) {
             param_types = func_type->GetParamTypes();
@@ -431,9 +461,8 @@ void LinearIRBuilder::MaterializeFormalParameters() {
         }
 
         std::string arg_name = "arg.." + std::to_string(index);
-        SymbolInfo arg_info{arg_name, arg_name, SymbolInfo::LinkageKind::None,
-                            param_type};
-        symbol_table_.Register(arg_info);
+        symbol_table_.Register(
+            {.name = arg_name, .original_name = arg_name, .type = param_type});
 
         auto dstPseudo = std::make_shared<Pseudo>(arg_name, size);
         if (index < 8) {
@@ -451,6 +480,7 @@ void LinearIRBuilder::MaterializeFormalParameters() {
 
 std::shared_ptr<ASMOperand> LinearIRBuilder::MakeOperand(const std::string& value) {
     try {
+        // to do: long long vs unsigned
         long long imm = std::stoull(value);
         return std::make_shared<Immediate>(imm);
     } catch (...) {
@@ -459,6 +489,9 @@ std::shared_ptr<ASMOperand> LinearIRBuilder::MakeOperand(const std::string& valu
     if (auto* info = symbol_table_.FindByUniqueName(value)) {
         if (info->type) {
             auto size = static_cast<ASMOperand::Size>(info->type->Size());
+            if (info->HasStaticDuration()) {
+                return std::make_shared<DataOperand>(value, size);
+            }
             return std::make_shared<Pseudo>(value, size);
         }
     }
@@ -533,9 +566,6 @@ std::string LinearIRBuilder::GetCurrentExitLabel() const {
 
 std::shared_ptr<Register> LinearIRBuilder::GetReturnRegister() const {
     std::string func_name = current_function_name_;
-    if (!func_name.empty() && func_name[0] == '_') {
-        func_name = func_name.substr(1);
-    }
     if (auto* info = symbol_table_.FindByUniqueName(func_name)) {
         if (auto func_type = std::dynamic_pointer_cast<FunctionType>(info->type)) {
             auto ret_type = func_type->GetReturnType();
@@ -603,4 +633,24 @@ void LinearIRBuilder::LowerTruncate(const TACInstruction& instr) {
     auto dst = MakeOperand(instr.GetDst());
     auto src = MakeOperand(instr.GetLhs());
     Emit(std::make_shared<TruncateInstruction>(dst, src));
+}
+
+void LinearIRBuilder::LowerStaticVariable(const TACInstruction& instr) {
+    std::string name = instr.GetDst();
+    long long value = 0;
+    try {
+        value = std::stoll(instr.GetLhs());
+    } catch (...) {
+    }
+    bool is_global = instr.GetRhs() == "1";
+
+    int size = 4;
+    if (auto* info = symbol_table_.FindByUniqueName(name)) {
+        if (info->type) {
+            size = info->type->Size();
+        }
+    }
+
+    Emit(std::make_shared<DataSectionDirective>());
+    Emit(std::make_shared<StaticVariableDirective>(name, value, size, is_global));
 }

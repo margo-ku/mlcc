@@ -55,7 +55,6 @@ std::string FunctionDeclarator::GetId() const { return declarator_->GetId(); }
 void FunctionDeclarator::SetId(const std::string& id) { declarator_->SetId(id); }
 
 void FunctionDeclarator::SetInitializer(std::unique_ptr<Expression> initializer) {
-    // todo: exception?
     throw std::invalid_argument("Function declarator cannot have an initializer");
 }
 
@@ -72,15 +71,15 @@ TypeSpecification::TypeSpecification(const TypeSpecifierSet& specifiers)
 
 TypeSpecification::Type TypeSpecification::GetType() const { return type_; }
 
-TypeSpecification::Type TypeSpecification::ResolveType(const TypeSpecifierSet& s) {
-    if (s.has_signed && s.has_unsigned) {
+TypeSpecification::Type TypeSpecification::ResolveType(const TypeSpecifierSet& set) {
+    if (set.has_signed && set.has_unsigned) {
         throw std::runtime_error("cannot combine 'signed' and 'unsigned'");
     }
 
-    if (s.has_long) {
-        return s.has_unsigned ? Type::ULong : Type::Long;
+    if (set.has_long) {
+        return set.has_unsigned ? Type::ULong : Type::Long;
     } else {
-        return s.has_unsigned ? Type::UInt : Type::Int;
+        return set.has_unsigned ? Type::UInt : Type::Int;
     }
 }
 
@@ -101,17 +100,57 @@ void TypeSpecification::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 ///////////////////////////////////////////////
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<TypeSpecification> return_type,
+DeclarationSpecifiers::DeclarationSpecifiers(const DeclarationSpecifierSet& specifiers)
+    : type_(std::make_unique<TypeSpecification>(specifiers.type_specifiers)),
+      storage_class_(ResolveStorageClass(specifiers.storage_class_specifiers)) {}
+
+void DeclarationSpecifiers::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+TypeSpecification* DeclarationSpecifiers::GetTypeSpecification() const {
+    return type_.get();
+}
+
+StorageClass DeclarationSpecifiers::GetStorageClass() const { return storage_class_; }
+
+bool DeclarationSpecifiers::IsStatic() const {
+    return storage_class_ == StorageClass::Static;
+}
+
+bool DeclarationSpecifiers::IsExtern() const {
+    return storage_class_ == StorageClass::Extern;
+}
+
+StorageClass DeclarationSpecifiers::ResolveStorageClass(
+    const StorageClassSpecifierSet& specifier) {
+    if (specifier.has_static && specifier.has_extern) {
+        throw std::runtime_error("cannot combine 'static' and 'extern'");
+    }
+
+    if (specifier.has_static) {
+        return StorageClass::Static;
+    } else if (specifier.has_extern) {
+        return StorageClass::Extern;
+    }
+    return StorageClass::None;
+}
+
+///////////////////////////////////////////////
+
+FunctionDefinition::FunctionDefinition(std::unique_ptr<DeclarationSpecifiers> decl_specs,
                                        std::unique_ptr<Declarator> declarator,
                                        std::unique_ptr<CompoundStatement> body)
-    : return_type_(std::move(return_type)),
+    : decl_specs_(std::move(decl_specs)),
       declarator_(std::move(declarator)),
       body_(std::move(body)) {}
 
 void FunctionDefinition::Accept(Visitor* visitor) { visitor->Visit(this); }
 
+DeclarationSpecifiers* FunctionDefinition::GetDeclarationSpecifiers() const {
+    return decl_specs_.get();
+}
+
 TypeSpecification* FunctionDefinition::GetReturnType() const {
-    return return_type_.get();
+    return decl_specs_->GetTypeSpecification();
 }
 
 Declarator* FunctionDefinition::GetDeclarator() const { return declarator_.get(); }
@@ -127,25 +166,38 @@ int FunctionDefinition::GetNumParameters() const {
 
 ///////////////////////////////////////////////
 
-Declaration::Declaration(std::unique_ptr<TypeSpecification> type,
+Declaration::Declaration(std::unique_ptr<DeclarationSpecifiers> decl_specs,
                          std::unique_ptr<Declarator> declaration)
-    : type_(std::move(type)), declaration_(std::move(declaration)) {}
+    : decl_specs_(std::move(decl_specs)), declaration_(std::move(declaration)) {}
 
 void Declaration::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-TypeSpecification* Declaration::GetType() const { return type_.get(); }
+DeclarationSpecifiers* Declaration::GetDeclarationSpecifiers() const {
+    return decl_specs_.get();
+}
+
+TypeSpecification* Declaration::GetType() const {
+    return decl_specs_->GetTypeSpecification();
+}
 
 Declarator* Declaration::GetDeclaration() const { return declaration_.get(); }
 
 ///////////////////////////////////////////////
 
-ParameterDeclaration::ParameterDeclaration(std::unique_ptr<TypeSpecification> type,
-                                           std::unique_ptr<Declarator> declarator)
-    : type_(std::move(type)), declarator_(std::move(declarator)) {}
+ParameterDeclaration::ParameterDeclaration(
+    std::unique_ptr<DeclarationSpecifiers> decl_specs,
+    std::unique_ptr<Declarator> declarator)
+    : decl_specs_(std::move(decl_specs)), declarator_(std::move(declarator)) {}
 
 void ParameterDeclaration::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-TypeSpecification* ParameterDeclaration::GetType() const { return type_.get(); }
+DeclarationSpecifiers* ParameterDeclaration::GetDeclarationSpecifiers() const {
+    return decl_specs_.get();
+}
+
+TypeSpecification* ParameterDeclaration::GetType() const {
+    return decl_specs_->GetTypeSpecification();
+}
 
 Declarator* ParameterDeclaration::GetDeclarator() const { return declarator_.get(); }
 

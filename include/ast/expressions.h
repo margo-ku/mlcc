@@ -27,9 +27,10 @@ public:
     explicit PrimaryExpression(ValueType value);
     template <typename T>
     explicit PrimaryExpression(T value) : value_(value) {
-        static_assert(std::is_same_v<T, int> || std::is_same_v<T, long> ||
-                      std::is_same_v<T, unsigned int> || std::is_same_v<T, unsigned long>,
-                      "PrimaryExpression supports int, long, unsigned int, unsigned long");
+        static_assert(
+            std::is_same_v<T, int> || std::is_same_v<T, long> ||
+                std::is_same_v<T, unsigned int> || std::is_same_v<T, unsigned long>,
+            "PrimaryExpression supports int, long, unsigned int, unsigned long");
     }
 
     virtual ~PrimaryExpression() = default;
@@ -56,7 +57,9 @@ private:
         std::string operator()(int value) const { return std::to_string(value); }
         std::string operator()(long value) const { return std::to_string(value); }
         std::string operator()(unsigned int value) const { return std::to_string(value); }
-        std::string operator()(unsigned long value) const { return std::to_string(value); }
+        std::string operator()(unsigned long value) const {
+            return std::to_string(value);
+        }
     };
 };
 
@@ -219,6 +222,7 @@ class CastExpression : public Expression {
 public:
     CastExpression(std::unique_ptr<TypeSpecification> type,
                    std::unique_ptr<Expression> expression);
+
     virtual ~CastExpression() = default;
     void Accept(Visitor* visitor) override;
     TypeSpecification* GetType() const;

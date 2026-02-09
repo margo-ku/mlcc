@@ -14,16 +14,26 @@ enum class Condition { Eq, Ne, Lt, Le, Gt, Ge, Lo, Ls, Hi, Hs };
 
 inline std::string ConditionToStr(Condition cond) {
     switch (cond) {
-        case Condition::Eq: return "eq";
-        case Condition::Ne: return "ne";
-        case Condition::Lt: return "lt";
-        case Condition::Le: return "le";
-        case Condition::Gt: return "gt";
-        case Condition::Ge: return "ge";
-        case Condition::Lo: return "lo";
-        case Condition::Ls: return "ls";
-        case Condition::Hi: return "hi";
-        case Condition::Hs: return "hs";
+        case Condition::Eq:
+            return "eq";
+        case Condition::Ne:
+            return "ne";
+        case Condition::Lt:
+            return "lt";
+        case Condition::Le:
+            return "le";
+        case Condition::Gt:
+            return "gt";
+        case Condition::Ge:
+            return "ge";
+        case Condition::Lo:
+            return "lo";
+        case Condition::Ls:
+            return "ls";
+        case Condition::Hi:
+            return "hi";
+        case Condition::Hs:
+            return "hs";
     }
 }
 enum class BranchType { Unconditional, Conditional, Call };
@@ -271,7 +281,8 @@ private:
 
 class ExtendInstruction : public ASMInstruction {
 public:
-    ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src, bool is_signed);
+    ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src,
+                      bool is_signed);
     std::string ToString() const override;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
@@ -294,6 +305,78 @@ public:
 
 private:
     std::shared_ptr<ASMOperand> dst_, src_;
+};
+
+///////////////////////////////////////////////
+
+class TextSectionDirective : public ASMInstruction {
+public:
+    TextSectionDirective() = default;
+    std::string ToString() const override;
+};
+
+class DataSectionDirective : public ASMInstruction {
+public:
+    DataSectionDirective() = default;
+    std::string ToString() const override;
+};
+
+class StaticVariableDirective : public ASMInstruction {
+public:
+    StaticVariableDirective(const std::string& name, long long value, int size,
+                            bool is_global);
+    std::string ToString() const override;
+
+private:
+    std::string name_;
+    long long value_;  // to do: different types, f.e. unsigned
+    int size_;
+    bool is_global_;
+};
+
+///////////////////////////////////////////////
+
+class AdrpInstruction : public ASMInstruction {
+public:
+    AdrpInstruction(std::shared_ptr<ASMOperand> dst, const std::string& symbol);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    std::string symbol_;
+};
+
+class LoadGlobalInstruction : public ASMInstruction {
+public:
+    LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> base,
+                          const std::string& symbol);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    std::shared_ptr<ASMOperand> base_;
+    std::string symbol_;
+};
+
+class StoreGlobalInstruction : public ASMInstruction {
+public:
+    StoreGlobalInstruction(std::shared_ptr<ASMOperand> src, std::shared_ptr<ASMOperand> base,
+                           const std::string& symbol);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> src_;
+    std::shared_ptr<ASMOperand> base_;
+    std::string symbol_;
 };
 
 ///////////////////////////////////////////////

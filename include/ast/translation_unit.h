@@ -15,6 +15,7 @@ class TranslationUnit : public BaseElement {
 public:
     TranslationUnit() = default;
     virtual ~TranslationUnit() = default;
+
     void AddExternalDeclaration(std::unique_ptr<BaseElement> declaration);
     virtual void Accept(Visitor* visitor) override;
     const std::vector<std::unique_ptr<BaseElement>>& GetExternalDeclarations() const;

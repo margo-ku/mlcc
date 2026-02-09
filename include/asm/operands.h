@@ -74,3 +74,16 @@ private:
     int offset_;
     Mode mode_;
 };
+
+///////////////////////////////////////////////
+
+class DataOperand : public ASMOperand {
+public:
+    DataOperand(const std::string& name, Size size);
+    std::string ToString() const override;
+
+    const std::string& GetName() const;
+
+private:
+    std::string name_;
+};
