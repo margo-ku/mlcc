@@ -11,15 +11,13 @@ void Expression::SetTypeRef(TypeRef type) { type_ref_ = type; }
 
 ///////////////////////////////////////////////
 
-PrimaryExpression::PrimaryExpression(ValueType value) : value_(std::move(value)) {}
+PrimaryExpression::PrimaryExpression(IntegralConstant value) : value_(value) {}
 
 void PrimaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-std::string PrimaryExpression::ToString() const {
-    return std::visit(ValueToString{}, value_);
-}
+std::string PrimaryExpression::ToString() const { return value_.ToString(); }
 
-PrimaryExpression::ValueType PrimaryExpression::GetValue() const { return value_; }
+IntegralConstant PrimaryExpression::GetValue() const { return value_; }
 
 ///////////////////////////////////////////////
 

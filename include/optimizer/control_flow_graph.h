@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "include/visitors/tac_visitor.h"
+#include "include/tac/instruction.h"
 
 namespace cfg {
 

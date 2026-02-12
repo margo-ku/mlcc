@@ -5,6 +5,7 @@
 
 #include "include/asm/instructions.h"
 #include "include/asm/operands.h"
+#include "include/tac/instruction.h"
 #include "include/types/function_type.h"
 
 LinearIRBuilder::LinearIRBuilder(

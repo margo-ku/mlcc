@@ -113,22 +113,20 @@ void TypeChecker::Visit(IdExpression* expression) {
 }
 
 void TypeChecker::Visit(PrimaryExpression* expression) {
-    std::visit(
-        [this, &expression](auto&& arg) {
-            using T = std::decay_t<decltype(arg)>;
-            if constexpr (std::is_same_v<T, int>) {
-                expression->SetTypeRef(PrimitiveType::GetInt32());
-            } else if constexpr (std::is_same_v<T, long>) {
-                expression->SetTypeRef(PrimitiveType::GetInt64());
-            } else if constexpr (std::is_same_v<T, unsigned int>) {
-                expression->SetTypeRef(PrimitiveType::GetUInt32());
-            } else if constexpr (std::is_same_v<T, unsigned long>) {
-                expression->SetTypeRef(PrimitiveType::GetUInt64());
-            } else {
-                ReportError("unsupported primary expression type");
-            }
-        },
-        expression->GetValue());
+    switch (expression->GetValue().GetKind()) {
+        case IntegralConstant::Kind::Int32:
+            expression->SetTypeRef(PrimitiveType::GetInt32());
+            break;
+        case IntegralConstant::Kind::Int64:
+            expression->SetTypeRef(PrimitiveType::GetInt64());
+            break;
+        case IntegralConstant::Kind::UInt32:
+            expression->SetTypeRef(PrimitiveType::GetUInt32());
+            break;
+        case IntegralConstant::Kind::UInt64:
+            expression->SetTypeRef(PrimitiveType::GetUInt64());
+            break;
+    }
 }
 
 void TypeChecker::Visit(UnaryExpression* expression) {
@@ -684,8 +682,8 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
         return false;
     }
 
-    SymbolInfo::InitialValue new_init_value;
-    std::optional<SymbolInfo::StaticInit> new_static_init;
+    SymbolInfo::InitialValue new_init_state;
+    std::optional<IntegralConstant> new_init_constant;
 
     if (id_declarator->HasInitializer()) {
         auto* primary = dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
@@ -695,8 +693,8 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
             return false;
         }
         primary->Accept(this);
-        new_init_value = SymbolInfo::InitialValue::Initial;
-        new_static_init = primary->GetValue();
+        new_init_state = SymbolInfo::InitialValue::Initial;
+        new_init_constant = primary->GetValue();
 
         TypeRef init_type = primary->GetTypeRef();
         if (init_type && !init_type->Equals(declared_type)) {
@@ -708,9 +706,9 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
             id_declarator->SetInitializer(std::move(wrapped));
         }
     } else if (storage_class == StorageClass::Extern) {
-        new_init_value = SymbolInfo::InitialValue::NoInitializer;
+        new_init_state = SymbolInfo::InitialValue::NoInitializer;
     } else {
-        new_init_value = SymbolInfo::InitialValue::Tentative;
+        new_init_state = SymbolInfo::InitialValue::Tentative;
     }
 
     auto new_linkage = (storage_class == StorageClass::Static)
@@ -728,21 +726,21 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
             ReportError("conflicting linkage for '" + name + "'");
             return false;
         }
-        if (info->initial_value == SymbolInfo::InitialValue::Initial &&
-            new_init_value == SymbolInfo::InitialValue::Initial) {
+        if (info->init_state == SymbolInfo::InitialValue::Initial &&
+            new_init_state == SymbolInfo::InitialValue::Initial) {
             ReportError("redefinition of '" + name + "'");
             return false;
         }
         info->linkage = new_linkage;
-        if (new_init_value > info->initial_value) {
-            info->initial_value = new_init_value;
-            info->static_init = new_static_init;
+        if (new_init_state > info->init_state) {
+            info->init_state = new_init_state;
+            info->init_constant = new_init_constant;
         }
     } else {
         info->type = declared_type;
         info->linkage = new_linkage;
-        info->initial_value = new_init_value;
-        info->static_init = new_static_init;
+        info->init_state = new_init_state;
+        info->init_constant = new_init_constant;
     }
 
     info->duration = SymbolInfo::StorageDuration::Static;
@@ -764,7 +762,7 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
             ReportError("initializer on local extern variable declaration");
             if (!info->type) {
                 info->type = declared_type;
-                info->initial_value = SymbolInfo::InitialValue::NoInitializer;
+                info->init_state = SymbolInfo::InitialValue::NoInitializer;
                 info->duration = SymbolInfo::StorageDuration::Static;
             }
             return false;
@@ -780,7 +778,7 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
             }
         } else {
             info->type = declared_type;
-            info->initial_value = SymbolInfo::InitialValue::NoInitializer;
+            info->init_state = SymbolInfo::InitialValue::NoInitializer;
             info->duration = SymbolInfo::StorageDuration::Static;
         }
         return true;
@@ -796,8 +794,8 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
                 return false;
             }
             primary->Accept(this);
-            info->initial_value = SymbolInfo::InitialValue::Initial;
-            info->static_init = primary->GetValue();
+            info->init_state = SymbolInfo::InitialValue::Initial;
+            info->init_constant = primary->GetValue();
 
             TypeRef init_type = primary->GetTypeRef();
             if (init_type && !init_type->Equals(declared_type)) {
@@ -809,8 +807,8 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
                 id_declarator->SetInitializer(std::move(wrapped));
             }
         } else {
-            info->initial_value = SymbolInfo::InitialValue::Initial;
-            info->static_init = 0;
+            info->init_state = SymbolInfo::InitialValue::Initial;
+            info->init_constant = 0;
         }
         info->type = declared_type;
         info->duration = SymbolInfo::StorageDuration::Static;

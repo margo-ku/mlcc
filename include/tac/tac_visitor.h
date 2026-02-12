@@ -1,78 +1,17 @@
 #pragma once
+
 #include <stack>
 #include <vector>
 
 #include "include/ast/expressions.h"
 #include "include/semantic/symbol_table.h"
-#include "visitor.h"
-
-class TACInstruction {
-public:
-    enum class OpCode {
-        Label,
-        Function,        // name, param_count, global
-        StaticVariable,  // name, initializer, global
-        Return,
-        Assign,
-        Add,
-        Sub,
-        Mul,
-        Div,
-        Mod,
-        Not,
-        Plus,
-        Minus,
-        BinaryNot,
-        Less,
-        LessEqual,
-        Greater,
-        GreaterEqual,
-        Equal,
-        NotEqual,
-        If,
-        IfFalse,
-        GoTo,
-        BitwiseAnd,
-        BitwiseXor,
-        BitwiseOr,
-        LeftShift,
-        RightShift,
-        Call,
-        Param,
-        SignExtend,
-        ZeroExtend,
-        Truncate,
-    };
-
-    explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs,
-                            const std::string& rhs);
-    explicit TACInstruction(OpCode op, const std::string& dst, const std::string& lhs);
-    explicit TACInstruction(OpCode op, const std::string& label);
-    explicit TACInstruction(OpCode op);
-
-    std::string ToString() const;
-    OpCode GetOp() const;
-
-    const std::string& GetDst() const;
-    const std::string& GetLhs() const;
-    const std::string& GetRhs() const;
-    const std::string& GetLabel() const;
-
-    bool operator==(const TACInstruction& other) const;
-
-private:
-    OpCode op_;
-    std::string dst_;
-    std::string lhs_;
-    std::string rhs_;
-    std::string label_;
-};
-
-///////////////////////////////////////////////
+#include "include/tac/instruction.h"
+#include "include/visitors/visitor.h"
 
 class TACVisitor : public Visitor {
 public:
     explicit TACVisitor(SymbolTable& symbol_table);
+
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;

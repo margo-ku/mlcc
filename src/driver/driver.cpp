@@ -3,6 +3,7 @@
 #include "include/asm/ir_builder.h"
 #include "include/optimizer/tac_optimizer.h"
 #include "include/semantic/analyzer.h"
+#include "include/tac/tac_visitor.h"
 #include "include/visitors/print_visitor.h"
 
 Driver::Driver() : scanner_(*this), parser_(scanner_, *this) {}

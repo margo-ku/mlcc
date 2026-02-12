@@ -2,9 +2,9 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
+#include "include/types/integral_constant.h"
 #include "include/types/type.h"
 
 struct SymbolInfo {
@@ -12,15 +12,13 @@ struct SymbolInfo {
     enum class StorageDuration { Static, Automatic };
     enum class InitialValue { NoInitializer, Tentative, Initial };
 
-    using StaticInit = std::variant<int, long, unsigned int, unsigned long>;
-
     std::string name;
     std::string original_name;
 
     LinkageKind linkage = LinkageKind::None;
     StorageDuration duration = StorageDuration::Automatic;
-    InitialValue initial_value = InitialValue::NoInitializer;
-    std::optional<StaticInit> static_init;
+    InitialValue init_state = InitialValue::NoInitializer;
+    std::optional<IntegralConstant> init_constant;
 
     TypeRef type = nullptr;
     bool is_defined = false;
@@ -30,14 +28,6 @@ struct SymbolInfo {
     std::string GetStringInitializer() const;
 
 private:
-    struct InitToString {
-        std::string operator()(int value) const { return std::to_string(value); }
-        std::string operator()(long value) const { return std::to_string(value); }
-        std::string operator()(unsigned int value) const { return std::to_string(value); }
-        std::string operator()(unsigned long value) const {
-            return std::to_string(value);
-        }
-    };
 };
 
 ////////////////////////////////////////////////////////////

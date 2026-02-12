@@ -97,8 +97,7 @@ bool TACOptimizer::TryFoldBinary(const TACInstruction& in, TACInstruction& out) 
     long long rhs = std::stoll(in.GetRhs());
     long long result = EvaluateBinaryOp(in.GetOp(), lhs, rhs);
 
-    out = TACInstruction(TACInstruction::OpCode::Assign, in.GetDst(),
-                         std::to_string(result));
+    out = TACInstruction::Assign(in.GetDst(), std::to_string(result));
     return true;
 }
 
@@ -110,8 +109,7 @@ bool TACOptimizer::TryFoldUnary(const TACInstruction& in, TACInstruction& out) {
     long long operand = std::stoll(in.GetLhs());
     long long result = EvaluateUnaryOp(in.GetOp(), operand);
 
-    out = TACInstruction(TACInstruction::OpCode::Assign, in.GetDst(),
-                         std::to_string(result));
+    out = TACInstruction::Assign(in.GetDst(), std::to_string(result));
     return true;
 }
 
@@ -126,13 +124,13 @@ bool TACOptimizer::TryFoldCondition(const TACInstruction& in, TACInstruction& ou
 
     if (in.GetOp() == TACInstruction::OpCode::If) {
         if (condition != 0) {
-            out = TACInstruction(TACInstruction::OpCode::GoTo, in.GetLabel());
+            out = TACInstruction::GoTo(in.GetLabel());
             return true;
         }
         return false;
     } else {
         if (condition == 0) {
-            out = TACInstruction(TACInstruction::OpCode::GoTo, in.GetLabel());
+            out = TACInstruction::GoTo(in.GetLabel());
             return true;
         }
         return false;

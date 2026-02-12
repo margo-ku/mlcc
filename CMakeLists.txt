@@ -90,7 +90,12 @@ set(
 set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
-        src/visitors/tac_visitor.cpp
+)
+
+set(
+        TAC_SOURCES
+        src/tac/instruction.cpp
+        src/tac/tac_visitor.cpp
 )
 
 set(
@@ -106,6 +111,7 @@ set(
         TYPES_SOURCES
         src/types/function_type.cpp
         src/types/primitive_type.cpp
+        src/types/integral_constant.cpp
 )
 
 add_executable(
@@ -115,6 +121,7 @@ add_executable(
         ${AST_SOURCES}
         ${DRIVER_SOURCES}
         ${OPTIMIZER_SOURCES}
+        ${TAC_SOURCES}
         ${VISITOR_SOURCES}
         ${SEMANTIC_SOURCES}
         ${TYPES_SOURCES}

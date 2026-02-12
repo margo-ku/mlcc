@@ -6,7 +6,7 @@
 #include "allocator.h"
 #include "include/optimizer/asm_optimizer.h"
 #include "include/semantic/symbol_table.h"
-#include "include/visitors/tac_visitor.h"
+#include "include/tac/instruction.h"
 #include "instructions.h"
 #include "operands.h"
 

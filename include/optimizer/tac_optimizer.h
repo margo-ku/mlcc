@@ -1,6 +1,7 @@
 #pragma once
+
 #include "include/optimizer/control_flow_graph.h"
-#include "include/visitors/tac_visitor.h"
+#include "include/tac/instruction.h"
 
 class TACOptimizer {
 public:

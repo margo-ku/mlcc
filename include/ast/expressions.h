@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
-#include <variant>
 
 #include "include/ast/translation_unit.h"
+#include "include/types/integral_constant.h"
 #include "include/types/type.h"
 
 class Visitor;
@@ -23,44 +23,31 @@ private:
 
 class PrimaryExpression : public Expression {
 public:
-    using ValueType = std::variant<int, long, unsigned int, unsigned long>;
-    explicit PrimaryExpression(ValueType value);
-    template <typename T>
-    explicit PrimaryExpression(T value) : value_(value) {
-        static_assert(
-            std::is_same_v<T, int> || std::is_same_v<T, long> ||
-                std::is_same_v<T, unsigned int> || std::is_same_v<T, unsigned long>,
-            "PrimaryExpression supports int, long, unsigned int, unsigned long");
-    }
+    explicit PrimaryExpression(IntegralConstant value);
+    explicit PrimaryExpression(int value) : value_(value) {}
+    explicit PrimaryExpression(long value) : value_(value) {}
+    explicit PrimaryExpression(unsigned int value) : value_(value) {}
+    explicit PrimaryExpression(unsigned long value) : value_(value) {}
 
     virtual ~PrimaryExpression() = default;
     void Accept(Visitor* visitor) override;
 
     template <typename T>
     bool Holds() const {
-        return std::holds_alternative<T>(value_);
+        return value_.Holds<T>();
     }
 
     template <typename T>
     T Get() const {
-        return std::get<T>(value_);
+        return value_.Get<T>();
     }
 
-    PrimaryExpression::ValueType GetValue() const;
+    IntegralConstant GetValue() const;
 
     std::string ToString() const;
 
 private:
-    ValueType value_;
-
-    struct ValueToString {
-        std::string operator()(int value) const { return std::to_string(value); }
-        std::string operator()(long value) const { return std::to_string(value); }
-        std::string operator()(unsigned int value) const { return std::to_string(value); }
-        std::string operator()(unsigned long value) const {
-            return std::to_string(value);
-        }
-    };
+    IntegralConstant value_;
 };
 
 ///////////////////////////////////////////////

@@ -67,8 +67,8 @@ const std::unordered_map<std::string, SymbolInfo>& SymbolTable::GetAllSymbols() 
 }
 
 std::string SymbolInfo::GetStringInitializer() const {
-    if (initial_value != InitialValue::Initial) {
+    if (init_state != InitialValue::Initial) {
         return "";
     }
-    return std::visit(InitToString{}, static_init.value());
+    return init_constant.value().ToString();
 }

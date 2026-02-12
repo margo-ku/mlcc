@@ -6,7 +6,7 @@
 
 #include "include/ast/translation_unit.h"
 #include "include/semantic/symbol_table.h"
-#include "include/visitors/tac_visitor.h"
+#include "include/tac/instruction.h"
 #include "parser.hh"
 #include "scanner.h"
 
