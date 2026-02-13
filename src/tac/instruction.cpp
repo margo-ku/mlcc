@@ -1,9 +1,60 @@
 #include "include/tac/instruction.h"
 
 #include <sstream>
+#include <stdexcept>
+TACOperand::TACOperand(const std::string& identifier) : storage_(identifier) {}
 
-TACInstruction::TACInstruction(OpCode op, std::string dst, std::string lhs,
-                               std::string rhs, std::string label)
+TACOperand::TACOperand(const IntegralConstant& constant) : storage_(constant) {}
+
+bool TACOperand::IsIdentifier() const {
+    return std::holds_alternative<std::string>(storage_);
+}
+
+bool TACOperand::IsConstant() const {
+    return std::holds_alternative<IntegralConstant>(storage_);
+}
+
+bool TACOperand::Empty() const {
+    if (!IsIdentifier()) {
+        return false;
+    }
+    return std::get<std::string>(storage_).empty();
+}
+
+const std::string& TACOperand::AsIdentifier() const {
+    if (!IsIdentifier()) {
+        throw std::runtime_error("TACOperand does not hold an identifier");
+    }
+    return std::get<std::string>(storage_);
+}
+
+const IntegralConstant& TACOperand::AsConstant() const {
+    if (!IsConstant()) {
+        throw std::runtime_error("TACOperand does not hold an integral constant");
+    }
+    return std::get<IntegralConstant>(storage_);
+}
+
+std::string TACOperand::ToString() const {
+    if (IsIdentifier()) {
+        return AsIdentifier();
+    }
+    return AsConstant().ToString();
+}
+
+bool TACOperand::operator==(const TACOperand& other) const {
+    if (IsIdentifier() != other.IsIdentifier()) {
+        return false;
+    }
+    if (IsIdentifier()) {
+        return AsIdentifier() == other.AsIdentifier();
+    }
+    return AsConstant().GetKind() == other.AsConstant().GetKind() &&
+           AsConstant().ToString() == other.AsConstant().ToString();
+}
+
+TACInstruction::TACInstruction(OpCode op, TACOperand dst, TACOperand lhs, TACOperand rhs,
+                               std::string label)
     : op_(op),
       dst_(std::move(dst)),
       lhs_(std::move(lhs)),
@@ -11,82 +62,92 @@ TACInstruction::TACInstruction(OpCode op, std::string dst, std::string lhs,
       label_(std::move(label)) {}
 
 TACInstruction TACInstruction::Label(const std::string& label) {
-    return TACInstruction(OpCode::Label, "", "", "", label);
+    return TACInstruction(OpCode::Label, TACOperand(""), TACOperand(""), TACOperand(""),
+                          label);
 }
 
 TACInstruction TACInstruction::GoTo(const std::string& target) {
-    return TACInstruction(OpCode::GoTo, "", "", "", target);
+    return TACInstruction(OpCode::GoTo, TACOperand(""), TACOperand(""), TACOperand(""),
+                          target);
 }
 
 TACInstruction TACInstruction::If(const std::string& target,
-                                  const std::string& condition) {
-    return TACInstruction(OpCode::If, "", condition, "", target);
+                                  const TACOperand& condition) {
+    return TACInstruction(OpCode::If, TACOperand(""), condition, TACOperand(""), target);
 }
 
 TACInstruction TACInstruction::IfFalse(const std::string& target,
-                                       const std::string& condition) {
-    return TACInstruction(OpCode::IfFalse, "", condition, "", target);
+                                       const TACOperand& condition) {
+    return TACInstruction(OpCode::IfFalse, TACOperand(""), condition, TACOperand(""),
+                          target);
 }
 
 TACInstruction TACInstruction::Function(const std::string& name, int param_count,
                                         bool is_global) {
-    return TACInstruction(OpCode::Function, name, std::to_string(param_count),
-                          is_global ? "1" : "0", name);
+    return TACInstruction(OpCode::Function, TACOperand(name),
+                          TACOperand(IntegralConstant(param_count)),
+                          TACOperand(IntegralConstant(is_global ? 1 : 0)), name);
 }
 
-TACInstruction TACInstruction::Return(const std::string& value) {
-    return TACInstruction(OpCode::Return, "", "", "", value);
+TACInstruction TACInstruction::Return() {
+    return TACInstruction(OpCode::Return, TACOperand(""), TACOperand(""), TACOperand(""),
+                          "");
+}
+
+TACInstruction TACInstruction::Return(const TACOperand& value) {
+    return TACInstruction(OpCode::Return, TACOperand(""), value, TACOperand(""), "");
 }
 
 TACInstruction TACInstruction::Call(const std::string& result,
                                     const std::string& func_name, int num_args) {
-    return TACInstruction(OpCode::Call, result, func_name, std::to_string(num_args), "");
+    return TACInstruction(OpCode::Call, TACOperand(result), TACOperand(func_name),
+                          TACOperand(IntegralConstant(num_args)), "");
 }
 
-TACInstruction TACInstruction::Param(const std::string& value) {
-    return TACInstruction(OpCode::Param, "", "", "", value);
+TACInstruction TACInstruction::Param(const TACOperand& value) {
+    return TACInstruction(OpCode::Param, TACOperand(""), value, TACOperand(""), "");
 }
 
 TACInstruction TACInstruction::StaticVariable(const std::string& name,
-                                              const std::string& init, bool is_global) {
-    return TACInstruction(OpCode::StaticVariable, name, init, is_global ? "1" : "0", "");
+                                              const IntegralConstant& init,
+                                              bool is_global) {
+    return TACInstruction(OpCode::StaticVariable, TACOperand(name), TACOperand(init),
+                          TACOperand(IntegralConstant(is_global ? 1 : 0)), "");
 }
 
-TACInstruction TACInstruction::Assign(const std::string& dst, const std::string& src) {
-    return TACInstruction(OpCode::Assign, dst, src, "", "");
+TACInstruction TACInstruction::Assign(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::Assign, dst, src, TACOperand(""), "");
 }
 
-TACInstruction TACInstruction::Binary(OpCode op, const std::string& dst,
-                                      const std::string& lhs, const std::string& rhs) {
+TACInstruction TACInstruction::Binary(OpCode op, const TACOperand& dst,
+                                      const TACOperand& lhs, const TACOperand& rhs) {
     return TACInstruction(op, dst, lhs, rhs, "");
 }
 
-TACInstruction TACInstruction::Unary(OpCode op, const std::string& dst,
-                                     const std::string& src) {
-    return TACInstruction(op, dst, src, "", "");
+TACInstruction TACInstruction::Unary(OpCode op, const TACOperand& dst,
+                                     const TACOperand& src) {
+    return TACInstruction(op, dst, src, TACOperand(""), "");
 }
 
-TACInstruction TACInstruction::SignExtend(const std::string& dst,
-                                          const std::string& src) {
-    return TACInstruction(OpCode::SignExtend, dst, src, "", "");
+TACInstruction TACInstruction::SignExtend(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::SignExtend, dst, src, TACOperand(""), "");
 }
 
-TACInstruction TACInstruction::ZeroExtend(const std::string& dst,
-                                          const std::string& src) {
-    return TACInstruction(OpCode::ZeroExtend, dst, src, "", "");
+TACInstruction TACInstruction::ZeroExtend(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::ZeroExtend, dst, src, TACOperand(""), "");
 }
 
-TACInstruction TACInstruction::Truncate(const std::string& dst, const std::string& src) {
-    return TACInstruction(OpCode::Truncate, dst, src, "", "");
+TACInstruction TACInstruction::Truncate(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::Truncate, dst, src, TACOperand(""), "");
 }
 
 TACInstruction::OpCode TACInstruction::GetOp() const { return op_; }
 
-const std::string& TACInstruction::GetDst() const { return dst_; }
+const TACOperand& TACInstruction::GetDst() const { return dst_; }
 
-const std::string& TACInstruction::GetLhs() const { return lhs_; }
+const TACOperand& TACInstruction::GetLhs() const { return lhs_; }
 
-const std::string& TACInstruction::GetRhs() const { return rhs_; }
+const TACOperand& TACInstruction::GetRhs() const { return rhs_; }
 
 const std::string& TACInstruction::GetLabel() const { return label_; }
 
@@ -175,20 +236,21 @@ std::string TACInstruction::ToString() const {
             out << label_ << ":";
             break;
         case OpCode::Function:
-            out << "function " << label_ << " with " << lhs_ << " args";
+            out << "function " << label_ << " with " << lhs_.ToString() << " args";
             break;
         case OpCode::StaticVariable:
-            out << "static variable " << dst_ << " = " << lhs_ << " global " << rhs_;
+            out << "static variable " << dst_.ToString() << " = " << lhs_.ToString()
+                << " global " << rhs_.ToString();
             break;
         case OpCode::Return:
-            if (!label_.empty()) {
-                out << "return " << label_;
+            if (!lhs_.Empty()) {
+                out << "return " << lhs_.ToString();
             } else {
                 out << "return";
             }
             break;
         case OpCode::Assign:
-            out << dst_ << " = " << lhs_;
+            out << dst_.ToString() << " = " << lhs_.ToString();
             break;
         case OpCode::Add:
         case OpCode::Sub:
@@ -206,13 +268,15 @@ std::string TACInstruction::ToString() const {
         case OpCode::BitwiseOr:
         case OpCode::LeftShift:
         case OpCode::RightShift:
-            out << dst_ << " = " << lhs_ << " " << OpToStr(op_) << " " << rhs_;
+            out << dst_.ToString() << " = " << lhs_.ToString() << " " << OpToStr(op_)
+                << " " << rhs_.ToString();
             break;
         case OpCode::Call:
-            out << dst_ << " = call " << lhs_ << " " << rhs_;
+            out << dst_.ToString() << " = call " << lhs_.ToString() << " "
+                << rhs_.ToString();
             break;
         case OpCode::Param:
-            out << "param " << label_;
+            out << "param " << lhs_.ToString();
             break;
         case OpCode::Not:
         case OpCode::BinaryNot:
@@ -221,13 +285,13 @@ std::string TACInstruction::ToString() const {
         case OpCode::SignExtend:
         case OpCode::ZeroExtend:
         case OpCode::Truncate:
-            out << dst_ << " = " << OpToStr(op_) << " " << lhs_;
+            out << dst_.ToString() << " = " << OpToStr(op_) << " " << lhs_.ToString();
             break;
         case OpCode::If:
-            out << "if " << lhs_ << " goto " << label_;
+            out << "if " << lhs_.ToString() << " goto " << label_;
             break;
         case OpCode::IfFalse:
-            out << "iffalse " << lhs_ << " goto " << label_;
+            out << "iffalse " << lhs_.ToString() << " goto " << label_;
             break;
         case OpCode::GoTo:
             out << "goto " << label_;

@@ -7,6 +7,7 @@
 #include "include/asm/operands.h"
 #include "include/tac/instruction.h"
 #include "include/types/function_type.h"
+#include "include/types/integral_constant.h"
 
 LinearIRBuilder::LinearIRBuilder(
     const std::vector<std::vector<TACInstruction>>& tac_instructions,
@@ -202,8 +203,7 @@ void LinearIRBuilder::ResolveOperands() {
                 auto reg = reg_allocator_.Allocate(size);
                 temps.push_back(reg);
 
-                auto load_seq =
-                    MakeLoadImmediateInstrs(reg, static_cast<uint64_t>(value));
+                auto load_seq = MakeLoadImmediateInstrs(reg, value);
                 before.insert(before.end(), load_seq.begin(), load_seq.end());
                 operands[index] = reg;
             }
@@ -241,7 +241,7 @@ void LinearIRBuilder::LowerUnaryOp(const TACInstruction& instr) {
     } else if (instr.GetOp() == TACInstruction::OpCode::BinaryNot) {
         Emit(std::make_shared<UnaryInstruction>(UnaryOp::Mvn, dst, lhs));
     } else if (instr.GetOp() == TACInstruction::OpCode::Not) {
-        auto zero = MakeOperand("0");
+        auto zero = MakeOperand(TACOperand(IntegralConstant(0)));
         Emit(std::make_shared<CompareInstruction>(lhs, zero));
         Emit(std::make_shared<CSetInstruction>(dst, Condition::Eq));
     } else {
@@ -249,11 +249,11 @@ void LinearIRBuilder::LowerUnaryOp(const TACInstruction& instr) {
     }
 }
 
-bool LinearIRBuilder::IsSignedOperand(const std::string& name) const {
-    if (!name.empty() && (name[0] == '-' || (name[0] >= '0' && name[0] <= '9'))) {
-        return true;
+bool LinearIRBuilder::IsSignedOperand(const TACOperand& operand) const {
+    if (operand.IsConstant()) {
+        return operand.AsConstant().IsSigned();
     }
-    return symbol_table_.FindByUniqueName(name)->type->IsSigned();
+    return symbol_table_.FindByUniqueName(operand.AsIdentifier())->type->IsSigned();
 }
 
 void LinearIRBuilder::LowerBinaryOp(const TACInstruction& instr) {
@@ -360,7 +360,7 @@ void LinearIRBuilder::LowerBranch(const TACInstruction& instr) {
 
     if (instr.GetOp() != TACInstruction::OpCode::GoTo) {
         auto cond_operand = MakeOperand(instr.GetLhs());
-        auto zero = MakeOperand("0");
+        auto zero = MakeOperand(TACOperand(IntegralConstant(0)));
         Emit(std::make_shared<CompareInstruction>(cond_operand, zero));
     }
 
@@ -373,8 +373,8 @@ void LinearIRBuilder::LowerControl(const TACInstruction& instr) {
             Emit(std::make_shared<LabelInstruction>(instr.GetLabel()));
             break;
         case TACInstruction::OpCode::Return:
-            if (instr.GetLabel() != "") {
-                auto value = MakeOperand(instr.GetLabel());
+            if (!instr.GetLhs().Empty()) {
+                auto value = MakeOperand(instr.GetLhs());
                 auto ret_reg = GetReturnRegister();
                 Emit(std::make_shared<MovInstruction>(ret_reg, value));
             }
@@ -387,22 +387,22 @@ void LinearIRBuilder::LowerControl(const TACInstruction& instr) {
 }
 
 void LinearIRBuilder::LowerFunction(const TACInstruction& instr) {
-    current_function_name_ = instr.GetDst();
+    current_function_name_ = instr.GetDst().AsIdentifier();
     std::string asm_name = "_" + current_function_name_;
     Emit(std::make_shared<TextSectionDirective>());
-    bool is_global = instr.GetRhs() == "1";
+    bool is_global = instr.GetRhs().AsConstant().AsInt64() == 1;
     if (is_global) {
         Emit(std::make_shared<GlobalDirective>(asm_name));
     }
     Emit(std::make_shared<LabelInstruction>(asm_name));
     AddFunctionPrologue();
 
-    current_param_count_ = std::stoi(instr.GetLhs());
+    current_param_count_ = static_cast<int>(instr.GetLhs().AsConstant().AsInt64());
     MaterializeFormalParameters();
 }
 
 void LinearIRBuilder::LowerParam(const TACInstruction& instr) {
-    auto src = MakeOperand(instr.GetLabel());
+    auto src = MakeOperand(instr.GetLhs());
     pending_args_.push(src);
 }
 
@@ -434,11 +434,11 @@ void LinearIRBuilder::LowerCall(const TACInstruction& instr) {
         Emit(std::make_shared<StoreInstruction>(arg, mem));
         pending_args_.pop();
     }
-    std::string call_name = "_" + instr.GetLhs();
+    std::string call_name = "_" + instr.GetLhs().AsIdentifier();
     Emit(std::make_shared<BranchInstruction>(BranchType::Call, call_name));
     Emit(std::make_shared<DeallocateStackInstruction>(
         std::make_shared<Immediate>(stack_args_size), true));
-    if (!instr.GetDst().empty()) {
+    if (!instr.GetDst().Empty()) {
         auto dst = MakeOperand(instr.GetDst());
         auto size = dst->GetSize();
         std::string reg_prefix = (size == ASMOperand::Size::Byte8) ? "x" : "w";
@@ -487,24 +487,22 @@ void LinearIRBuilder::MaterializeFormalParameters() {
     }
 }
 
-std::shared_ptr<ASMOperand> LinearIRBuilder::MakeOperand(const std::string& value) {
-    try {
-        // to do: long long vs unsigned
-        long long imm = std::stoull(value);
-        return std::make_shared<Immediate>(imm);
-    } catch (...) {
+std::shared_ptr<ASMOperand> LinearIRBuilder::MakeOperand(const TACOperand& value) {
+    if (value.IsConstant()) {
+        return std::make_shared<Immediate>(value.AsConstant());
     }
 
-    if (auto* info = symbol_table_.FindByUniqueName(value)) {
+    const std::string& identifier = value.AsIdentifier();
+    if (auto* info = symbol_table_.FindByUniqueName(identifier)) {
         if (info->type) {
             auto size = static_cast<ASMOperand::Size>(info->type->Size());
             if (info->HasStaticDuration()) {
-                return std::make_shared<DataOperand>(value, size);
+                return std::make_shared<DataOperand>(identifier, size);
             }
-            return std::make_shared<Pseudo>(value, size);
+            return std::make_shared<Pseudo>(identifier, size);
         }
     }
-    throw std::runtime_error("Unknown operand: " + value);
+    throw std::runtime_error("Unknown operand: " + value.ToString());
 }
 
 void LinearIRBuilder::Emit(std::shared_ptr<ASMInstruction> instr) {
@@ -590,9 +588,12 @@ void LinearIRBuilder::SaveCallerRegisters() const {}
 
 void LinearIRBuilder::LoadCallerRegisters() const {}
 
+// to do: переписать это когда-нибудь
 std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateInstrs(
-    std::shared_ptr<ASMOperand> dst, uint64_t value) {
+    std::shared_ptr<ASMOperand> dst, const IntegralConstant& value) {
     std::vector<std::shared_ptr<ASMInstruction>> out;
+    uint64_t raw_value =
+        value.IsSigned() ? static_cast<uint64_t>(value.AsInt64()) : value.AsUInt64();
 
     bool is_32bit = false;
     if (auto reg = std::dynamic_pointer_cast<Register>(dst)) {
@@ -601,7 +602,7 @@ std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateI
 
     uint16_t parts[4];
     for (int index = 0; index < 4; ++index) {
-        parts[index] = static_cast<uint16_t>((value >> (index * 16)) & 0xFFFFu);
+        parts[index] = static_cast<uint16_t>((raw_value >> (index * 16)) & 0xFFFFu);
     }
     int first_nonzero = -1;
     for (int index = 0; index < 4; ++index) {
@@ -645,13 +646,10 @@ void LinearIRBuilder::LowerTruncate(const TACInstruction& instr) {
 }
 
 void LinearIRBuilder::LowerStaticVariable(const TACInstruction& instr) {
-    std::string name = instr.GetDst();
-    long long value = 0;
-    try {
-        value = std::stoll(instr.GetLhs());
-    } catch (...) {
-    }
-    bool is_global = instr.GetRhs() == "1";
+    std::string name = instr.GetDst().AsIdentifier();
+    IntegralConstant value = instr.GetLhs().AsConstant();
+
+    bool is_global = instr.GetRhs().AsConstant().AsInt64() == 1;
 
     int size = 4;
     if (auto* info = symbol_table_.FindByUniqueName(name)) {

@@ -26,8 +26,13 @@ IntegralConstant::Kind IntegralConstant::GetKind() const {
 }
 
 bool IntegralConstant::IsSigned() const {
-    auto k = GetKind();
-    return k == Kind::Int32 || k == Kind::Int64;
+    auto kind = GetKind();
+    return kind == Kind::Int32 || kind == Kind::Int64;
+}
+
+bool IntegralConstant::Is64Bit() const {
+    auto kind = GetKind();
+    return kind == Kind::UInt64 || kind == Kind::Int64;
 }
 
 int64_t IntegralConstant::AsInt64() const {

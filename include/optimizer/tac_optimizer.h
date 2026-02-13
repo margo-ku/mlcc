@@ -13,7 +13,7 @@ private:
     bool EliminateDeadStores(std::vector<std::vector<TACInstruction>>& instructions);
     bool EliminateUnreachableCode(std::vector<std::vector<TACInstruction>>& instructions);
 
-    bool IsConstant(const std::string& operand);
+    bool IsConstant(const TACOperand& operand);
     long long EvaluateBinaryOp(TACInstruction::OpCode op, long long lhs, long long rhs);
     long long EvaluateUnaryOp(TACInstruction::OpCode op, long long operand);
     bool TryFoldBinary(const TACInstruction& in, TACInstruction& out);

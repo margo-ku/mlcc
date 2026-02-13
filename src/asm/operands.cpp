@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "include/types/integral_constant.h"
+
 ASMOperand::ASMOperand(Size size) : size_(size) {}
 
 ASMOperand::Size ASMOperand::GetSize() const { return size_; }
@@ -16,13 +18,12 @@ std::string Register::ToString() const { return name_; }
 
 ///////////////////////////////////////////////
 
-Immediate::Immediate(long long value)
-    : ASMOperand(value >= INT32_MIN && value <= INT32_MAX ? Size::Byte4 : Size::Byte8),
-      value_(value) {}
+Immediate::Immediate(IntegralConstant value)
+    : ASMOperand(value.Is64Bit() ? Size::Byte8 : Size::Byte4), value_(value) {}
 
-std::string Immediate::ToString() const { return "#" + std::to_string(value_); }
+std::string Immediate::ToString() const { return "#" + value_.ToString(); }
 
-long long Immediate::GetValue() const { return value_; }
+IntegralConstant Immediate::GetValue() const { return value_; }
 
 ///////////////////////////////////////////////
 

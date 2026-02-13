@@ -1,7 +1,5 @@
 #include "include/optimizer/tac_optimizer.h"
 
-#include <algorithm>
-#include <cctype>
 #include <unordered_set>
 
 #include "include/optimizer/control_flow_utils.h"
@@ -93,11 +91,12 @@ bool TACOptimizer::TryFoldBinary(const TACInstruction& in, TACInstruction& out) 
         return false;
     }
 
-    long long lhs = std::stoll(in.GetLhs());
-    long long rhs = std::stoll(in.GetRhs());
+    long long lhs = in.GetLhs().AsConstant().AsInt64();
+    long long rhs = in.GetRhs().AsConstant().AsInt64();
     long long result = EvaluateBinaryOp(in.GetOp(), lhs, rhs);
 
-    out = TACInstruction::Assign(in.GetDst(), std::to_string(result));
+    out = TACInstruction::Assign(
+        in.GetDst(), TACOperand(IntegralConstant(static_cast<long>(result))));
     return true;
 }
 
@@ -106,10 +105,11 @@ bool TACOptimizer::TryFoldUnary(const TACInstruction& in, TACInstruction& out) {
         return false;
     }
 
-    long long operand = std::stoll(in.GetLhs());
+    long long operand = in.GetLhs().AsConstant().AsInt64();
     long long result = EvaluateUnaryOp(in.GetOp(), operand);
 
-    out = TACInstruction::Assign(in.GetDst(), std::to_string(result));
+    out = TACInstruction::Assign(
+        in.GetDst(), TACOperand(IntegralConstant(static_cast<long>(result))));
     return true;
 }
 
@@ -119,7 +119,7 @@ bool TACOptimizer::TryFoldCondition(const TACInstruction& in, TACInstruction& ou
         return true;
     }
 
-    long long condition = std::stoll(in.GetLhs());
+    long long condition = in.GetLhs().AsConstant().AsInt64();
     changed = true;
 
     if (in.GetOp() == TACInstruction::OpCode::If) {
@@ -137,17 +137,7 @@ bool TACOptimizer::TryFoldCondition(const TACInstruction& in, TACInstruction& ou
     }
 }
 
-bool TACOptimizer::IsConstant(const std::string& operand) {
-    if (operand.empty()) return false;
-    auto it = operand.begin();
-    if (*it == '-' || *it == '+') {
-        ++it;
-    }
-    if (it == operand.end()) {
-        return false;
-    }
-    return std::all_of(it, operand.end(), ::isdigit);
-}
+bool TACOptimizer::IsConstant(const TACOperand& operand) { return operand.IsConstant(); }
 
 long long TACOptimizer::EvaluateBinaryOp(TACInstruction::OpCode op, long long lhs,
                                          long long rhs) {

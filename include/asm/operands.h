@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "include/types/integral_constant.h"
+
 class ASMOperand {
 public:
     enum class Size {
@@ -37,12 +39,12 @@ private:
 
 class Immediate : public ASMOperand {
 public:
-    explicit Immediate(long long value);
+    explicit Immediate(IntegralConstant constant);
     std::string ToString() const override;
-    long long GetValue() const;
+    IntegralConstant GetValue() const;
 
 private:
-    long long value_;
+    IntegralConstant value_;
 };
 
 ///////////////////////////////////////////////

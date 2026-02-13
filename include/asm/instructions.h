@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "include/types/integral_constant.h"
 #include "operands.h"
 
 enum class BinaryOp { Add, Sub, Mul, SDiv, UDiv, And, Orr, Eor, Lsl, Asr, Lsr };
@@ -323,13 +324,13 @@ public:
 
 class StaticVariableDirective : public ASMInstruction {
 public:
-    StaticVariableDirective(const std::string& name, long long value, int size,
+    StaticVariableDirective(const std::string& name, IntegralConstant value, int size,
                             bool is_global);
     std::string ToString() const override;
 
 private:
     std::string name_;
-    long long value_;  // to do: different types, f.e. unsigned
+    IntegralConstant value_;
     int size_;
     bool is_global_;
 };
@@ -342,7 +343,8 @@ public:
     std::string ToString() const override;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
     std::shared_ptr<ASMOperand> dst_;
@@ -351,12 +353,13 @@ private:
 
 class LoadGlobalInstruction : public ASMInstruction {
 public:
-    LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> base,
-                          const std::string& symbol);
+    LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst,
+                          std::shared_ptr<ASMOperand> base, const std::string& symbol);
     std::string ToString() const override;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
     std::shared_ptr<ASMOperand> dst_;
@@ -366,12 +369,13 @@ private:
 
 class StoreGlobalInstruction : public ASMInstruction {
 public:
-    StoreGlobalInstruction(std::shared_ptr<ASMOperand> src, std::shared_ptr<ASMOperand> base,
-                           const std::string& symbol);
+    StoreGlobalInstruction(std::shared_ptr<ASMOperand> src,
+                           std::shared_ptr<ASMOperand> base, const std::string& symbol);
     std::string ToString() const override;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
     std::shared_ptr<ASMOperand> src_;

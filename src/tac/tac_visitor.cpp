@@ -56,18 +56,20 @@ void TACVisitor::Visit(Declaration* declaration) {
     decl->Accept(this);
 }
 
-void TACVisitor::Visit(Expression* expression) { stack_.push("1"); }
+void TACVisitor::Visit(Expression* expression) {
+    stack_.push(TACOperand(IntegralConstant(1)));
+}
 
 void TACVisitor::Visit(IdExpression* expression) { stack_.push(expression->GetId()); }
 
 void TACVisitor::Visit(PrimaryExpression* expression) {
-    stack_.push(expression->ToString());
+    stack_.push(TACOperand(expression->GetValue()));
 }
 
 void TACVisitor::Visit(UnaryExpression* expression) {
     std::string variable_name = AllocateTemporary(expression->GetTypeRef());
     expression->GetExpression()->Accept(this);
-    std::string src = GetTop();
+    TACOperand src = GetTop();
     TACInstruction::OpCode op_code;
 
     switch (expression->GetOp()) {
@@ -102,10 +104,10 @@ void TACVisitor::Visit(BinaryExpression* expression) {
     }
 
     expression->GetLeftExpression()->Accept(this);
-    std::string lhs = GetTop();
+    TACOperand lhs = GetTop();
 
     expression->GetRightExpression()->Accept(this);
-    std::string rhs = GetTop();
+    TACOperand rhs = GetTop();
 
     std::string variable_name = AllocateTemporary(expression->GetTypeRef());
 
@@ -176,11 +178,11 @@ void TACVisitor::Visit(ConditionalExpression* expression) {
     std::string variable_name = AllocateTemporary(expression->GetTypeRef());
 
     expression->GetCondition()->Accept(this);
-    std::string cond = GetTop();
+    TACOperand cond = GetTop();
     instructions_.back().push_back(TACInstruction::IfFalse(label_else, cond));
 
     expression->GetLeftExpression()->Accept(this);
-    std::string value = GetTop();
+    TACOperand value = GetTop();
     instructions_.back().push_back(TACInstruction::Assign(variable_name, value));
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
 
@@ -195,10 +197,10 @@ void TACVisitor::Visit(ConditionalExpression* expression) {
 
 void TACVisitor::Visit(AssignmentExpression* expression) {
     expression->GetLeftExpression()->Accept(this);
-    std::string dst = GetTop();
+    TACOperand dst = GetTop();
 
     expression->GetRightExpression()->Accept(this);
-    std::string src = GetTop();
+    TACOperand src = GetTop();
 
     instructions_.back().push_back(TACInstruction::Assign(dst, src));
     stack_.push(dst);
@@ -206,7 +208,7 @@ void TACVisitor::Visit(AssignmentExpression* expression) {
 
 void TACVisitor::Visit(CastExpression* expression) {
     expression->GetExpression()->Accept(this);
-    std::string src = GetTop();
+    TACOperand src = GetTop();
     std::string dst = AllocateTemporary(expression->GetTypeRef());
     TypeRef from_type = expression->GetExpression()->GetTypeRef();
     TypeRef to_type = expression->GetTypeRef();
@@ -232,14 +234,17 @@ void TACVisitor::Visit(CompoundStatement* statement) {
 }
 
 void TACVisitor::Visit(ReturnStatement* statement) {
-    std::string value;
+    TACOperand value = TACOperand("");
     if (statement->HasExpression()) {
         auto expression = statement->GetExpression();
         expression->Accept(this);
         value = GetTop();
     }
-
-    instructions_.back().push_back(TACInstruction::Return(value));
+    if (statement->HasExpression()) {
+        instructions_.back().push_back(TACInstruction::Return(value));
+    } else {
+        instructions_.back().push_back(TACInstruction::Return());
+    }
 }
 
 void TACVisitor::Visit(ExpressionStatement* statement) {
@@ -254,7 +259,7 @@ void TACVisitor::Visit(SelectionStatement* statement) {
     std::string label_end = "label_end_" + label_id;
 
     statement->GetCondition()->Accept(this);
-    std::string cond = GetTop();
+    TACOperand cond = GetTop();
     instructions_.back().push_back(TACInstruction::IfFalse(label_else, cond));
     statement->GetThenStatement()->Accept(this);
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
@@ -284,7 +289,7 @@ void TACVisitor::Visit(WhileStatement* statement) {
     if (statement->GetType() == WhileStatement::LoopType::While) {
         instructions_.back().push_back(TACInstruction::Label(label_continue));
         statement->GetCondition()->Accept(this);
-        std::string cond = GetTop();
+        TACOperand cond = GetTop();
         instructions_.back().push_back(TACInstruction::IfFalse(label_break, cond));
         statement->GetBody()->Accept(this);
         instructions_.back().push_back(TACInstruction::GoTo(label_continue));
@@ -294,7 +299,7 @@ void TACVisitor::Visit(WhileStatement* statement) {
         statement->GetBody()->Accept(this);
         instructions_.back().push_back(TACInstruction::Label(label_continue));
         statement->GetCondition()->Accept(this);
-        std::string cond = GetTop();
+        TACOperand cond = GetTop();
         instructions_.back().push_back(TACInstruction::If(label_start, cond));
         instructions_.back().push_back(TACInstruction::Label(label_break));
     }
@@ -308,7 +313,7 @@ void TACVisitor::Visit(ForStatement* statement) {
     statement->GetInit()->Accept(this);
     instructions_.back().push_back(TACInstruction::Label(label_start));
     statement->GetCondition()->Accept(this);
-    std::string cond = GetTop();
+    TACOperand cond = GetTop();
     instructions_.back().push_back(TACInstruction::IfFalse(label_break, cond));
     statement->GetBody()->Accept(this);
     instructions_.back().push_back(TACInstruction::Label(label_continue));
@@ -336,7 +341,7 @@ void TACVisitor::Visit(IdentifierDeclarator* declarator) {
     }
 
     declarator->GetInitializer()->Accept(this);
-    const std::string src = GetTop();
+    const TACOperand src = GetTop();
     instructions_.back().push_back(TACInstruction::Assign(dst, src));
 }
 
@@ -349,7 +354,7 @@ void TACVisitor::Visit(ParameterList* list) {
     int index = 0;
     for (auto& param : list->GetParameters()) {
         param->Accept(this);
-        std::string param_name = GetTop();
+        std::string param_name = GetTop().AsIdentifier();
         std::string arg_name = "arg.." + std::to_string(index++);
         instructions_.back().push_back(TACInstruction::Assign(param_name, arg_name));
     }
@@ -388,7 +393,7 @@ void TACVisitor::Visit(ArgumentExpressionList* list) {
 
     for (size_t index = 0; index < arguments.size(); ++index) {
         arguments[index]->Accept(this);
-        std::string src = GetTop();
+        TACOperand src = GetTop();
         instructions_.back().push_back(TACInstruction::Param(src));
     }
 }
@@ -409,12 +414,12 @@ std::string TACVisitor::GetTemporaryName() {
 
 std::string TACVisitor::GetUniqueLabelId() { return std::to_string(label_id_++); }
 
-std::string TACVisitor::GetTop() {
+TACOperand TACVisitor::GetTop() {
     if (stack_.empty()) {
         throw std::runtime_error("stack underflow in TACVisitor::GetTop()");
     }
 
-    std::string value = stack_.top();
+    TACOperand value = stack_.top();
     stack_.pop();
     return value;
 }
@@ -426,17 +431,19 @@ void TACVisitor::ProcessBinaryOr(BinaryExpression* expression) {
     std::string variable_name = AllocateTemporary(expression->GetTypeRef());
 
     expression->GetLeftExpression()->Accept(this);
-    std::string lhs = GetTop();
+    TACOperand lhs = GetTop();
     instructions_.back().push_back(TACInstruction::If(label_true, lhs));
 
     expression->GetRightExpression()->Accept(this);
-    std::string rhs = GetTop();
+    TACOperand rhs = GetTop();
     instructions_.back().push_back(TACInstruction::If(label_true, rhs));
 
-    instructions_.back().push_back(TACInstruction::Assign(variable_name, "0"));
+    instructions_.back().push_back(
+        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(0))));
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
     instructions_.back().push_back(TACInstruction::Label(label_true));
-    instructions_.back().push_back(TACInstruction::Assign(variable_name, "1"));
+    instructions_.back().push_back(
+        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(1))));
     instructions_.back().push_back(TACInstruction::Label(label_end));
 
     stack_.push(variable_name);
@@ -449,17 +456,19 @@ void TACVisitor::ProcessBinaryAnd(BinaryExpression* expression) {
     std::string variable_name = AllocateTemporary(expression->GetTypeRef());
 
     expression->GetLeftExpression()->Accept(this);
-    std::string lhs = GetTop();
+    TACOperand lhs = GetTop();
     instructions_.back().push_back(TACInstruction::IfFalse(label_false, lhs));
 
     expression->GetRightExpression()->Accept(this);
-    std::string rhs = GetTop();
+    TACOperand rhs = GetTop();
     instructions_.back().push_back(TACInstruction::IfFalse(label_false, rhs));
 
-    instructions_.back().push_back(TACInstruction::Assign(variable_name, "1"));
+    instructions_.back().push_back(
+        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(1))));
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
     instructions_.back().push_back(TACInstruction::Label(label_false));
-    instructions_.back().push_back(TACInstruction::Assign(variable_name, "0"));
+    instructions_.back().push_back(
+        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(0))));
     instructions_.back().push_back(TACInstruction::Label(label_end));
     stack_.push(variable_name);
 }
@@ -498,11 +507,12 @@ void TACVisitor::AddStaticVariables() {
         }
 
         bool is_global = info.linkage != SymbolInfo::LinkageKind::Internal;
-        std::string initializer = (info.init_state == SymbolInfo::InitialValue::Initial)
-                                      ? info.GetStringInitializer()
-                                      : "0";
+        IntegralConstant initializer =
+            (info.init_state == SymbolInfo::InitialValue::Initial)
+                ? *info.init_constant
+                : IntegralConstant(0);
 
-        instructions_.emplace_back().push_back(
-            TACInstruction::StaticVariable(name, initializer, is_global));
+        instructions_.emplace_back().push_back(TACInstruction::StaticVariable(
+            name, initializer, is_global));
     }
 }

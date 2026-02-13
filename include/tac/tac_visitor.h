@@ -50,11 +50,11 @@ private:
     std::string AllocateTemporary(TypeRef type);
     std::string GetTemporaryName();
     std::string GetUniqueLabelId();
-    std::string GetTop();
+    TACOperand GetTop();
 
     SymbolTable& symbol_table_;
     std::vector<std::vector<TACInstruction>> instructions_;
-    std::stack<std::string> stack_;
+    std::stack<TACOperand> stack_;
     size_t temp_count_ = 0;
     size_t label_id_ = 0;
 

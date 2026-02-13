@@ -58,14 +58,14 @@ private:
     void LoadCallerRegisters() const;
     void MaterializeFormalParameters();
 
-    std::shared_ptr<ASMOperand> MakeOperand(const std::string& value);
+    std::shared_ptr<ASMOperand> MakeOperand(const TACOperand& value);
     void Emit(std::shared_ptr<ASMInstruction> instr);
 
-    bool IsSignedOperand(const std::string& name) const;
+    bool IsSignedOperand(const TACOperand& operand) const;
     bool IsPureInputInstruction(const std::shared_ptr<ASMInstruction>& instr);
     std::string GetCurrentExitLabel() const;
     std::shared_ptr<Register> GetReturnRegister() const;
 
     std::vector<std::shared_ptr<ASMInstruction>> MakeLoadImmediateInstrs(
-        std::shared_ptr<ASMOperand> dst, uint64_t value);
+        std::shared_ptr<ASMOperand> dst, const IntegralConstant& value);
 };

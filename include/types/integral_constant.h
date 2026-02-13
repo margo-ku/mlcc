@@ -18,6 +18,7 @@ public:
 
     Kind GetKind() const;
     bool IsSigned() const;
+    bool Is64Bit() const;
 
     int64_t AsInt64() const;
     uint64_t AsUInt64() const;
