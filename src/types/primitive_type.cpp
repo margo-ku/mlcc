@@ -13,6 +13,7 @@ std::size_t PrimitiveType::Size() const {
             return 4;
         case Tag::Int64:
         case Tag::UInt64:
+        case Tag::Double:
             return 8;
     }
     return 0;
@@ -20,13 +21,17 @@ std::size_t PrimitiveType::Size() const {
 
 std::size_t PrimitiveType::Alignment() const { return Size(); }
 
-bool PrimitiveType::IsIntegral() const { return true; }
+bool PrimitiveType::IsIntegral() const { return !IsFloatingPoint(); }
+
+bool PrimitiveType::IsArithmetic() const { return true; }
 
 bool PrimitiveType::IsSigned() const { return tag_ == Tag::Int32 || tag_ == Tag::Int64; }
 
 bool PrimitiveType::IsInt() const { return tag_ == Tag::Int32 || tag_ == Tag::UInt32; }
 
 bool PrimitiveType::IsLong() const { return tag_ == Tag::Int64 || tag_ == Tag::UInt64; }
+
+bool PrimitiveType::IsFloatingPoint() const { return tag_ == Tag::Double; }
 
 std::string PrimitiveType::ToString() const {
     switch (tag_) {
@@ -38,6 +43,8 @@ std::string PrimitiveType::ToString() const {
             return "unsigned int";
         case Tag::UInt64:
             return "unsigned long";
+        case Tag::Double:
+            return "double";
     }
     return "primitive";
 }
@@ -59,13 +66,15 @@ bool PrimitiveType::Equals(const TypeRef& other) const {
 
 //////////////////////////////////////////////////
 
+// to do: как-то количество по-другому считать
 TypeRef& PrimitiveType::GetInstance(Tag tag) {
-    static TypeRef instances[4];
-    static std::once_flag flags[4];
+    static TypeRef instances[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    static std::once_flag flags[5] = {std::once_flag(), std::once_flag(),
+                                      std::once_flag(), std::once_flag(),
+                                      std::once_flag()};
     int idx = static_cast<int>(tag);
-    std::call_once(flags[idx], [&]() {
-        instances[idx] = std::make_shared<PrimitiveType>(tag);
-    });
+    std::call_once(flags[idx],
+                   [&]() { instances[idx] = std::make_shared<PrimitiveType>(tag); });
     return instances[idx];
 }
 
@@ -73,3 +82,4 @@ TypeRef PrimitiveType::GetInt32() { return GetInstance(Tag::Int32); }
 TypeRef PrimitiveType::GetInt64() { return GetInstance(Tag::Int64); }
 TypeRef PrimitiveType::GetUInt32() { return GetInstance(Tag::UInt32); }
 TypeRef PrimitiveType::GetUInt64() { return GetInstance(Tag::UInt64); }
+TypeRef PrimitiveType::GetDouble() { return GetInstance(Tag::Double); }

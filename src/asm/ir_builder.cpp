@@ -1,5 +1,6 @@
 #include "include/asm/ir_builder.h"
 
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 
@@ -7,7 +8,6 @@
 #include "include/asm/operands.h"
 #include "include/tac/instruction.h"
 #include "include/types/function_type.h"
-#include "include/types/integral_constant.h"
 
 LinearIRBuilder::LinearIRBuilder(
     const std::vector<std::vector<TACInstruction>>& tac_instructions,
@@ -155,11 +155,19 @@ void LinearIRBuilder::ResolveOperands() {
             }
         }
 
+        auto max_size = [](ASMOperand::Size a, ASMOperand::Size b) -> ASMOperand::Size {
+            return static_cast<int>(a) >= static_cast<int>(b) ? a : b;
+        };
+
         ASMOperand::Size target_size = ASMOperand::Size::Byte4;
         for (const auto& op : operands) {
             if (!std::dynamic_pointer_cast<Immediate>(op)) {
-                target_size = op->GetSize();
-                break;
+                target_size = max_size(target_size, op->GetSize());
+            }
+        }
+        for (const auto& op : operands) {
+            if (auto imm = std::dynamic_pointer_cast<Immediate>(op)) {
+                target_size = max_size(target_size, imm->GetSize());
             }
         }
 
@@ -167,6 +175,11 @@ void LinearIRBuilder::ResolveOperands() {
             auto memory = std::dynamic_pointer_cast<MemoryOperand>(operands[index]);
             auto immediate = std::dynamic_pointer_cast<Immediate>(operands[index]);
             if (memory) {
+                if (memory->GetMode() == MemoryOperand::Mode::Offset) {
+                    memory = MaterializeLargeStackOffset(memory, before, temps);
+                    operands[index] = memory;
+                }
+
                 if (isLoad && index == 1) {
                     continue;
                 }
@@ -199,7 +212,7 @@ void LinearIRBuilder::ResolveOperands() {
                 operands[index] = reg;
             } else if (immediate) {
                 auto value = immediate->GetValue();
-                auto size = target_size;
+                auto size = max_size(target_size, immediate->GetSize());
                 auto reg = reg_allocator_.Allocate(size);
                 temps.push_back(reg);
 
@@ -223,6 +236,42 @@ void LinearIRBuilder::ResolveOperands() {
     asm_instructions_.back() = std::move(new_instructions);
 }
 
+std::shared_ptr<MemoryOperand> LinearIRBuilder::MaterializeLargeStackOffset(
+    const std::shared_ptr<MemoryOperand>& memory,
+    std::vector<std::shared_ptr<ASMInstruction>>& before,
+    std::vector<std::shared_ptr<Register>>& temps) {
+    if (CanEncodeUnscaledImm9(memory->GetOffset())) {
+        return memory;
+    }
+
+    auto addr_reg = reg_allocator_.Allocate(ASMOperand::Size::Byte8);
+    temps.push_back(addr_reg);
+
+    auto imm_reg = reg_allocator_.Allocate(ASMOperand::Size::Byte8);
+    temps.push_back(imm_reg);
+
+    before.push_back(std::make_shared<MovInstruction>(addr_reg, memory->GetBase()));
+
+    const int offset = memory->GetOffset();
+    const auto abs_offset = static_cast<unsigned long>(std::llabs((long long)offset));
+    auto load_seq = MakeLoadImmediateInstrs(imm_reg, abs_offset);
+    before.insert(before.end(), load_seq.begin(), load_seq.end());
+
+    if (offset < 0) {
+        before.push_back(
+            std::make_shared<BinaryInstruction>(BinaryOp::Sub, addr_reg, addr_reg, imm_reg));
+    } else {
+        before.push_back(
+            std::make_shared<BinaryInstruction>(BinaryOp::Add, addr_reg, addr_reg, imm_reg));
+    }
+
+    return std::make_shared<MemoryOperand>(addr_reg, 0, memory->GetSize());
+}
+
+bool LinearIRBuilder::CanEncodeUnscaledImm9(int offset) const {
+    return offset >= -256 && offset <= 255;
+}
+
 void LinearIRBuilder::LowerAssign(const TACInstruction& instr) {
     auto dst = MakeOperand(instr.GetDst());
     auto lhs = MakeOperand(instr.GetLhs());
@@ -241,7 +290,7 @@ void LinearIRBuilder::LowerUnaryOp(const TACInstruction& instr) {
     } else if (instr.GetOp() == TACInstruction::OpCode::BinaryNot) {
         Emit(std::make_shared<UnaryInstruction>(UnaryOp::Mvn, dst, lhs));
     } else if (instr.GetOp() == TACInstruction::OpCode::Not) {
-        auto zero = MakeOperand(TACOperand(IntegralConstant(0)));
+        auto zero = MakeOperand(TACOperand(NumericConstant(0)));
         Emit(std::make_shared<CompareInstruction>(lhs, zero));
         Emit(std::make_shared<CSetInstruction>(dst, Condition::Eq));
     } else {
@@ -360,7 +409,7 @@ void LinearIRBuilder::LowerBranch(const TACInstruction& instr) {
 
     if (instr.GetOp() != TACInstruction::OpCode::GoTo) {
         auto cond_operand = MakeOperand(instr.GetLhs());
-        auto zero = MakeOperand(TACOperand(IntegralConstant(0)));
+        auto zero = MakeOperand(TACOperand(NumericConstant(0)));
         Emit(std::make_shared<CompareInstruction>(cond_operand, zero));
     }
 
@@ -590,7 +639,7 @@ void LinearIRBuilder::LoadCallerRegisters() const {}
 
 // to do: переписать это когда-нибудь
 std::vector<std::shared_ptr<ASMInstruction>> LinearIRBuilder::MakeLoadImmediateInstrs(
-    std::shared_ptr<ASMOperand> dst, const IntegralConstant& value) {
+    std::shared_ptr<ASMOperand> dst, const NumericConstant& value) {
     std::vector<std::shared_ptr<ASMInstruction>> out;
     uint64_t raw_value =
         value.IsSigned() ? static_cast<uint64_t>(value.AsInt64()) : value.AsUInt64();
@@ -647,7 +696,7 @@ void LinearIRBuilder::LowerTruncate(const TACInstruction& instr) {
 
 void LinearIRBuilder::LowerStaticVariable(const TACInstruction& instr) {
     std::string name = instr.GetDst().AsIdentifier();
-    IntegralConstant value = instr.GetLhs().AsConstant();
+    NumericConstant value = instr.GetLhs().AsConstant();
 
     bool is_global = instr.GetRhs().AsConstant().AsInt64() == 1;
 

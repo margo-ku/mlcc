@@ -96,7 +96,7 @@ bool TACOptimizer::TryFoldBinary(const TACInstruction& in, TACInstruction& out) 
     long long result = EvaluateBinaryOp(in.GetOp(), lhs, rhs);
 
     out = TACInstruction::Assign(
-        in.GetDst(), TACOperand(IntegralConstant(static_cast<long>(result))));
+        in.GetDst(), TACOperand(NumericConstant(static_cast<long>(result))));
     return true;
 }
 
@@ -109,7 +109,7 @@ bool TACOptimizer::TryFoldUnary(const TACInstruction& in, TACInstruction& out) {
     long long result = EvaluateUnaryOp(in.GetOp(), operand);
 
     out = TACInstruction::Assign(
-        in.GetDst(), TACOperand(IntegralConstant(static_cast<long>(result))));
+        in.GetDst(), TACOperand(NumericConstant(static_cast<long>(result))));
     return true;
 }
 

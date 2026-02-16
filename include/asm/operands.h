@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 
 class ASMOperand {
 public:
@@ -39,12 +39,12 @@ private:
 
 class Immediate : public ASMOperand {
 public:
-    explicit Immediate(IntegralConstant constant);
+    explicit Immediate(NumericConstant constant);
     std::string ToString() const override;
-    IntegralConstant GetValue() const;
+    NumericConstant GetValue() const;
 
 private:
-    IntegralConstant value_;
+    NumericConstant value_;
 };
 
 ///////////////////////////////////////////////
@@ -70,6 +70,9 @@ public:
                   Mode mode = Mode::Offset);
 
     std::string ToString() const override;
+    const std::shared_ptr<Register>& GetBase() const;
+    int GetOffset() const;
+    Mode GetMode() const;
 
 private:
     std::shared_ptr<Register> base_;

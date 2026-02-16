@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 #include "include/types/type.h"
 
 struct SymbolInfo {
@@ -18,7 +18,7 @@ struct SymbolInfo {
     LinkageKind linkage = LinkageKind::None;
     StorageDuration duration = StorageDuration::Automatic;
     InitialValue init_state = InitialValue::NoInitializer;
-    std::optional<IntegralConstant> init_constant;
+    std::optional<NumericConstant> init_constant;
 
     TypeRef type = nullptr;
     bool is_defined = false;

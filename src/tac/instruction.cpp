@@ -4,14 +4,14 @@
 #include <stdexcept>
 TACOperand::TACOperand(const std::string& identifier) : storage_(identifier) {}
 
-TACOperand::TACOperand(const IntegralConstant& constant) : storage_(constant) {}
+TACOperand::TACOperand(const NumericConstant& constant) : storage_(constant) {}
 
 bool TACOperand::IsIdentifier() const {
     return std::holds_alternative<std::string>(storage_);
 }
 
 bool TACOperand::IsConstant() const {
-    return std::holds_alternative<IntegralConstant>(storage_);
+    return std::holds_alternative<NumericConstant>(storage_);
 }
 
 bool TACOperand::Empty() const {
@@ -28,11 +28,11 @@ const std::string& TACOperand::AsIdentifier() const {
     return std::get<std::string>(storage_);
 }
 
-const IntegralConstant& TACOperand::AsConstant() const {
+const NumericConstant& TACOperand::AsConstant() const {
     if (!IsConstant()) {
-        throw std::runtime_error("TACOperand does not hold an integral constant");
+        throw std::runtime_error("TACOperand does not hold a numeric constant");
     }
-    return std::get<IntegralConstant>(storage_);
+    return std::get<NumericConstant>(storage_);
 }
 
 std::string TACOperand::ToString() const {
@@ -85,8 +85,8 @@ TACInstruction TACInstruction::IfFalse(const std::string& target,
 TACInstruction TACInstruction::Function(const std::string& name, int param_count,
                                         bool is_global) {
     return TACInstruction(OpCode::Function, TACOperand(name),
-                          TACOperand(IntegralConstant(param_count)),
-                          TACOperand(IntegralConstant(is_global ? 1 : 0)), name);
+                          TACOperand(NumericConstant(param_count)),
+                          TACOperand(NumericConstant(is_global ? 1 : 0)), name);
 }
 
 TACInstruction TACInstruction::Return() {
@@ -101,7 +101,7 @@ TACInstruction TACInstruction::Return(const TACOperand& value) {
 TACInstruction TACInstruction::Call(const std::string& result,
                                     const std::string& func_name, int num_args) {
     return TACInstruction(OpCode::Call, TACOperand(result), TACOperand(func_name),
-                          TACOperand(IntegralConstant(num_args)), "");
+                          TACOperand(NumericConstant(num_args)), "");
 }
 
 TACInstruction TACInstruction::Param(const TACOperand& value) {
@@ -109,10 +109,10 @@ TACInstruction TACInstruction::Param(const TACOperand& value) {
 }
 
 TACInstruction TACInstruction::StaticVariable(const std::string& name,
-                                              const IntegralConstant& init,
+                                              const NumericConstant& init,
                                               bool is_global) {
     return TACInstruction(OpCode::StaticVariable, TACOperand(name), TACOperand(init),
-                          TACOperand(IntegralConstant(is_global ? 1 : 0)), "");
+                          TACOperand(NumericConstant(is_global ? 1 : 0)), "");
 }
 
 TACInstruction TACInstruction::Assign(const TACOperand& dst, const TACOperand& src) {
@@ -139,6 +139,24 @@ TACInstruction TACInstruction::ZeroExtend(const TACOperand& dst, const TACOperan
 
 TACInstruction TACInstruction::Truncate(const TACOperand& dst, const TACOperand& src) {
     return TACInstruction(OpCode::Truncate, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::DoubleToInt(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::DoubleToInt, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::DoubleToUInt(const TACOperand& dst,
+                                            const TACOperand& src) {
+    return TACInstruction(OpCode::DoubleToUInt, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::IntToDouble(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::IntToDouble, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::UIntToDouble(const TACOperand& dst,
+                                            const TACOperand& src) {
+    return TACInstruction(OpCode::UIntToDouble, dst, src, TACOperand(""), "");
 }
 
 TACInstruction::OpCode TACInstruction::GetOp() const { return op_; }
@@ -227,6 +245,14 @@ std::string TACInstruction::ToString() const {
                 return "zero extend";
             case OpCode::Truncate:
                 return "truncate";
+            case OpCode::DoubleToInt:
+                return "double to int";
+            case OpCode::DoubleToUInt:
+                return "double to uint";
+            case OpCode::IntToDouble:
+                return "int to double";
+            case OpCode::UIntToDouble:
+                return "uint to double";
         }
         return "unknown";
     };
@@ -285,6 +311,10 @@ std::string TACInstruction::ToString() const {
         case OpCode::SignExtend:
         case OpCode::ZeroExtend:
         case OpCode::Truncate:
+        case OpCode::DoubleToInt:
+        case OpCode::DoubleToUInt:
+        case OpCode::IntToDouble:
+        case OpCode::UIntToDouble:
             out << dst_.ToString() << " = " << OpToStr(op_) << " " << lhs_.ToString();
             break;
         case OpCode::If:

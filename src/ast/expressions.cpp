@@ -1,5 +1,6 @@
 #include "include/ast/expressions.h"
 
+#include "include/types/numeric_constant.h"
 #include "include/types/type.h"
 #include "include/visitors/visitor.h"
 
@@ -11,13 +12,15 @@ void Expression::SetTypeRef(TypeRef type) { type_ref_ = type; }
 
 ///////////////////////////////////////////////
 
-PrimaryExpression::PrimaryExpression(IntegralConstant value) : value_(value) {}
+PrimaryExpression::PrimaryExpression(NumericConstant value) : value_(value) {}
 
 void PrimaryExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 std::string PrimaryExpression::ToString() const { return value_.ToString(); }
 
-IntegralConstant PrimaryExpression::GetValue() const { return value_; }
+NumericConstant PrimaryExpression::GetValue() const { return value_; }
+
+NumericConstant& PrimaryExpression::GetValue() { return value_; }
 
 ///////////////////////////////////////////////
 

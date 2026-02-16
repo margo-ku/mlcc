@@ -11,6 +11,7 @@
 
 %{
   yy::parser::symbol_type ParseIntegerLiteral(const std::string &s, const yy::parser::location_type& loc);
+  yy::parser::symbol_type ParseFloatingLiteral(const std::string &s, const yy::parser::location_type& loc);
 %}
 
 id     [a-zA-Z][a-zA-Z_0-9]*
@@ -18,6 +19,11 @@ digit       [0-9]
 int_decimal {digit}+
 int_suffix  ([uU][lL]?|[lL][uU]?)?
 blank  [ \t\r]
+
+float_significand ({digit}*\.{digit}+|{digit}+\.?)
+float_exponent   ([eE][+-]?{digit}+)
+float_with_exp   {float_significand}{float_exponent}
+fractional       ({digit}*\.{digit}+|{digit}+\.)
 
 %{
   # define YY_USER_ACTION  loc.columns (yyleng);
@@ -32,6 +38,21 @@ blank  [ \t\r]
 ^[ \t]*#[^\n]*\n
 {blank}+   { /* skip */ }
 \n+        { loc.lines(yyleng); loc.step(); }
+
+{float_with_exp}[^[:alnum:]_.] {
+    int num_len = yyleng - 1;
+    std::string numtext(yytext, num_len);
+    yyless(num_len);
+    return ParseFloatingLiteral(numtext, loc);
+}
+
+{fractional}[^[:alnum:]_.] {
+    int num_len = yyleng - 1;
+    std::string numtext(yytext, num_len);
+    yyless(num_len);
+    return ParseFloatingLiteral(numtext, loc);
+}
+
 {int_decimal}{int_suffix} { return ParseIntegerLiteral(yytext, loc); }
 "<<"       { return yy::parser::make_BIT_LSHIFT(loc); }
 ">>"       { return yy::parser::make_BIT_RSHIFT(loc); }
@@ -64,6 +85,7 @@ blank  [ \t\r]
 "long"     { return yy::parser::make_LONG(loc); }
 "signed"   { return yy::parser::make_SIGNED(loc); }
 "unsigned" { return yy::parser::make_UNSIGNED(loc); }
+"double"   { return yy::parser::make_DOUBLE(loc); }
 "static"   { return yy::parser::make_STATIC(loc); }
 "extern"   { return yy::parser::make_EXTERN(loc); }
 "&"        { return yy::parser::make_BIT_AND(loc); }
@@ -126,4 +148,19 @@ yy::parser::symbol_type ParseIntegerLiteral(const std::string &str,
             return yy::parser::make_ULONG_NUMBER(static_cast<unsigned long>(value), loc);
         }
     }
+}
+
+yy::parser::symbol_type ParseFloatingLiteral(const std::string &str,
+                                            const yy::parser::location_type& loc) {
+    errno = 0;
+    const std::string num_str = str;
+    char* endptr = nullptr;
+    double value = strtod(num_str.c_str(), &endptr);
+    if (endptr != num_str.c_str() + num_str.size()) {
+        throw yy::parser::syntax_error(loc, "malformed floating constant: " + str);
+    }
+    if (errno == ERANGE) {
+        throw yy::parser::syntax_error(loc, "floating constant out of range: " + str);
+    }
+    return yy::parser::make_DOUBLE_NUMBER(value, loc);
 }

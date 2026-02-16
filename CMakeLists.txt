@@ -111,7 +111,7 @@ set(
         TYPES_SOURCES
         src/types/function_type.cpp
         src/types/primitive_type.cpp
-        src/types/integral_constant.cpp
+        src/types/numeric_constant.cpp
 )
 
 add_executable(

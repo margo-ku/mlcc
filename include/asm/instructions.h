@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 #include "operands.h"
 
 enum class BinaryOp { Add, Sub, Mul, SDiv, UDiv, And, Orr, Eor, Lsl, Asr, Lsr };
@@ -324,13 +324,13 @@ public:
 
 class StaticVariableDirective : public ASMInstruction {
 public:
-    StaticVariableDirective(const std::string& name, IntegralConstant value, int size,
+    StaticVariableDirective(const std::string& name, NumericConstant value, int size,
                             bool is_global);
     std::string ToString() const override;
 
 private:
     std::string name_;
-    IntegralConstant value_;
+    NumericConstant value_;
     int size_;
     bool is_global_;
 };

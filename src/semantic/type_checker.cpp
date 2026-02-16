@@ -1,5 +1,7 @@
 #include "include/semantic/type_checker.h"
 
+#include <memory>
+
 #include "include/ast/declarations.h"
 #include "include/ast/expressions.h"
 #include "include/semantic/symbol_table.h"
@@ -114,17 +116,20 @@ void TypeChecker::Visit(IdExpression* expression) {
 
 void TypeChecker::Visit(PrimaryExpression* expression) {
     switch (expression->GetValue().GetKind()) {
-        case IntegralConstant::Kind::Int32:
+        case NumericConstant::Kind::Int32:
             expression->SetTypeRef(PrimitiveType::GetInt32());
             break;
-        case IntegralConstant::Kind::Int64:
+        case NumericConstant::Kind::Int64:
             expression->SetTypeRef(PrimitiveType::GetInt64());
             break;
-        case IntegralConstant::Kind::UInt32:
+        case NumericConstant::Kind::UInt32:
             expression->SetTypeRef(PrimitiveType::GetUInt32());
             break;
-        case IntegralConstant::Kind::UInt64:
+        case NumericConstant::Kind::UInt64:
             expression->SetTypeRef(PrimitiveType::GetUInt64());
+            break;
+        case NumericConstant::Kind::Double:
+            expression->SetTypeRef(PrimitiveType::GetDouble());
             break;
     }
 }
@@ -133,8 +138,8 @@ void TypeChecker::Visit(UnaryExpression* expression) {
     expression->GetExpression()->Accept(this);
 
     TypeRef operand_type = expression->GetExpression()->GetTypeRef();
-    if (!operand_type || !operand_type->IsIntegral()) {
-        ReportError("unary operator requires integral operand");
+    if (!operand_type || !operand_type->IsArithmetic()) {
+        ReportError("unary operator requires arithmetic operand");
         return;
     }
 
@@ -142,6 +147,10 @@ void TypeChecker::Visit(UnaryExpression* expression) {
         case UnaryExpression::UnaryOperator::Minus:
         case UnaryExpression::UnaryOperator::Plus:
         case UnaryExpression::UnaryOperator::BinaryNot:
+            if (!operand_type->IsIntegral()) {
+                ReportError("unary operator requires integral operand");
+                return;
+            }
             expression->SetTypeRef(operand_type);
             break;
         case UnaryExpression::UnaryOperator::Not:
@@ -156,14 +165,40 @@ void TypeChecker::Visit(BinaryExpression* expression) {
 
     TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
     TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
-
-    if (!left_type || !left_type->IsIntegral()) {
-        ReportError("left operand of binary expression must be an integral type");
-        return;
+    bool requires_integral = false;
+    switch (expression->GetOp()) {
+        case BinaryExpression::BinaryOperator::BitwiseAnd:
+        case BinaryExpression::BinaryOperator::BitwiseOr:
+        case BinaryExpression::BinaryOperator::BitwiseXor:
+        case BinaryExpression::BinaryOperator::LeftShift:
+        case BinaryExpression::BinaryOperator::RightShift:
+        case BinaryExpression::BinaryOperator::Mod:
+            requires_integral = true;
+            break;
+        default:
+            break;
     }
-    if (!right_type || !right_type->IsIntegral()) {
-        ReportError("right operand of binary expression must be an integral type");
-        return;
+
+    if (requires_integral) {
+        if (!left_type || !left_type->IsIntegral()) {
+            ReportError(
+                "left operand of bitwise/modulo operation must be an integral type");
+            return;
+        }
+        if (!right_type || !right_type->IsIntegral()) {
+            ReportError(
+                "right operand of bitwise/modulo operation must be an integral type");
+            return;
+        }
+    } else {
+        if (!left_type || !left_type->IsArithmetic()) {
+            ReportError("left operand of binary expression must be an arithmetic type");
+            return;
+        }
+        if (!right_type || !right_type->IsArithmetic()) {
+            ReportError("right operand of binary expression must be an arithmetic type");
+            return;
+        }
     }
 
     TypeRef common_type = GetCommonType(left_type, right_type);
@@ -210,16 +245,16 @@ void TypeChecker::Visit(ConditionalExpression* expression) {
     TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
     TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
 
-    if (!cond_type || !cond_type->IsIntegral()) {
-        ReportError("conditional expression condition must be an integral type");
+    if (!cond_type || !cond_type->IsArithmetic()) {
+        ReportError("conditional expression condition must be an arithmetic type");
         return;
     }
-    if (!left_type || !left_type->IsIntegral()) {
-        ReportError("conditional expression left operand must be an integral type");
+    if (!left_type || !left_type->IsArithmetic()) {
+        ReportError("conditional expression left operand must be an arithmetic type");
         return;
     }
-    if (!right_type || !right_type->IsIntegral()) {
-        ReportError("conditional expression right operand must be an integral type");
+    if (!right_type || !right_type->IsArithmetic()) {
+        ReportError("conditional expression right operand must be an arithmetic type");
         return;
     }
 
@@ -249,12 +284,12 @@ void TypeChecker::Visit(AssignmentExpression* expression) {
     TypeRef left_type = expression->GetLeftExpression()->GetTypeRef();
     TypeRef right_type = expression->GetRightExpression()->GetTypeRef();
 
-    if (!left_type || !left_type->IsIntegral()) {
-        ReportError("left operand of assignment must be an integral type");
+    if (!left_type || !left_type->IsArithmetic()) {
+        ReportError("left operand of assignment must be an arithmetic type");
         return;
     }
-    if (!right_type || !right_type->IsIntegral()) {
-        ReportError("right operand of assignment must be an integral type");
+    if (!right_type || !right_type->IsArithmetic()) {
+        ReportError("right operand of assignment must be an arithmetic type");
         return;
     }
 
@@ -444,9 +479,9 @@ void TypeChecker::Visit(FunctionCallExpression* expression) {
             args[index]->Accept(this);
             TypeRef arg_type = args[index]->GetTypeRef();
             TypeRef param_type = func_type->GetParamTypes()[index];
-            if (!arg_type || !arg_type->IsIntegral()) {
+            if (!arg_type || !arg_type->IsArithmetic()) {
                 ReportError("argument " + std::to_string(index) +
-                            " of function call must be an integral type");
+                            " of function call must be an arithmetic type");
                 return;
             }
 
@@ -472,9 +507,8 @@ void TypeChecker::Visit(ArgumentExpressionList* list) {
 void TypeChecker::Visit(IdentifierDeclarator* declarator) {
     std::string id = declarator->GetId();
     SymbolInfo* info = symbol_table_.FindByUniqueName(id);
-    if (!info || info->type && !info->type->IsIntegral()) {
-        ReportError("id declarator'" + declarator->GetId() +
-                    "' is not an integral variable");
+    if (!info || info->type && !info->type->IsArithmetic()) {
+        ReportError("id declarator'" + declarator->GetId() + "' is not a variable");
     }
 }
 
@@ -489,9 +523,9 @@ void TypeChecker::Visit(FunctionDeclarator* declarator) {
     auto id_decl = dynamic_cast<IdentifierDeclarator*>(inner);
     std::string name = id_decl->GetId();
     SymbolInfo* info = symbol_table_.FindByUniqueName(name);
-    if (!info || info->type && info->type->IsIntegral()) {
+    if (!info || info->type && info->type->IsArithmetic()) {
         ReportError("function declarator'" + declarator->GetId() +
-                    "' is an integral variable");
+                    "' is already declared as a variable");
     }
 }
 
@@ -505,13 +539,22 @@ bool TypeChecker::CanCast(TypeRef from, TypeRef to) {
     if (!from || !to) {
         return false;
     }
-
     if (from->Equals(to)) {
         return true;
     }
+    return from->IsArithmetic() && to->IsArithmetic();
+}
 
-    // All integral types can be cast to each other
-    return from->IsIntegral() && to->IsIntegral();
+std::unique_ptr<Expression> TypeChecker::PerformCompileTimeCast(
+    std::unique_ptr<Expression> expression, TypeRef target_type) {
+    if (auto primary = dynamic_cast<PrimaryExpression*>(expression.get())) {
+        primary->GetValue().CastTo(target_type);
+        return expression;
+    }
+    ReportError("cannot cast expression of type '" +
+                expression->GetTypeRef()->ToString() + "' to '" +
+                target_type->ToString() + "'");
+    return nullptr;
 }
 
 std::unique_ptr<Expression> TypeChecker::WrapWithCast(
@@ -542,10 +585,22 @@ TypeRef TypeChecker::GetCommonType(TypeRef type1, TypeRef type2) {
     if (type1->Equals(type2)) {
         return type1;
     }
-    if (type1->Size() == type2->Size()) {
-        return type1->IsSigned() ? type1 : type2;
+    if (type1->IsFloatingPoint() || type2->IsFloatingPoint()) {
+        return type1->IsFloatingPoint() ? type1 : type2;
     }
-    return type1->Size() > type2->Size() ? type1 : type2;
+
+    if (type1->IsSigned() == type2->IsSigned()) {
+        return type1->Size() >= type2->Size() ? type1 : type2;
+    }
+
+    TypeRef signed_type = type1->IsSigned() ? type1 : type2;
+    TypeRef unsigned_type = type1->IsSigned() ? type2 : type1;
+
+    if (unsigned_type->Size() >= signed_type->Size()) {
+        return unsigned_type;
+    }
+
+    return signed_type;
 }
 
 TypeRef TypeChecker::ResolvePrimitiveType(TypeSpecification* type) {
@@ -563,6 +618,8 @@ TypeRef TypeChecker::ResolvePrimitiveType(TypeSpecification* type) {
             return PrimitiveType::GetUInt32();
         case TypeSpecification::Type::ULong:
             return PrimitiveType::GetUInt64();
+        case TypeSpecification::Type::Double:
+            return PrimitiveType::GetDouble();
     }
 }
 
@@ -578,6 +635,8 @@ std::unique_ptr<TypeSpecification> TypeChecker::GetTypeSpecification(TypeRef typ
         return std::make_unique<TypeSpecification>(TypeSpecification::Type::UInt);
     } else if (type->Equals(PrimitiveType::GetUInt64())) {
         return std::make_unique<TypeSpecification>(TypeSpecification::Type::ULong);
+    } else if (type->Equals(PrimitiveType::GetDouble())) {
+        return std::make_unique<TypeSpecification>(TypeSpecification::Type::Double);
     }
     return nullptr;
 }
@@ -683,7 +742,7 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
     }
 
     SymbolInfo::InitialValue new_init_state;
-    std::optional<IntegralConstant> new_init_constant;
+    std::optional<NumericConstant> new_init_constant;
 
     if (id_declarator->HasInitializer()) {
         auto* primary = dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
@@ -694,17 +753,17 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
         }
         primary->Accept(this);
         new_init_state = SymbolInfo::InitialValue::Initial;
-        new_init_constant = primary->GetValue();
-
         TypeRef init_type = primary->GetTypeRef();
         if (init_type && !init_type->Equals(declared_type)) {
-            auto wrapped =
-                WrapWithCast(id_declarator->ExtractInitializer(), declared_type);
+            auto wrapped = PerformCompileTimeCast(id_declarator->ExtractInitializer(),
+                                                  declared_type);
             if (!wrapped) {
                 return false;
             }
             id_declarator->SetInitializer(std::move(wrapped));
         }
+        new_init_constant =
+            dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer())->GetValue();
     } else if (storage_class == StorageClass::Extern) {
         new_init_state = SymbolInfo::InitialValue::NoInitializer;
     } else {
@@ -768,7 +827,7 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
             return false;
         }
         if (info->type) {
-            if (!info->type->IsIntegral()) {
+            if (!info->type->IsArithmetic()) {
                 ReportError("function '" + name + "' redeclared as variable");
                 return false;
             }

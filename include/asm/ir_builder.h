@@ -35,6 +35,11 @@ private:
 
     void LowerInstruction(const TACInstruction& instr);
     void ResolveOperands();
+    std::shared_ptr<MemoryOperand> MaterializeLargeStackOffset(
+        const std::shared_ptr<MemoryOperand>& memory,
+        std::vector<std::shared_ptr<ASMInstruction>>& before,
+        std::vector<std::shared_ptr<Register>>& temps);
+    bool CanEncodeUnscaledImm9(int offset) const;
 
     void LowerAssign(const TACInstruction& instr);
     void LowerUnaryOp(const TACInstruction& instr);
@@ -67,5 +72,5 @@ private:
     std::shared_ptr<Register> GetReturnRegister() const;
 
     std::vector<std::shared_ptr<ASMInstruction>> MakeLoadImmediateInstrs(
-        std::shared_ptr<ASMOperand> dst, const IntegralConstant& value);
+        std::shared_ptr<ASMOperand> dst, const NumericConstant& value);
 };

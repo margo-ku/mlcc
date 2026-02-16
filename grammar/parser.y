@@ -78,13 +78,14 @@
 %token LE LEQ GE GEQ EQ NOT_EQ
 %token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION COMMA
 %token ASSIGNMENT
-%token INT LONG VOID
+%token INT LONG VOID DOUBLE
 %token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
 %token <std::string> ID
 %token <int> INT_NUMBER
 %token <long> LONG_NUMBER
 %token <unsigned int> UINT_NUMBER
 %token <unsigned long> ULONG_NUMBER
+%token <double> DOUBLE_NUMBER
 %token SIGNED UNSIGNED
 %token STATIC EXTERN
 
@@ -177,6 +178,7 @@ type_specifier:
     | LONG { $$ = TypeSpecifierSet::Specifier::Long; }
     | SIGNED { $$ = TypeSpecifierSet::Specifier::Signed; }
     | UNSIGNED { $$ = TypeSpecifierSet::Specifier::Unsigned; }
+    | DOUBLE { $$ = TypeSpecifierSet::Specifier::Double; };
 
 declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
@@ -329,6 +331,7 @@ primary_expression:
     | LONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | UINT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | ULONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | DOUBLE_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | LPAREN expression RPAREN { $$ = std::move($2); };
 
 argument_expression_list:

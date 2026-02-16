@@ -26,7 +26,7 @@ class IdentifierDeclarator : public Declarator {
 public:
     explicit IdentifierDeclarator(std::string id);
     virtual ~IdentifierDeclarator() = default;
-    virtual void Accept(Visitor* visitor) override;
+    void Accept(Visitor* visitor) override;
     std::string GetId() const override;
     void SetId(const std::string& id) override;
     void SetInitializer(std::unique_ptr<Expression> initializer) override;
@@ -67,29 +67,18 @@ private:
 ///////////////////////////////////////////////
 
 struct TypeSpecifierSet {
-    enum class Specifier { Int, Long, Signed, Unsigned };
+    enum class Specifier {
+        Int = 0,
+        Long = 1,
+        Signed = 2,
+        Unsigned = 3,
+        Double = 4,
+    };
+    std::vector<uint32_t> counts;
 
-    bool has_signed = false;
-    bool has_unsigned = false;
-    bool has_int = false;
-    bool has_long = false;
+    TypeSpecifierSet() : counts(5) {}
 
-    void Add(Specifier spec) {
-        switch (spec) {
-            case Specifier::Int:
-                has_int = true;
-                break;
-            case Specifier::Long:
-                has_long = true;
-                break;
-            case Specifier::Signed:
-                has_signed = true;
-                break;
-            case Specifier::Unsigned:
-                has_unsigned = true;
-                break;
-        }
-    }
+    void Add(Specifier spec) { counts[(int)spec]++; }
 };
 
 struct StorageClassSpecifierSet {
@@ -114,9 +103,7 @@ struct DeclarationSpecifierSet {
     TypeSpecifierSet type_specifiers;
     StorageClassSpecifierSet storage_class_specifiers;
 
-    void Add(TypeSpecifierSet::Specifier spec) {
-        type_specifiers.Add(spec);
-    }
+    void Add(TypeSpecifierSet::Specifier spec) { type_specifiers.Add(spec); }
 
     void Add(StorageClassSpecifierSet::Specifier spec) {
         storage_class_specifiers.Add(spec);
@@ -132,6 +119,7 @@ public:
         Long = 1,
         UInt = 2,
         ULong = 3,
+        Double = 4,
     };
 
     explicit TypeSpecification(Type type);
@@ -168,7 +156,6 @@ public:
 private:
     std::unique_ptr<TypeSpecification> type_;
     StorageClass storage_class_ = StorageClass::None;
-    bool has_type_specifier_ = false;
 };
 
 ///////////////////////////////////////////////

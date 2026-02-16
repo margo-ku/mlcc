@@ -5,6 +5,7 @@
 #include "include/ast/declarations.h"
 #include "include/ast/expressions.h"
 #include "include/semantic/symbol_table.h"
+#include "include/types/numeric_constant.h"
 
 TACVisitor::TACVisitor(SymbolTable& symbol_table) : symbol_table_(symbol_table) {}
 
@@ -57,7 +58,7 @@ void TACVisitor::Visit(Declaration* declaration) {
 }
 
 void TACVisitor::Visit(Expression* expression) {
-    stack_.push(TACOperand(IntegralConstant(1)));
+    stack_.push(TACOperand(NumericConstant(1)));
 }
 
 void TACVisitor::Visit(IdExpression* expression) { stack_.push(expression->GetId()); }
@@ -216,7 +217,21 @@ void TACVisitor::Visit(CastExpression* expression) {
         throw std::runtime_error("invalid types in cast expression");
     }
 
-    if (from_type->Equals(to_type) || from_type->Size() == to_type->Size()) {
+    if (from_type->Equals(to_type)) {
+        instructions_.back().push_back(TACInstruction::Assign(dst, src));
+    } else if (from_type->IsFloatingPoint()) {
+        if (to_type->IsSigned()) {
+            instructions_.back().push_back(TACInstruction::DoubleToInt(dst, src));
+        } else {
+            instructions_.back().push_back(TACInstruction::DoubleToUInt(dst, src));
+        }
+    } else if (to_type->IsFloatingPoint()) {
+        if (from_type->IsSigned()) {
+            instructions_.back().push_back(TACInstruction::IntToDouble(dst, src));
+        } else {
+            instructions_.back().push_back(TACInstruction::UIntToDouble(dst, src));
+        }
+    } else if (from_type->Equals(to_type) || from_type->Size() == to_type->Size()) {
         instructions_.back().push_back(TACInstruction::Assign(dst, src));
     } else if (from_type->Size() > to_type->Size()) {
         instructions_.back().push_back(TACInstruction::Truncate(dst, src));
@@ -225,6 +240,7 @@ void TACVisitor::Visit(CastExpression* expression) {
     } else {
         instructions_.back().push_back(TACInstruction::ZeroExtend(dst, src));
     }
+
     stack_.push(dst);
 }
 
@@ -439,11 +455,11 @@ void TACVisitor::ProcessBinaryOr(BinaryExpression* expression) {
     instructions_.back().push_back(TACInstruction::If(label_true, rhs));
 
     instructions_.back().push_back(
-        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(0))));
+        TACInstruction::Assign(variable_name, TACOperand(NumericConstant(0))));
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
     instructions_.back().push_back(TACInstruction::Label(label_true));
     instructions_.back().push_back(
-        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(1))));
+        TACInstruction::Assign(variable_name, TACOperand(NumericConstant(1))));
     instructions_.back().push_back(TACInstruction::Label(label_end));
 
     stack_.push(variable_name);
@@ -464,11 +480,11 @@ void TACVisitor::ProcessBinaryAnd(BinaryExpression* expression) {
     instructions_.back().push_back(TACInstruction::IfFalse(label_false, rhs));
 
     instructions_.back().push_back(
-        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(1))));
+        TACInstruction::Assign(variable_name, TACOperand(NumericConstant(1))));
     instructions_.back().push_back(TACInstruction::GoTo(label_end));
     instructions_.back().push_back(TACInstruction::Label(label_false));
     instructions_.back().push_back(
-        TACInstruction::Assign(variable_name, TACOperand(IntegralConstant(0))));
+        TACInstruction::Assign(variable_name, TACOperand(NumericConstant(0))));
     instructions_.back().push_back(TACInstruction::Label(label_end));
     stack_.push(variable_name);
 }
@@ -507,12 +523,10 @@ void TACVisitor::AddStaticVariables() {
         }
 
         bool is_global = info.linkage != SymbolInfo::LinkageKind::Internal;
-        IntegralConstant initializer =
-            (info.init_state == SymbolInfo::InitialValue::Initial)
-                ? *info.init_constant
-                : IntegralConstant(0);
-
-        instructions_.emplace_back().push_back(TACInstruction::StaticVariable(
-            name, initializer, is_global));
+        NumericConstant initializer =
+            (info.init_state == SymbolInfo::InitialValue::Initial) ? *info.init_constant
+                                                                   : NumericConstant(0);
+        instructions_.emplace_back().push_back(
+            TACInstruction::StaticVariable(name, initializer, is_global));
     }
 }

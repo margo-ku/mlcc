@@ -49,6 +49,8 @@ private:
     bool CanCast(TypeRef from, TypeRef to);
     std::unique_ptr<Expression> WrapWithCast(std::unique_ptr<Expression> expression,
                                              TypeRef target_type);
+    std::unique_ptr<Expression> PerformCompileTimeCast(
+        std::unique_ptr<Expression> expression, TypeRef target_type);
     bool ProcessFunctionDeclaration(FunctionDeclarator* func_declarator,
                                     TypeSpecification* return_type_spec,
                                     StorageClass storage_class, bool is_definition);

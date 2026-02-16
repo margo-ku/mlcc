@@ -3,21 +3,21 @@
 #include <string>
 #include <variant>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 
 class TACOperand {
 public:
-    using Storage = std::variant<std::string, IntegralConstant>;
+    using Storage = std::variant<std::string, NumericConstant>;
 
     TACOperand(const std::string& identifier);
-    explicit TACOperand(const IntegralConstant& constant);
+    explicit TACOperand(const NumericConstant& constant);
 
     bool IsIdentifier() const;
     bool IsConstant() const;
     bool Empty() const;
 
     const std::string& AsIdentifier() const;
-    const IntegralConstant& AsConstant() const;
+    const NumericConstant& AsConstant() const;
     std::string ToString() const;
 
     bool operator==(const TACOperand& other) const;
@@ -62,6 +62,10 @@ public:
         SignExtend,
         ZeroExtend,
         Truncate,
+        DoubleToInt,
+        DoubleToUInt,
+        IntToDouble,
+        UIntToDouble,
     };
 
     static TACInstruction Label(const std::string& label);
@@ -78,7 +82,7 @@ public:
     static TACInstruction Param(const TACOperand& value);
 
     static TACInstruction StaticVariable(const std::string& name,
-                                         const IntegralConstant& init, bool is_global);
+                                         const NumericConstant& init, bool is_global);
     static TACInstruction Assign(const TACOperand& dst, const TACOperand& src);
 
     static TACInstruction Binary(OpCode op, const TACOperand& dst, const TACOperand& lhs,
@@ -89,6 +93,10 @@ public:
     static TACInstruction SignExtend(const TACOperand& dst, const TACOperand& src);
     static TACInstruction ZeroExtend(const TACOperand& dst, const TACOperand& src);
     static TACInstruction Truncate(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction DoubleToInt(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction DoubleToUInt(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction IntToDouble(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction UIntToDouble(const TACOperand& dst, const TACOperand& src);
 
     std::string ToString() const;
     OpCode GetOp() const;

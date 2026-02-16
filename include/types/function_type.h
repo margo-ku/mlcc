@@ -14,10 +14,12 @@ public:
     size_t Size() const override;
     size_t Alignment() const override;
     bool IsIntegral() const override;
+    bool IsArithmetic() const override;
     bool IsSigned() const override;
     bool IsInt() const override;
     bool IsLong() const override;
     std::string ToString() const override;
+    bool IsFloatingPoint() const override;
 
     bool Equals(const TypeRef& other) const override;
 

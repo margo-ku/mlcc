@@ -12,7 +12,7 @@ public:
         // Pointer, Void, Array, Struct, etc.
     };
 
-    explicit Type(Kind k) : kind_(k) {}
+    explicit Type(Kind kind) : kind_(kind) {}
     virtual ~Type() = default;
 
     Kind GetKind() const noexcept { return kind_; }
@@ -20,9 +20,11 @@ public:
     virtual size_t Alignment() const = 0;
 
     virtual bool IsIntegral() const = 0;
+    virtual bool IsArithmetic() const = 0;
     virtual bool IsSigned() const = 0;
     virtual bool IsInt() const = 0;
     virtual bool IsLong() const = 0;
+    virtual bool IsFloatingPoint() const = 0;
 
     virtual std::string ToString() const = 0;
 

@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 
 std::vector<std::shared_ptr<ASMOperand>> ASMInstruction::GetOperands() const {
     return {};
@@ -405,7 +405,7 @@ std::string TextSectionDirective::ToString() const { return ".text"; }
 std::string DataSectionDirective::ToString() const { return ".data"; }
 
 StaticVariableDirective::StaticVariableDirective(const std::string& name,
-                                                 IntegralConstant value, int size,
+                                                 NumericConstant value, int size,
                                                  bool is_global)
     : name_(name), value_(value), size_(size), is_global_(is_global) {}
 
@@ -413,6 +413,11 @@ std::string StaticVariableDirective::ToString() const {
     std::string result;
     if (is_global_) {
         result += ".globl _" + name_ + "\n";
+    }
+    if (size_ == 8) {
+        result += ".p2align 3\n";
+    } else {
+        result += ".p2align 2\n";
     }
     result += "_" + name_ + ":\n";
     if (size_ == 8) {

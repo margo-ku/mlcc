@@ -10,10 +10,11 @@ FunctionType::FunctionType(TypeRef return_type, std::vector<TypeRef> param_types
 std::size_t FunctionType::Size() const { return 0; }
 std::size_t FunctionType::Alignment() const { return 0; }
 bool FunctionType::IsIntegral() const { return false; }
+bool FunctionType::IsArithmetic() const { return false; }
 bool FunctionType::IsSigned() const { return false; }
 bool FunctionType::IsInt() const { return false; }
 bool FunctionType::IsLong() const { return false; }
-
+bool FunctionType::IsFloatingPoint() const { return false; }
 std::string FunctionType::ToString() const {
     std::ostringstream oss;
     oss << "function(" << param_types_.size() << ") -> ";

@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 
 ASMOperand::ASMOperand(Size size) : size_(size) {}
 
@@ -18,12 +18,12 @@ std::string Register::ToString() const { return name_; }
 
 ///////////////////////////////////////////////
 
-Immediate::Immediate(IntegralConstant value)
+Immediate::Immediate(NumericConstant value)
     : ASMOperand(value.Is64Bit() ? Size::Byte8 : Size::Byte4), value_(value) {}
 
 std::string Immediate::ToString() const { return "#" + value_.ToString(); }
 
-IntegralConstant Immediate::GetValue() const { return value_; }
+NumericConstant Immediate::GetValue() const { return value_; }
 
 ///////////////////////////////////////////////
 
@@ -56,6 +56,12 @@ std::string MemoryOperand::ToString() const {
 
     return out.str();
 }
+
+const std::shared_ptr<Register>& MemoryOperand::GetBase() const { return base_; }
+
+int MemoryOperand::GetOffset() const { return offset_; }
+
+MemoryOperand::Mode MemoryOperand::GetMode() const { return mode_; }
 
 ///////////////////////////////////////////////
 

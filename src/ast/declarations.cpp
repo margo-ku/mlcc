@@ -72,15 +72,53 @@ TypeSpecification::TypeSpecification(const TypeSpecifierSet& specifiers)
 TypeSpecification::Type TypeSpecification::GetType() const { return type_; }
 
 TypeSpecification::Type TypeSpecification::ResolveType(const TypeSpecifierSet& set) {
-    if (set.has_signed && set.has_unsigned) {
-        throw std::runtime_error("cannot combine 'signed' and 'unsigned'");
+    uint32_t counts_int = set.counts[(int)(TypeSpecifierSet::Specifier::Int)];
+    uint32_t counts_long = set.counts[(int)(TypeSpecifierSet::Specifier::Long)];
+    uint32_t counts_signed = set.counts[(int)(TypeSpecifierSet::Specifier::Signed)];
+    uint32_t counts_unsigned = set.counts[(int)(TypeSpecifierSet::Specifier::Unsigned)];
+    uint32_t counts_double = set.counts[(int)(TypeSpecifierSet::Specifier::Double)];
+
+    if (counts_int > 1) {
+        throw std::runtime_error(
+            "cannot combine 'int' with previous 'int' type specifier");
+    } else if (counts_long > 2) {
+        throw std::runtime_error(
+            "cannot combine 'long' with previous 'long' type specifier");
+    } else if (counts_signed > 1) {
+        throw std::runtime_error(
+            "cannot combine 'signed' with previous 'signed' type specifier");
+    } else if (counts_unsigned > 1) {
+        throw std::runtime_error(
+            "cannot combine 'unsigned' with previous 'unsigned' type specifier");
+    } else if (counts_double > 1) {
+        throw std::runtime_error(
+            "cannot combine 'double' with previous 'double' type specifier");
     }
 
-    if (set.has_long) {
-        return set.has_unsigned ? Type::ULong : Type::Long;
-    } else {
-        return set.has_unsigned ? Type::UInt : Type::Int;
+    if (counts_double == 1 &&
+        (counts_int > 0 || counts_long > 0 || counts_signed > 0 || counts_unsigned > 0)) {
+        throw std::runtime_error(
+            "cannot combine 'double' with previous 'int', 'long', 'signed', or "
+            "'unsigned' type specifier");
     }
+
+    if (counts_unsigned > 0 && counts_signed > 0) {
+        throw std::runtime_error(
+            "cannot combine 'unsigned' with 'signed' type specifier");
+    }
+
+    if (counts_unsigned > 0 && counts_long > 0) {
+        return Type::ULong;
+    } else if (counts_unsigned > 0) {
+        return Type::UInt;
+    } else if (counts_long > 0) {
+        return Type::Long;
+    } else if (counts_signed > 0 || counts_int > 0) {
+        return Type::Int;
+    } else if (counts_double > 0) {
+        return Type::Double;
+    }
+    throw std::runtime_error("invalid type specifier set");
 }
 
 std::string TypeSpecification::GetTypeName() const {
@@ -93,6 +131,8 @@ std::string TypeSpecification::GetTypeName() const {
             return "unsigned int";
         case Type::ULong:
             return "unsigned long";
+        case Type::Double:
+            return "double";
     }
 }
 
@@ -102,11 +142,7 @@ void TypeSpecification::Accept(Visitor* visitor) { visitor->Visit(this); }
 
 DeclarationSpecifiers::DeclarationSpecifiers(const DeclarationSpecifierSet& specifiers)
     : type_(std::make_unique<TypeSpecification>(specifiers.type_specifiers)),
-      storage_class_(ResolveStorageClass(specifiers.storage_class_specifiers)),
-      has_type_specifier_(specifiers.type_specifiers.has_signed ||
-                          specifiers.type_specifiers.has_unsigned ||
-                          specifiers.type_specifiers.has_int ||
-                          specifiers.type_specifiers.has_long) {}
+      storage_class_(ResolveStorageClass(specifiers.storage_class_specifiers)) {}
 
 void DeclarationSpecifiers::Accept(Visitor* visitor) { visitor->Visit(this); }
 
@@ -116,7 +152,7 @@ TypeSpecification* DeclarationSpecifiers::GetTypeSpecification() const {
 
 StorageClass DeclarationSpecifiers::GetStorageClass() const { return storage_class_; }
 
-bool DeclarationSpecifiers::HasTypeSpecifier() const { return has_type_specifier_; }
+bool DeclarationSpecifiers::HasTypeSpecifier() const { return true; }
 
 bool DeclarationSpecifiers::IsStatic() const {
     return storage_class_ == StorageClass::Static;

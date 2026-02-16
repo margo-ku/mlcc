@@ -2,7 +2,7 @@
 #include <memory>
 
 #include "include/ast/translation_unit.h"
-#include "include/types/integral_constant.h"
+#include "include/types/numeric_constant.h"
 #include "include/types/type.h"
 
 class Visitor;
@@ -23,11 +23,12 @@ private:
 
 class PrimaryExpression : public Expression {
 public:
-    explicit PrimaryExpression(IntegralConstant value);
+    explicit PrimaryExpression(NumericConstant value);
     explicit PrimaryExpression(int value) : value_(value) {}
     explicit PrimaryExpression(long value) : value_(value) {}
     explicit PrimaryExpression(unsigned int value) : value_(value) {}
     explicit PrimaryExpression(unsigned long value) : value_(value) {}
+    explicit PrimaryExpression(double value) : value_(value) {}
 
     virtual ~PrimaryExpression() = default;
     void Accept(Visitor* visitor) override;
@@ -42,12 +43,13 @@ public:
         return value_.Get<T>();
     }
 
-    IntegralConstant GetValue() const;
+    NumericConstant GetValue() const;
+    NumericConstant& GetValue();
 
     std::string ToString() const;
 
 private:
-    IntegralConstant value_;
+    NumericConstant value_;
 };
 
 ///////////////////////////////////////////////
