@@ -16,29 +16,6 @@ int FrameStackAllocator::GetLocalOffset(const std::string& name, int size) {
     return -frame.offsets.at(name);
 }
 
-int FrameStackAllocator::GetArgumentOffset(std::string name, int size) const {
-    if (name.find("arg..") == std::string::npos) {
-        throw std::runtime_error("Invalid argument name: " + name);
-    }
-    name = name.substr(5);
-    int index = 0;
-    try {
-        index = std::stoi(name);
-    } catch (const std::invalid_argument& e) {
-        throw std::runtime_error("Invalid argument name: " + name);
-    }
-
-    if (index < 8) {
-        throw std::runtime_error("Argument should be on the stack");
-    }
-
-    return 16 + (index - 8) * 8;  // 16 (FP + LR) + offset
-}
-
-int FrameStackAllocator::GetArgumentOffsetForCaller(int index, int size) const {
-    return index * 8;
-}
-
 int FrameStackAllocator::GetTotalFrameSize() const {
     return frames_.back().current_offset;
 }
@@ -49,28 +26,35 @@ int FrameStackAllocator::GetAlignedFrameSize(int alignment) const {
     return size + padding;
 }
 
-int FrameStackAllocator::ReserveStackArguments(size_t arg_count) {
-    int size = arg_count * 8;
-    int padding = (16 - (size % 16)) % 16;
-    return size + padding;
-}
-
 ///////////////////////////////////////////////
 
 TempRegisterAllocator::TempRegisterAllocator() {
-    available_regs_ = {9, 10, 11, 12, 13, 14, 15};
+    available_gp_regs_ = {9, 10, 11, 12, 13, 14, 15};
+    available_simd_regs_ = {16, 17, 18, 19, 20, 21, 22, 23,
+                            24, 25, 26, 27, 28, 29, 30, 31};
 }
 
-std::shared_ptr<Register> TempRegisterAllocator::Allocate(ASMOperand::Size size) {
-    if (available_regs_.empty()) {
-        throw std::runtime_error("Out of temporary registers");
+std::shared_ptr<Register> TempRegisterAllocator::AllocateGP(ASMOperand::Size size) {
+    if (available_gp_regs_.empty()) {
+        throw std::runtime_error("Out of temporary GP registers");
     }
-    auto it = available_regs_.begin();
+    auto it = available_gp_regs_.begin();
     int reg_num = *it;
-    available_regs_.erase(it);
+    available_gp_regs_.erase(it);
 
     std::string prefix = (size == ASMOperand::Size::Byte8) ? "x" : "w";
     return std::make_shared<Register>(prefix + std::to_string(reg_num));
+}
+
+std::shared_ptr<Register> TempRegisterAllocator::AllocateSIMD() {
+    if (available_simd_regs_.empty()) {
+        throw std::runtime_error("Out of temporary SIMD registers");
+    }
+    auto it = available_simd_regs_.begin();
+    int reg_num = *it;
+    available_simd_regs_.erase(it);
+
+    return std::make_shared<Register>("d" + std::to_string(reg_num));
 }
 
 void TempRegisterAllocator::Free(const std::shared_ptr<Register>& reg) {
@@ -79,6 +63,12 @@ void TempRegisterAllocator::Free(const std::shared_ptr<Register>& reg) {
         return;
     }
 
+    char prefix = name[0];
     int reg_num = std::stoi(name.substr(1));
-    available_regs_.insert(reg_num);
+
+    if (prefix == 'd') {
+        available_simd_regs_.insert(reg_num);
+    } else {
+        available_gp_regs_.insert(reg_num);
+    }
 }

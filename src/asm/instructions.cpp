@@ -1,6 +1,7 @@
 #include "include/asm/instructions.h"
 
 #include <cassert>
+#include <cstring>
 
 #include "include/types/numeric_constant.h"
 
@@ -29,62 +30,43 @@ std::string GlobalDirective::ToString() const { return ".globl " + name_; }
 
 MovInstruction::MovInstruction(std::shared_ptr<ASMOperand> dst,
                                std::shared_ptr<ASMOperand> src)
-    : dst_(dst), src_(src) {}
+    : variant_(Variant::Regular), dst_(dst), src_(src), imm16_(0), shift_(0) {}
+
+MovInstruction::MovInstruction(Variant variant, std::shared_ptr<ASMOperand> dst,
+                               uint16_t imm16, int shift)
+    : variant_(variant), dst_(dst), src_(nullptr), imm16_(imm16), shift_(shift) {
+    assert(variant != Variant::Regular);  // to do: check
+}
 
 std::string MovInstruction::ToString() const {
-    return "mov " + dst_->ToString() + ", " + src_->ToString();
+    if (variant_ == Variant::Regular) {
+        return "mov " + dst_->ToString() + ", " + src_->ToString();
+    }
+
+    std::string op = (variant_ == Variant::MovZ) ? "movz" : "movk";
+    if (shift_ == 0) {
+        return op + " " + dst_->ToString() + ", #" + std::to_string(imm16_);
+    }
+    return op + " " + dst_->ToString() + ", #" + std::to_string(imm16_) + ", lsl #" +
+           std::to_string(shift_);
 }
 
 std::vector<std::shared_ptr<ASMOperand>> MovInstruction::GetOperands() const {
-    return {dst_, src_};
+    if (variant_ == Variant::Regular) {
+        return {dst_, src_};
+    }
+    return {dst_};
 }
 
 void MovInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
-    assert(ops.size() == 2);
-    dst_ = ops[0];
-    src_ = ops[1];
-}
-
-MovzInstruction::MovzInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16,
-                                 int shift)
-    : dst_(dst), imm16_(imm16), shift_(shift) {}
-
-std::vector<std::shared_ptr<ASMOperand>> MovzInstruction::GetOperands() const {
-    return {dst_};
-}
-
-void MovzInstruction::SetOperands(
-    const std::vector<std::shared_ptr<ASMOperand>>& new_operands) {
-    assert(new_operands.size() == 1);
-    dst_ = new_operands[0];
-}
-
-std::string MovzInstruction::ToString() const {
-    if (shift_ == 0) {
-        return "movz " + dst_->ToString() + ", #" + std::to_string(imm16_);
+    if (variant_ == Variant::Regular) {
+        assert(ops.size() == 2);
+        dst_ = ops[0];
+        src_ = ops[1];
+    } else {
+        assert(ops.size() == 1);
+        dst_ = ops[0];
     }
-    return "movz " + dst_->ToString() + ", #" + std::to_string(imm16_) + ", lsl #" +
-           std::to_string(shift_);
-}
-
-MovkInstruction::MovkInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16,
-                                 int shift)
-    : dst_(dst), imm16_(imm16), shift_(shift) {}
-
-std::vector<std::shared_ptr<ASMOperand>> MovkInstruction::GetOperands() const {
-    return {dst_};
-}
-
-void MovkInstruction::SetOperands(
-    const std::vector<std::shared_ptr<ASMOperand>>& new_operands) {
-    assert(new_operands.size() == 1);
-    dst_ = new_operands[0];
-}
-
-std::string MovkInstruction::ToString() const {
-    if (shift_ == 0) return "movk " + dst_->ToString() + ", #" + std::to_string(imm16_);
-    return "movk " + dst_->ToString() + ", #" + std::to_string(imm16_) + ", lsl #" +
-           std::to_string(shift_);
 }
 
 ///////////////////////////////////////////////
@@ -240,101 +222,69 @@ std::string RetInstruction::ToString() const { return "ret"; }
 
 ///////////////////////////////////////////////
 
-LoadInstruction::LoadInstruction(std::shared_ptr<ASMOperand> dst,
-                                 std::shared_ptr<ASMOperand> address)
-    : dst_(dst), address_(address) {}
+LdrInstruction::LdrInstruction(std::shared_ptr<ASMOperand> dst,
+                               std::shared_ptr<ASMOperand> address)
+    : dsts_{std::move(dst)}, address_(std::move(address)) {}
 
-std::string LoadInstruction::ToString() const {
-    return "ldr " + dst_->ToString() + ", " + address_->ToString();
-}
+LdrInstruction::LdrInstruction(std::shared_ptr<ASMOperand> dst1,
+                               std::shared_ptr<ASMOperand> dst2,
+                               std::shared_ptr<ASMOperand> address)
+    : dsts_{std::move(dst1), std::move(dst2)}, address_(std::move(address)) {}
 
-std::vector<std::shared_ptr<ASMOperand>> LoadInstruction::GetOperands() const {
-    return {dst_, address_};
-}
-
-void LoadInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
-    assert(ops.size() == 2);
-    dst_ = ops[0];
-    address_ = ops[1];
-}
-
-///////////////////////////////////////////////
-
-StoreInstruction::StoreInstruction(std::shared_ptr<ASMOperand> src,
-                                   std::shared_ptr<ASMOperand> address)
-    : src_(src), address_(address) {}
-
-std::string StoreInstruction::ToString() const {
-    return "str " + src_->ToString() + ", " + address_->ToString();
-}
-
-std::vector<std::shared_ptr<ASMOperand>> StoreInstruction::GetOperands() const {
-    return {src_, address_};
-}
-
-void StoreInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
-    assert(ops.size() == 2);
-    src_ = ops[0];
-    address_ = ops[1];
-}
-
-///////////////////////////////////////////////
-
-StorePairInstruction::StorePairInstruction(std::shared_ptr<ASMOperand> src1,
-                                           std::shared_ptr<ASMOperand> src2,
-                                           std::shared_ptr<ASMOperand> address)
-    : src1_(std::move(src1)), src2_(std::move(src2)), address_(std::move(address)) {}
-
-std::string StorePairInstruction::ToString() const {
-    return "stp " + src1_->ToString() + ", " + src2_->ToString() + ", " +
+std::string LdrInstruction::ToString() const {
+    if (dsts_.size() == 1) {
+        return "ldr " + dsts_[0]->ToString() + ", " + address_->ToString();
+    }
+    return "ldp " + dsts_[0]->ToString() + ", " + dsts_[1]->ToString() + ", " +
            address_->ToString();
 }
 
-////////////////////////////////////////////////////
+std::vector<std::shared_ptr<ASMOperand>> LdrInstruction::GetOperands() const {
+    std::vector<std::shared_ptr<ASMOperand>> ops = dsts_;
+    ops.push_back(address_);
+    return ops;
+}
 
-LoadPairInstruction::LoadPairInstruction(std::shared_ptr<ASMOperand> dst1,
-                                         std::shared_ptr<ASMOperand> dst2,
-                                         std::shared_ptr<ASMOperand> address)
-    : dst1_(std::move(dst1)), dst2_(std::move(dst2)), address_(std::move(address)) {}
+void LdrInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == dsts_.size() + 1);
+    for (size_t i = 0; i < dsts_.size(); ++i) {
+        dsts_[i] = ops[i];
+    }
+    address_ = ops.back();
+}
 
-std::string LoadPairInstruction::ToString() const {
-    return "ldp " + dst1_->ToString() + ", " + dst2_->ToString() + ", " +
+StrInstruction::StrInstruction(std::shared_ptr<ASMOperand> src,
+                               std::shared_ptr<ASMOperand> address)
+    : srcs_{std::move(src)}, address_(std::move(address)) {}
+
+StrInstruction::StrInstruction(std::shared_ptr<ASMOperand> src1,
+                               std::shared_ptr<ASMOperand> src2,
+                               std::shared_ptr<ASMOperand> address)
+    : srcs_{std::move(src1), std::move(src2)}, address_(std::move(address)) {}
+
+std::string StrInstruction::ToString() const {
+    if (srcs_.size() == 1) {
+        return "str " + srcs_[0]->ToString() + ", " + address_->ToString();
+    }
+    return "stp " + srcs_[0]->ToString() + ", " + srcs_[1]->ToString() + ", " +
            address_->ToString();
 }
 
-///////////////////////////////////////////////
-
-AllocateStackInstruction::AllocateStackInstruction(std::shared_ptr<ASMOperand> size,
-                                                   bool final_size)
-    : size_(std::move(size)), final_size_(final_size) {}
-
-std::string AllocateStackInstruction::ToString() const {
-    return "sub sp, sp, " + size_->ToString();
+std::vector<std::shared_ptr<ASMOperand>> StrInstruction::GetOperands() const {
+    std::vector<std::shared_ptr<ASMOperand>> ops = srcs_;
+    ops.push_back(address_);
+    return ops;
 }
 
-void AllocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
-    if (final_size_) {
-        return;
+void StrInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == srcs_.size() + 1);
+    for (size_t idx = 0; idx < srcs_.size(); ++idx) {
+        srcs_[idx] = ops[idx];
     }
-    size_ = std::move(size);
+    address_ = ops.back();
 }
 
 ///////////////////////////////////////////////
-
-DeallocateStackInstruction::DeallocateStackInstruction(std::shared_ptr<ASMOperand> size,
-                                                       bool final_size)
-    : size_(std::move(size)), final_size_(final_size) {}
-
-std::string DeallocateStackInstruction::ToString() const {
-    return "add sp, sp, " + size_->ToString();
-}
-
-void DeallocateStackInstruction::ChangeSize(std::shared_ptr<ASMOperand> size) {
-    if (final_size_) {
-        return;
-    }
-    size_ = std::move(size);
-}
 
 ///////////////////////////////////////////////
 
@@ -400,9 +350,9 @@ void TruncateInstruction::SetOperands(
 
 ///////////////////////////////////////////////
 
-std::string TextSectionDirective::ToString() const { return ".text"; }
+SectionDirective::SectionDirective(const std::string& name) : name_(name) {}
 
-std::string DataSectionDirective::ToString() const { return ".data"; }
+std::string SectionDirective::ToString() const { return name_; }
 
 StaticVariableDirective::StaticVariableDirective(const std::string& name,
                                                  NumericConstant value, int size,
@@ -425,6 +375,19 @@ std::string StaticVariableDirective::ToString() const {
     } else {
         result += "    .long " + value_.ToString();
     }
+    return result;
+}
+
+DoubleConstantDirective::DoubleConstantDirective(const std::string& name, double value)
+    : name_(name), value_(value) {}
+
+std::string DoubleConstantDirective::ToString() const {
+    std::string result;
+    result += ".p2align 3\n";
+    result += name_ + ":\n";
+    uint64_t bits;
+    std::memcpy(&bits, &value_, sizeof(bits));
+    result += "    .quad " + std::to_string(bits);
     return result;
 }
 

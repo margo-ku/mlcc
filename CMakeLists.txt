@@ -60,9 +60,16 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${mlcc_SOURCE_DIR}/build)
 
 set(
         ASM_SOURCES
+        src/asm/abi_handler.cpp
         src/asm/allocator.cpp
+        src/asm/constant_pool.cpp
+        src/asm/emitter.cpp
+        src/asm/float_lowerer.cpp
         src/asm/instructions.cpp
+        src/asm/int_lowerer.cpp
         src/asm/ir_builder.cpp
+        src/asm/lowerer.cpp
+        src/asm/operand_resolver.cpp
         src/asm/operands.cpp
 )
 

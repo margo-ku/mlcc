@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "include/semantic/symbol_table.h"
+#include "include/tac/instruction.h"
 #include "include/types/numeric_constant.h"
 
 ASMOperand::ASMOperand(Size size) : size_(size) {}
@@ -11,7 +13,9 @@ ASMOperand::Size ASMOperand::GetSize() const { return size_; }
 ///////////////////////////////////////////////
 
 Register::Register(std::string name)
-    : ASMOperand(!name.empty() && name[0] == 'x' ? Size::Byte8 : Size::Byte4),
+    : ASMOperand(!name.empty() && (name[0] == 'x' || name[0] == 'd' || name == "sp")
+                     ? Size::Byte8
+                     : Size::Byte4),
       name_(name) {}
 
 std::string Register::ToString() const { return name_; }
@@ -24,6 +28,8 @@ Immediate::Immediate(NumericConstant value)
 std::string Immediate::ToString() const { return "#" + value_.ToString(); }
 
 NumericConstant Immediate::GetValue() const { return value_; }
+
+void Immediate::SetValue(NumericConstant constant) { value_ = constant; }
 
 ///////////////////////////////////////////////
 
@@ -71,3 +77,24 @@ DataOperand::DataOperand(const std::string& name, Size size)
 std::string DataOperand::ToString() const { return "data@" + name_; }  // debug only
 
 const std::string& DataOperand::GetName() const { return name_; }
+
+///////////////////////////////////////////////
+
+std::shared_ptr<ASMOperand> MakeASMOperand(const TACOperand& tac_operand,
+                                           SymbolTable& symbol_table) {
+    if (tac_operand.IsConstant()) {
+        return std::make_shared<Immediate>(tac_operand.AsConstant());
+    }
+
+    const std::string& identifier = tac_operand.AsIdentifier();
+    if (auto* info = symbol_table.FindByUniqueName(identifier)) {
+        if (info->type) {
+            auto size = static_cast<ASMOperand::Size>(info->type->Size());
+            if (info->HasStaticDuration()) {
+                return std::make_shared<DataOperand>(identifier, size);
+            }
+            return std::make_shared<Pseudo>(identifier, size);
+        }
+    }
+    throw std::runtime_error("Unknown operand: " + tac_operand.ToString());
+}

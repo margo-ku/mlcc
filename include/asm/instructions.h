@@ -74,7 +74,12 @@ private:
 
 class MovInstruction : public ASMInstruction {
 public:
+    enum class Variant { Regular, MovZ, MovK };
+
     MovInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    MovInstruction(Variant variant, std::shared_ptr<ASMOperand> dst, uint16_t imm16,
+                   int shift = 0);
+
     std::string ToString() const override;
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
@@ -82,36 +87,9 @@ public:
         const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
+    Variant variant_;
     std::shared_ptr<ASMOperand> dst_;
     std::shared_ptr<ASMOperand> src_;
-};
-
-class MovzInstruction : public ASMInstruction {
-public:
-    MovzInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16, int shift);
-
-    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(
-        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
-    std::string ToString() const override;
-
-private:
-    std::shared_ptr<ASMOperand> dst_;
-    uint16_t imm16_;
-    int shift_;
-};
-
-class MovkInstruction : public ASMInstruction {
-public:
-    MovkInstruction(std::shared_ptr<ASMOperand> dst, uint16_t imm16, int shift);
-
-    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(
-        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
-    std::string ToString() const override;
-
-private:
-    std::shared_ptr<ASMOperand> dst_;
     uint16_t imm16_;
     int shift_;
 };
@@ -197,9 +175,11 @@ public:
 
 ///////////////////////////////////////////////
 
-class LoadInstruction : public ASMInstruction {
+class LdrInstruction : public ASMInstruction {
 public:
-    LoadInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> address);
+    LdrInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> address);
+    LdrInstruction(std::shared_ptr<ASMOperand> dst1, std::shared_ptr<ASMOperand> dst2,
+                   std::shared_ptr<ASMOperand> address);
     std::string ToString() const override;
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
@@ -207,27 +187,15 @@ public:
         const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
-    std::shared_ptr<ASMOperand> dst_, address_;
-};
-
-class LoadPairInstruction : public ASMInstruction {
-public:
-    LoadPairInstruction(std::shared_ptr<ASMOperand> dst1,
-                        std::shared_ptr<ASMOperand> dst2,
-                        std::shared_ptr<ASMOperand> address);
-
-    std::string ToString() const override;
-
-private:
-    std::shared_ptr<ASMOperand> dst1_;
-    std::shared_ptr<ASMOperand> dst2_;
+    std::vector<std::shared_ptr<ASMOperand>> dsts_;
     std::shared_ptr<ASMOperand> address_;
 };
 
-class StoreInstruction : public ASMInstruction {
+class StrInstruction : public ASMInstruction {
 public:
-    StoreInstruction(std::shared_ptr<ASMOperand> src,
-                     std::shared_ptr<ASMOperand> address);
+    StrInstruction(std::shared_ptr<ASMOperand> src, std::shared_ptr<ASMOperand> address);
+    StrInstruction(std::shared_ptr<ASMOperand> src1, std::shared_ptr<ASMOperand> src2,
+                   std::shared_ptr<ASMOperand> address);
     std::string ToString() const override;
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
@@ -235,48 +203,11 @@ public:
         const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
 
 private:
-    std::shared_ptr<ASMOperand> src_, address_;
-};
-
-class StorePairInstruction : public ASMInstruction {
-public:
-    StorePairInstruction(std::shared_ptr<ASMOperand> src1,
-                         std::shared_ptr<ASMOperand> src2,
-                         std::shared_ptr<ASMOperand> address);
-
-    std::string ToString() const override;
-
-private:
-    std::shared_ptr<ASMOperand> src1_;
-    std::shared_ptr<ASMOperand> src2_;
+    std::vector<std::shared_ptr<ASMOperand>> srcs_;
     std::shared_ptr<ASMOperand> address_;
 };
 
 ///////////////////////////////////////////////
-
-class AllocateStackInstruction : public ASMInstruction {
-public:
-    explicit AllocateStackInstruction(std::shared_ptr<ASMOperand> size,
-                                      bool final_size = false);
-    std::string ToString() const override;
-    void ChangeSize(std::shared_ptr<ASMOperand> size);
-
-private:
-    std::shared_ptr<ASMOperand> size_;
-    bool final_size_;
-};
-
-class DeallocateStackInstruction : public ASMInstruction {
-public:
-    explicit DeallocateStackInstruction(std::shared_ptr<ASMOperand> size,
-                                        bool final_size = false);
-    std::string ToString() const override;
-    void ChangeSize(std::shared_ptr<ASMOperand> size);
-
-private:
-    std::shared_ptr<ASMOperand> size_;
-    bool final_size_;
-};
 
 ///////////////////////////////////////////////
 
@@ -310,16 +241,13 @@ private:
 
 ///////////////////////////////////////////////
 
-class TextSectionDirective : public ASMInstruction {
+class SectionDirective : public ASMInstruction {
 public:
-    TextSectionDirective() = default;
+    explicit SectionDirective(const std::string& name);
     std::string ToString() const override;
-};
 
-class DataSectionDirective : public ASMInstruction {
-public:
-    DataSectionDirective() = default;
-    std::string ToString() const override;
+private:
+    std::string name_;
 };
 
 class StaticVariableDirective : public ASMInstruction {
@@ -333,6 +261,16 @@ private:
     NumericConstant value_;
     int size_;
     bool is_global_;
+};
+
+class DoubleConstantDirective : public ASMInstruction {
+public:
+    DoubleConstantDirective(const std::string& name, double value);
+    std::string ToString() const override;
+
+private:
+    std::string name_;
+    double value_;
 };
 
 ///////////////////////////////////////////////

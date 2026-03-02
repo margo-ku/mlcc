@@ -5,6 +5,9 @@
 
 #include "include/types/numeric_constant.h"
 
+class TACOperand;
+class SymbolTable;
+
 class ASMOperand {
 public:
     enum class Size {
@@ -42,6 +45,7 @@ public:
     explicit Immediate(NumericConstant constant);
     std::string ToString() const override;
     NumericConstant GetValue() const;
+    void SetValue(NumericConstant constant);
 
 private:
     NumericConstant value_;
@@ -92,3 +96,8 @@ public:
 private:
     std::string name_;
 };
+
+///////////////////////////////////////////////
+
+std::shared_ptr<ASMOperand> MakeASMOperand(const TACOperand& tac_operand,
+                                           SymbolTable& symbol_table);

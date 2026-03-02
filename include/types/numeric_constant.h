@@ -48,6 +48,7 @@ public:
     }
 
     const Storage& GetStorage() const;
+    TypeRef GetType() const;
 
 private:
     Storage value_;

@@ -135,7 +135,7 @@ bool Driver::GenerateASM() {
         std::cout << "Starting ASM generation..." << std::endl;
     }
 
-    LinearIRBuilder builder(tac_instructions_, symbol_table_);
+    IRBuilder builder(tac_instructions_, symbol_table_);
     builder.Build();
 
     std::string asm_file = ReplaceExtension(original_filename_, ".s");
@@ -148,7 +148,7 @@ bool Driver::GenerateASM() {
                   << asm_file << std::endl;
         return false;
     }
-    builder.Print(out);
+    builder.GenerateASM(out);
 
     if (debug_output) {
         std::cout << "ASM generation completed successfully" << std::endl;

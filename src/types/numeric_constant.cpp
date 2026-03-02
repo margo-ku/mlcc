@@ -4,6 +4,7 @@
 #include <sstream>
 #include <utility>
 
+#include "include/types/primitive_type.h"
 #include "include/types/type.h"
 
 NumericConstant::NumericConstant(int value) : value_(value) {}
@@ -103,4 +104,19 @@ void NumericConstant::CastTo(TypeRef type) {
     }
 
     throw std::runtime_error("NumericConstant::CastTo: invalid target type");
+}
+
+TypeRef NumericConstant::GetType() const {
+    switch (GetKind()) {
+        case Kind::Int32:
+            return PrimitiveType::GetInt32();
+        case Kind::Int64:
+            return PrimitiveType::GetInt64();
+        case Kind::UInt32:
+            return PrimitiveType::GetUInt32();
+        case Kind::UInt64:
+            return PrimitiveType::GetUInt64();
+        case Kind::Double:
+            return PrimitiveType::GetDouble();
+    }
 }
