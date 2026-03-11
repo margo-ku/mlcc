@@ -407,10 +407,14 @@ void TACVisitor::Visit(FunctionCallExpression* expression) {
 void TACVisitor::Visit(ArgumentExpressionList* list) {
     const auto& arguments = list->GetArguments();
 
+    std::vector<TACOperand> evaluated_args;
     for (size_t index = 0; index < arguments.size(); ++index) {
         arguments[index]->Accept(this);
-        TACOperand src = GetTop();
-        instructions_.back().push_back(TACInstruction::Param(src));
+        evaluated_args.push_back(GetTop());
+    }
+
+    for (const auto& arg : evaluated_args) {
+        instructions_.back().push_back(TACInstruction::Param(arg));
     }
 }
 

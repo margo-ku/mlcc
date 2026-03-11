@@ -4,8 +4,8 @@
 
 void IntLowerer::LowerAssign(const TACInstruction& instr) {
     auto dst = MakeOperand(instr.GetDst());
-    auto lhs = MakeOperand(instr.GetLhs());
-    Emit(std::make_shared<MovInstruction>(dst, lhs));
+    auto src = MakeOperand(instr.GetLhs());
+    Emit(std::make_shared<MovInstruction>(dst, src));
 }
 
 void IntLowerer::LowerBinary(const TACInstruction& instr) {
@@ -46,7 +46,7 @@ void IntLowerer::LowerBinary(const TACInstruction& instr) {
         Emit(std::make_shared<BinaryInstruction>(BinaryOp::Sub, dst, lhs, temp));
         return;
     } else {
-        throw std::runtime_error("Unknown binary operation");
+        throw std::runtime_error("Unknown int binary operation");
     }
 
     Emit(std::make_shared<BinaryInstruction>(op, dst, lhs, rhs));
@@ -99,7 +99,7 @@ void IntLowerer::LowerCompare(const TACInstruction& instr) {
             cond = Condition::Ne;
             break;
         default:
-            throw std::runtime_error("Unknown comparison opcode");
+            throw std::runtime_error("Unknown int comparison opcode");
     }
 
     Emit(std::make_shared<CSetInstruction>(dst, cond));

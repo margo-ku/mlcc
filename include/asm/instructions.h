@@ -7,10 +7,27 @@
 #include "include/types/numeric_constant.h"
 #include "operands.h"
 
-enum class BinaryOp { Add, Sub, Mul, SDiv, UDiv, And, Orr, Eor, Lsl, Asr, Lsr };
-enum class UnaryOp { Neg, Mvn };
-// Signed: Lt, Le, Gt, Ge
-// Unsigned: Lo, Ls, Hi, Hs
+enum class BinaryOp {
+    // integer
+    Add,
+    Sub,
+    Mul,
+    SDiv,
+    UDiv,
+    And,
+    Orr,
+    Eor,
+    Lsl,
+    Asr,
+    Lsr,
+
+    // floating
+    FAdd,
+    FSub,
+    FMul,
+    FDiv
+};
+enum class UnaryOp { Neg, Mvn, FNeg };
 enum class Condition { Eq, Ne, Lt, Le, Gt, Ge, Lo, Ls, Hi, Hs };
 
 inline std::string ConditionToStr(Condition cond) {
@@ -76,11 +93,13 @@ class MovInstruction : public ASMInstruction {
 public:
     enum class Variant { Regular, MovZ, MovK };
 
-    MovInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    MovInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src,
+                   bool is_float = false);
     MovInstruction(Variant variant, std::shared_ptr<ASMOperand> dst, uint16_t imm16,
                    int shift = 0);
 
     std::string ToString() const override;
+    bool IsFloat() const { return is_float_; }
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
     virtual void SetOperands(
@@ -88,6 +107,7 @@ public:
 
 private:
     Variant variant_;
+    bool is_float_;
     std::shared_ptr<ASMOperand> dst_;
     std::shared_ptr<ASMOperand> src_;
     uint16_t imm16_;
@@ -101,6 +121,7 @@ public:
     BinaryInstruction(BinaryOp op, std::shared_ptr<ASMOperand> dst,
                       std::shared_ptr<ASMOperand> lhs, std::shared_ptr<ASMOperand> rhs);
     std::string ToString() const override;
+    BinaryOp GetOp() const { return op_; }
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
     virtual void SetOperands(
@@ -116,6 +137,7 @@ public:
     UnaryInstruction(UnaryOp op, std::shared_ptr<ASMOperand> dst,
                      std::shared_ptr<ASMOperand> operand);
     std::string ToString() const override;
+    UnaryOp GetOp() const { return op_; }
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
     virtual void SetOperands(
@@ -130,8 +152,10 @@ private:
 
 class CompareInstruction : public ASMInstruction {
 public:
-    CompareInstruction(std::shared_ptr<ASMOperand> lhs, std::shared_ptr<ASMOperand> rhs);
+    CompareInstruction(std::shared_ptr<ASMOperand> lhs, std::shared_ptr<ASMOperand> rhs,
+                       bool is_float = false);
     std::string ToString() const override;
+    bool IsFloat() const { return is_float_; }
 
     virtual std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
     virtual void SetOperands(
@@ -139,6 +163,7 @@ public:
 
 private:
     std::shared_ptr<ASMOperand> lhs_, rhs_;
+    bool is_float_;
 };
 
 class CSetInstruction : public ASMInstruction {
@@ -321,4 +346,37 @@ private:
     std::string symbol_;
 };
 
+///////////////////////////////////////////////
+
+class IntToFloatInstruction : public ASMInstruction {
+public:
+    IntToFloatInstruction(std::shared_ptr<ASMOperand> dst,
+                          std::shared_ptr<ASMOperand> src, bool is_signed);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    std::shared_ptr<ASMOperand> src_;
+    bool is_signed_;
+};
+
+class FloatToIntInstruction : public ASMInstruction {
+public:
+    FloatToIntInstruction(std::shared_ptr<ASMOperand> dst,
+                          std::shared_ptr<ASMOperand> src, bool is_signed);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(
+        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    std::shared_ptr<ASMOperand> src_;
+    bool is_signed_;
+};
 ///////////////////////////////////////////////

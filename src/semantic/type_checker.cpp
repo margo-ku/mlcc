@@ -144,13 +144,15 @@ void TypeChecker::Visit(UnaryExpression* expression) {
     }
 
     switch (expression->GetOp()) {
-        case UnaryExpression::UnaryOperator::Minus:
-        case UnaryExpression::UnaryOperator::Plus:
         case UnaryExpression::UnaryOperator::BinaryNot:
             if (!operand_type->IsIntegral()) {
                 ReportError("unary operator requires integral operand");
                 return;
             }
+            expression->SetTypeRef(operand_type);
+            break;
+        case UnaryExpression::UnaryOperator::Minus:
+        case UnaryExpression::UnaryOperator::Plus:
             expression->SetTypeRef(operand_type);
             break;
         case UnaryExpression::UnaryOperator::Not:

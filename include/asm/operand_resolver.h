@@ -25,15 +25,18 @@ private:
 
     void ResolveDataOperand(std::shared_ptr<ASMOperand>& operand,
                             bool is_dst,
+                            bool use_float_register,
                             InstrList& before,
                             InstrList& after);
 
     void ResolveMemoryOperand(std::shared_ptr<ASMOperand>& operand,
                               bool is_dst,
+                              bool use_float_register,
                               InstrList& before,
                               InstrList& after);
 
     void ResolveImmediate(std::shared_ptr<ASMOperand>& operand,
+                          bool use_float_register,
                           ASMOperand::Size target_size,
                           InstrList& before);
 
@@ -48,6 +51,7 @@ private:
                                         uint64_t value,
                                         bool is_32bit);
 
+    bool NeedsFloatRegister(const InstrPtr& instr, size_t operand_idx) const;
     bool IsPureInputInstruction(const InstrPtr& instr) const;
     static bool CanEncodeImm9(int offset);
 

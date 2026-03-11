@@ -34,6 +34,7 @@ void IRBuilder::Build() {
         asm_instructions_.push_back(emitter_.Flatten());
         stack_allocator_.PopFrame();
     }
+    EmitDoubleConstants();
 }
 
 void IRBuilder::PerformLowering(const std::vector<TACInstruction>& instructions) {
@@ -75,6 +76,10 @@ void IRBuilder::PerformLowering(const std::vector<TACInstruction>& instructions)
             case Op::SignExtend:
             case Op::ZeroExtend:
             case Op::Truncate:
+            case Op::DoubleToInt:
+            case Op::DoubleToUInt:
+            case Op::IntToDouble:
+            case Op::UIntToDouble:
                 lowerer.LowerCast(instruction);
                 break;
 
@@ -135,7 +140,6 @@ void IRBuilder::PerformFinalizing() {
     AddFunctionPrologue();
     AddFunctionEpilogue();
     UpdateStackSize();
-    EmitDoubleConstants();
 }
 
 void IRBuilder::AddFunctionDirectives() {
@@ -201,10 +205,13 @@ void IRBuilder::EmitDoubleConstants() {
         return;
     }
 
-    emitter_.EmitBack(std::make_shared<SectionDirective>(".section __TEXT,__literal8"));
+    std::vector<std::shared_ptr<ASMInstruction>> literal_section;
+    literal_section.push_back(
+        std::make_shared<SectionDirective>(".section __TEXT,__literal8"));
     for (const auto& [name, value] : constants) {
-        emitter_.EmitBack(std::make_shared<DoubleConstantDirective>(name, value));
+        literal_section.push_back(std::make_shared<DoubleConstantDirective>(name, value));
     }
+    asm_instructions_.push_back(std::move(literal_section));
 }
 
 void IRBuilder::DeclareStaticVariable(const TACInstruction& instr) {
@@ -245,8 +252,10 @@ void IRBuilder::LowerFunction(const TACInstruction& instr) {
                                : ASMOperand::Size::Byte4;
         auto pseudo = std::make_shared<Pseudo>(arg_name, size);
         auto loc = abi_.NextFormalParameter(param_type);
+        bool is_float = param_type && param_type->IsFloatingPoint();
 
-        emitter_.EmitBack(std::make_shared<MovInstruction>(pseudo, loc.operand));
+        emitter_.EmitBack(
+            std::make_shared<MovInstruction>(pseudo, loc.operand, is_float));
     }
 }
 
@@ -266,8 +275,10 @@ void IRBuilder::LowerCall(const TACInstruction& instr) {
         pending_args_.pop();
 
         auto loc = abi_.NextCallArgument(arg.type);
+        bool is_float = arg.type && arg.type->IsFloatingPoint();
         if (loc.kind == ABIHandler::ArgLocation::Kind::Register) {
-            emitter_.EmitBack(std::make_shared<MovInstruction>(loc.operand, arg.operand));
+            emitter_.EmitBack(
+                std::make_shared<MovInstruction>(loc.operand, arg.operand, is_float));
         } else {
             stack_args.push_back({loc.operand, arg.operand});
         }
@@ -297,7 +308,8 @@ void IRBuilder::LowerCall(const TACInstruction& instr) {
         auto dst = MakeOperand(instr.GetDst());
         auto ret_type = GetType(instr.GetDst());
         auto ret_reg = abi_.GetReturnRegister(ret_type);
-        emitter_.EmitBack(std::make_shared<MovInstruction>(dst, ret_reg));
+        bool is_float = ret_type && ret_type->IsFloatingPoint();
+        emitter_.EmitBack(std::make_shared<MovInstruction>(dst, ret_reg, is_float));
     }
 }
 
@@ -309,8 +321,11 @@ void IRBuilder::LowerControl(const TACInstruction& instr) {
         case TACInstruction::OpCode::Return:
             if (!instr.GetLhs().Empty()) {
                 auto value = MakeOperand(instr.GetLhs());
-                auto return_reg = abi_.GetReturnRegister(GetType(instr.GetLhs()));
-                emitter_.EmitBack(std::make_shared<MovInstruction>(return_reg, value));
+                auto return_type = GetType(instr.GetLhs());
+                auto return_reg = abi_.GetReturnRegister(return_type);
+                bool is_float = return_type && return_type->IsFloatingPoint();
+                emitter_.EmitBack(
+                    std::make_shared<MovInstruction>(return_reg, value, is_float));
             }
             emitter_.EmitBack(std::make_shared<BranchInstruction>(
                 BranchType::Unconditional, GetCurrentExitLabel()));
@@ -357,10 +372,33 @@ std::string IRBuilder::GetCurrentExitLabel() const {
 
 Lowerer& IRBuilder::SelectLowerer(const TACInstruction& instr) {
     TypeRef type;
-    if (!instr.GetDst().Empty()) {
-        type = GetType(instr.GetDst());
-    } else if (!instr.GetLhs().Empty()) {
-        type = GetType(instr.GetLhs());
+
+    using Op = TACInstruction::OpCode;
+    switch (instr.GetOp()) {
+        case Op::DoubleToInt:
+        case Op::DoubleToUInt:
+        case Op::IntToDouble:
+        case Op::UIntToDouble:
+            return float_lowerer_;
+        case Op::Less:
+        case Op::LessEqual:
+        case Op::Greater:
+        case Op::GreaterEqual:
+        case Op::Equal:
+        case Op::NotEqual:
+        case Op::If:
+        case Op::IfFalse:
+            if (!instr.GetLhs().Empty()) {
+                type = GetType(instr.GetLhs());
+            }
+            break;
+        default:
+            if (!instr.GetDst().Empty()) {
+                type = GetType(instr.GetDst());
+            } else if (!instr.GetLhs().Empty()) {
+                type = GetType(instr.GetLhs());
+            }
+            break;
     }
 
     if (type && type->IsFloatingPoint()) {

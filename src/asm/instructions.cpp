@@ -29,18 +29,29 @@ std::string GlobalDirective::ToString() const { return ".globl " + name_; }
 ///////////////////////////////////////////////
 
 MovInstruction::MovInstruction(std::shared_ptr<ASMOperand> dst,
-                               std::shared_ptr<ASMOperand> src)
-    : variant_(Variant::Regular), dst_(dst), src_(src), imm16_(0), shift_(0) {}
+                               std::shared_ptr<ASMOperand> src, bool is_float)
+    : variant_(Variant::Regular),
+      is_float_(is_float),
+      dst_(dst),
+      src_(src),
+      imm16_(0),
+      shift_(0) {}
 
 MovInstruction::MovInstruction(Variant variant, std::shared_ptr<ASMOperand> dst,
                                uint16_t imm16, int shift)
-    : variant_(variant), dst_(dst), src_(nullptr), imm16_(imm16), shift_(shift) {
+    : variant_(variant),
+      is_float_(false),
+      dst_(dst),
+      src_(nullptr),
+      imm16_(imm16),
+      shift_(shift) {
     assert(variant != Variant::Regular);  // to do: check
 }
 
 std::string MovInstruction::ToString() const {
     if (variant_ == Variant::Regular) {
-        return "mov " + dst_->ToString() + ", " + src_->ToString();
+        std::string opcode = is_float_ ? "fmov" : "mov";
+        return opcode + " " + dst_->ToString() + ", " + src_->ToString();
     }
 
     std::string op = (variant_ == Variant::MovZ) ? "movz" : "movk";
@@ -112,6 +123,18 @@ std::string BinaryInstruction::ToString() const {
         case BinaryOp::Lsr:
             opcode = "lsr";
             break;
+        case BinaryOp::FAdd:
+            opcode = "fadd";
+            break;
+        case BinaryOp::FSub:
+            opcode = "fsub";
+            break;
+        case BinaryOp::FMul:
+            opcode = "fmul";
+            break;
+        case BinaryOp::FDiv:
+            opcode = "fdiv";
+            break;
     }
     return opcode + " " + dst_->ToString() + ", " + lhs_->ToString() + ", " +
            rhs_->ToString();
@@ -143,6 +166,9 @@ std::string UnaryInstruction::ToString() const {
         case UnaryOp::Mvn:
             opcode = "mvn";
             break;
+        case UnaryOp::FNeg:
+            opcode = "fneg";
+            break;
     }
     return opcode + " " + dst_->ToString() + ", " + operand_->ToString();
 }
@@ -160,11 +186,12 @@ void UnaryInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>
 ///////////////////////////////////////////////
 
 CompareInstruction::CompareInstruction(std::shared_ptr<ASMOperand> lhs,
-                                       std::shared_ptr<ASMOperand> rhs)
-    : lhs_(lhs), rhs_(rhs) {}
+                                       std::shared_ptr<ASMOperand> rhs, bool is_float)
+    : lhs_(lhs), rhs_(rhs), is_float_(is_float) {}
 
 std::string CompareInstruction::ToString() const {
-    return "cmp " + lhs_->ToString() + ", " + rhs_->ToString();
+    std::string opcode = is_float_ ? "fcmp" : "cmp";
+    return opcode + " " + lhs_->ToString() + ", " + rhs_->ToString();
 }
 
 std::vector<std::shared_ptr<ASMOperand>> CompareInstruction::GetOperands() const {
@@ -371,7 +398,14 @@ std::string StaticVariableDirective::ToString() const {
     }
     result += "_" + name_ + ":\n";
     if (size_ == 8) {
-        result += "    .quad " + value_.ToString();
+        if (value_.IsFloatingPoint()) {
+            double d = value_.AsDouble();
+            uint64_t bits;
+            std::memcpy(&bits, &d, sizeof(bits));
+            result += "    .quad " + std::to_string(bits);
+        } else {
+            result += "    .quad " + value_.ToString();
+        }
     } else {
         result += "    .long " + value_.ToString();
     }
@@ -454,6 +488,52 @@ void StoreGlobalInstruction::SetOperands(
     assert(ops.size() == 2);
     src_ = ops[0];
     base_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+IntToFloatInstruction::IntToFloatInstruction(std::shared_ptr<ASMOperand> dst,
+                                             std::shared_ptr<ASMOperand> src,
+                                             bool is_signed)
+    : dst_(dst), src_(src), is_signed_(is_signed) {}
+
+std::string IntToFloatInstruction::ToString() const {
+    std::string opcode = is_signed_ ? "scvtf" : "ucvtf";
+    return opcode + " " + dst_->ToString() + ", " + src_->ToString();
+}
+
+std::vector<std::shared_ptr<ASMOperand>> IntToFloatInstruction::GetOperands() const {
+    return {dst_, src_};
+}
+
+void IntToFloatInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    src_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+FloatToIntInstruction::FloatToIntInstruction(std::shared_ptr<ASMOperand> dst,
+                                             std::shared_ptr<ASMOperand> src,
+                                             bool is_signed)
+    : dst_(dst), src_(src), is_signed_(is_signed) {}
+
+std::string FloatToIntInstruction::ToString() const {
+    std::string opcode = is_signed_ ? "fcvtzs" : "fcvtzu";
+    return opcode + " " + dst_->ToString() + ", " + src_->ToString();
+}
+
+std::vector<std::shared_ptr<ASMOperand>> FloatToIntInstruction::GetOperands() const {
+    return {dst_, src_};
+}
+
+void FloatToIntInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    src_ = ops[1];
 }
 
 ///////////////////////////////////////////////

@@ -1,5 +1,7 @@
 #include "include/asm/allocator.h"
 
+#include <algorithm>
+
 FrameStackAllocator::FrameStackAllocator() {}
 
 void FrameStackAllocator::PushFrame() { frames_.emplace_back(); }
@@ -10,6 +12,10 @@ int FrameStackAllocator::GetLocalOffset(const std::string& name, int size) {
     auto& frame = frames_.back();
 
     if (!frame.offsets.contains(name)) {
+        int alignment = std::min(size, 8);
+        int padding = (alignment - (frame.current_offset % alignment)) % alignment;
+        frame.current_offset += padding;
+
         frame.current_offset += size;
         frame.offsets[name] = frame.current_offset;
     }

@@ -39,18 +39,12 @@ fractional       ({digit}*\.{digit}+|{digit}+\.)
 {blank}+   { /* skip */ }
 \n+        { loc.lines(yyleng); loc.step(); }
 
-{float_with_exp}[^[:alnum:]_.] {
-    int num_len = yyleng - 1;
-    std::string numtext(yytext, num_len);
-    yyless(num_len);
-    return ParseFloatingLiteral(numtext, loc);
+{float_with_exp} {
+    return ParseFloatingLiteral(yytext, loc);
 }
 
-{fractional}[^[:alnum:]_.] {
-    int num_len = yyleng - 1;
-    std::string numtext(yytext, num_len);
-    yyless(num_len);
-    return ParseFloatingLiteral(numtext, loc);
+{fractional} {
+    return ParseFloatingLiteral(yytext, loc);
 }
 
 {int_decimal}{int_suffix} { return ParseIntegerLiteral(yytext, loc); }
@@ -158,9 +152,6 @@ yy::parser::symbol_type ParseFloatingLiteral(const std::string &str,
     double value = strtod(num_str.c_str(), &endptr);
     if (endptr != num_str.c_str() + num_str.size()) {
         throw yy::parser::syntax_error(loc, "malformed floating constant: " + str);
-    }
-    if (errno == ERANGE) {
-        throw yy::parser::syntax_error(loc, "floating constant out of range: " + str);
     }
     return yy::parser::make_DOUBLE_NUMBER(value, loc);
 }
