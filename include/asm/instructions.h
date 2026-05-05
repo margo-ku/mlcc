@@ -234,8 +234,6 @@ private:
 
 ///////////////////////////////////////////////
 
-///////////////////////////////////////////////
-
 class ExtendInstruction : public ASMInstruction {
 public:
     ExtendInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src,
@@ -314,34 +312,23 @@ private:
     std::string symbol_;
 };
 
-class LoadGlobalInstruction : public ASMInstruction {
+///////////////////////////////////////////////
+
+class GlobalOffsetInstruction : public ASMInstruction {
 public:
-    LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst,
-                          std::shared_ptr<ASMOperand> base, const std::string& symbol);
+    enum class Op { Load, Store, Add };
+    GlobalOffsetInstruction(Op op, std::shared_ptr<ASMOperand> operand,
+                            std::shared_ptr<ASMOperand> base, const std::string& symbol);
+
     std::string ToString() const override;
+    Op GetOp() const;
 
     std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(
-        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
+    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) override;
 
 private:
-    std::shared_ptr<ASMOperand> dst_;
-    std::shared_ptr<ASMOperand> base_;
-    std::string symbol_;
-};
-
-class StoreGlobalInstruction : public ASMInstruction {
-public:
-    StoreGlobalInstruction(std::shared_ptr<ASMOperand> src,
-                           std::shared_ptr<ASMOperand> base, const std::string& symbol);
-    std::string ToString() const override;
-
-    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
-    void SetOperands(
-        const std::vector<std::shared_ptr<ASMOperand>>& new_operands) override;
-
-private:
-    std::shared_ptr<ASMOperand> src_;
+    Op op_;
+    std::shared_ptr<ASMOperand> operand_;
     std::shared_ptr<ASMOperand> base_;
     std::string symbol_;
 };
@@ -379,4 +366,19 @@ private:
     std::shared_ptr<ASMOperand> src_;
     bool is_signed_;
 };
+///////////////////////////////////////////////
+
+class AddressInstruction : public ASMInstruction {
+public:
+    AddressInstruction(std::shared_ptr<ASMOperand> dst, std::shared_ptr<ASMOperand> src);
+    std::string ToString() const override;
+
+    std::vector<std::shared_ptr<ASMOperand>> GetOperands() const override;
+    void SetOperands(const std::vector<std::shared_ptr<ASMOperand>>& ops) override;
+
+private:
+    std::shared_ptr<ASMOperand> dst_;
+    std::shared_ptr<ASMOperand> src_;
+};
+
 ///////////////////////////////////////////////

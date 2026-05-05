@@ -207,17 +207,43 @@ private:
 
 ///////////////////////////////////////////////
 
+class TypeName;
+
 class CastExpression : public Expression {
 public:
-    CastExpression(std::unique_ptr<TypeSpecification> type,
+    CastExpression(std::unique_ptr<TypeName> type_name,
                    std::unique_ptr<Expression> expression);
 
     virtual ~CastExpression() = default;
     void Accept(Visitor* visitor) override;
-    TypeSpecification* GetType() const;
+    TypeName* GetTypeName() const;
     Expression* GetExpression() const;
 
 private:
-    std::unique_ptr<TypeSpecification> type_;
+    std::unique_ptr<TypeName> type_name_;
+    std::unique_ptr<Expression> expression_;
+};
+
+///////////////////////////////////////////////
+
+class AddressExpression : public Expression {
+public:
+    explicit AddressExpression(std::unique_ptr<Expression> expression);
+    virtual ~AddressExpression() = default;
+    void Accept(Visitor* visitor) override;
+    Expression* GetExpression() const;
+
+private:
+    std::unique_ptr<Expression> expression_;
+};
+
+class DereferenceExpression : public Expression {
+public:
+    explicit DereferenceExpression(std::unique_ptr<Expression> expression);
+    virtual ~DereferenceExpression() = default;
+    void Accept(Visitor* visitor) override;
+    Expression* GetExpression() const;
+
+private:
     std::unique_ptr<Expression> expression_;
 };

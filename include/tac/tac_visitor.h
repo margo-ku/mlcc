@@ -8,6 +8,11 @@
 #include "include/tac/instruction.h"
 #include "include/visitors/visitor.h"
 
+struct StackValue {
+    TACOperand operand;
+    bool is_address = false;
+};
+
 class TACVisitor : public Visitor {
 public:
     explicit TACVisitor(SymbolTable& symbol_table);
@@ -26,6 +31,8 @@ public:
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
     void Visit(CastExpression* expression) override;
+    void Visit(AddressExpression* expression) override;
+    void Visit(DereferenceExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -39,6 +46,9 @@ public:
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
+    void Visit(PointerDeclarator* declarator) override;
+    void Visit(TypeName* type_name) override;
+    void Visit(PointerAbstractDeclarator* declarator) override;
 
     void AddStaticVariables();
     std::vector<std::vector<TACInstruction>> GetTACInstructions() const;
@@ -50,16 +60,20 @@ private:
     std::string AllocateTemporary(TypeRef type);
     std::string GetTemporaryName();
     std::string GetUniqueLabelId();
-    TACOperand GetTop();
+    StackValue GetTop();
+    void Push(TACOperand operand);
+    void Push(StackValue value);
 
     SymbolTable& symbol_table_;
     std::vector<std::vector<TACInstruction>> instructions_;
-    std::stack<TACOperand> stack_;
+    std::stack<StackValue> stack_;
     size_t temp_count_ = 0;
     size_t label_id_ = 0;
 
     void ProcessBinaryOr(BinaryExpression* expression);
     void ProcessBinaryAnd(BinaryExpression* expression);
+
+    TACOperand LValueConvert(StackValue value);
 };
 
 void PrintTACInstructions(std::ostream& out,

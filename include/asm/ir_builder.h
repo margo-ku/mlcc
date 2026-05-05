@@ -62,6 +62,7 @@ private:
     void LowerCall(const TACInstruction& instr);
     void LowerControl(const TACInstruction& instr);
     void LowerBranch(const TACInstruction& instr);
+    void LowerPointerOps(const TACInstruction& instr);
 
     Lowerer& SelectLowerer(const TACInstruction& instr);
 

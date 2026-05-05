@@ -1,5 +1,6 @@
 #include "include/ast/expressions.h"
 
+#include "include/ast/declarations.h"
 #include "include/types/numeric_constant.h"
 #include "include/types/type.h"
 #include "include/visitors/visitor.h"
@@ -165,12 +166,28 @@ bool FunctionCallExpression::HasArguments() const { return arguments_.has_value(
 
 ///////////////////////////////////////////////
 
-CastExpression::CastExpression(std::unique_ptr<TypeSpecification> type,
+CastExpression::CastExpression(std::unique_ptr<TypeName> type_name,
                                std::unique_ptr<Expression> expression)
-    : type_(std::move(type)), expression_(std::move(expression)) {}
+    : type_name_(std::move(type_name)), expression_(std::move(expression)) {}
 
 void CastExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
 
-TypeSpecification* CastExpression::GetType() const { return type_.get(); }
+TypeName* CastExpression::GetTypeName() const { return type_name_.get(); }
 
 Expression* CastExpression::GetExpression() const { return expression_.get(); }
+
+///////////////////////////////////////////////
+
+AddressExpression::AddressExpression(std::unique_ptr<Expression> expression)
+    : expression_(std::move(expression)) {}
+
+void AddressExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* AddressExpression::GetExpression() const { return expression_.get(); }
+
+DereferenceExpression::DereferenceExpression(std::unique_ptr<Expression> expression)
+    : expression_(std::move(expression)) {}
+
+void DereferenceExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* DereferenceExpression::GetExpression() const { return expression_.get(); }

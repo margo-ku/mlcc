@@ -12,6 +12,8 @@ public:
     void Visit(FunctionDefinition* function) override;
     void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
+    void Visit(TypeName* type_name) override;
+    void Visit(PointerAbstractDeclarator* declarator) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;
@@ -21,6 +23,8 @@ public:
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
     void Visit(CastExpression* expression) override;
+    void Visit(AddressExpression* expression) override;
+    void Visit(DereferenceExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -34,6 +38,7 @@ public:
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
+    void Visit(PointerDeclarator* declarator) override;
 
 private:
     std::ostream& stream_;

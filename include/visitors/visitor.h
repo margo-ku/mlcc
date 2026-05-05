@@ -11,6 +11,8 @@ public:
     virtual void Visit(FunctionDefinition* function) = 0;
     virtual void Visit(DeclarationSpecifiers* decl_specs) = 0;
     virtual void Visit(TypeSpecification* type) = 0;
+    virtual void Visit(TypeName* type_name) = 0;
+    virtual void Visit(PointerAbstractDeclarator* declarator) = 0;
     virtual void Visit(Declaration* declaration) = 0;
     virtual void Visit(Expression* expression) = 0;
     virtual void Visit(IdExpression* expression) = 0;
@@ -20,6 +22,8 @@ public:
     virtual void Visit(ConditionalExpression* expression) = 0;
     virtual void Visit(AssignmentExpression* expression) = 0;
     virtual void Visit(CastExpression* expression) = 0;
+    virtual void Visit(AddressExpression* expression) = 0;
+    virtual void Visit(DereferenceExpression* expression) = 0;
     virtual void Visit(CompoundStatement* statement) = 0;
     virtual void Visit(ReturnStatement* statement) = 0;
     virtual void Visit(ExpressionStatement* statement) = 0;
@@ -33,4 +37,5 @@ public:
     virtual void Visit(ArgumentExpressionList* list) = 0;
     virtual void Visit(IdentifierDeclarator* declarator) = 0;
     virtual void Visit(FunctionDeclarator* declarator) = 0;
+    virtual void Visit(PointerDeclarator* declarator) = 0;
 };

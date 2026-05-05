@@ -102,6 +102,11 @@ void IRBuilder::PerformLowering(const std::vector<TACInstruction>& instructions)
             case Op::Call:
                 LowerCall(instruction);
                 break;
+            case Op::Load:
+            case Op::Store:
+            case Op::Address:
+                LowerPointerOps(instruction);
+                break;
 
             case Op::StaticVariable:
             default:
@@ -350,6 +355,36 @@ void IRBuilder::LowerBranch(const TACInstruction& instr) {
     lowerer.LowerCompareZero(cond_operand);
     emitter_.EmitBack(std::make_shared<BranchInstruction>(BranchType::Conditional,
                                                           instr.GetLabel(), cond));
+}
+
+void IRBuilder::LowerPointerOps(const TACInstruction& instr) {
+    using Op = TACInstruction::OpCode;
+    switch (instr.GetOp()) {
+        case Op::Address: {
+            auto dst = MakeOperand(instr.GetDst());
+            auto src = MakeOperand(instr.GetLhs());
+            emitter_.EmitBack(std::make_shared<AddressInstruction>(dst, src));
+            break;
+        }
+        case Op::Load: {
+            auto dst = MakeOperand(instr.GetDst());
+            auto base = MakeOperand(instr.GetLhs());
+            auto size = static_cast<ASMOperand::Size>(GetType(instr.GetDst())->Size());
+            auto mem = std::make_shared<IndirectMemory>(base, size);
+            emitter_.EmitBack(std::make_shared<LdrInstruction>(dst, mem));
+            break;
+        }
+        case Op::Store: {
+            auto base = MakeOperand(instr.GetDst());
+            auto src = MakeOperand(instr.GetLhs());
+            auto size = src->GetSize();
+            auto mem = std::make_shared<IndirectMemory>(base, size);
+            emitter_.EmitBack(std::make_shared<StrInstruction>(src, mem));
+            break;
+        }
+        default:
+            throw std::runtime_error("Unknown address opcode");
+    }
 }
 
 TypeRef IRBuilder::GetType(const TACOperand& operand) const {

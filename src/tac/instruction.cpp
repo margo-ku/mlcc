@@ -159,6 +159,18 @@ TACInstruction TACInstruction::UIntToDouble(const TACOperand& dst,
     return TACInstruction(OpCode::UIntToDouble, dst, src, TACOperand(""), "");
 }
 
+TACInstruction TACInstruction::Address(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::Address, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::Load(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::Load, dst, src, TACOperand(""), "");
+}
+
+TACInstruction TACInstruction::Store(const TACOperand& dst, const TACOperand& src) {
+    return TACInstruction(OpCode::Store, dst, src, TACOperand(""), "");
+}
+
 TACInstruction::OpCode TACInstruction::GetOp() const { return op_; }
 
 const TACOperand& TACInstruction::GetDst() const { return dst_; }
@@ -253,6 +265,12 @@ std::string TACInstruction::ToString() const {
                 return "int to double";
             case OpCode::UIntToDouble:
                 return "uint to double";
+            case OpCode::Address:
+                return "address";
+            case OpCode::Load:
+                return "load";
+            case OpCode::Store:
+                return "store";
         }
         return "unknown";
     };
@@ -326,6 +344,17 @@ std::string TACInstruction::ToString() const {
         case OpCode::GoTo:
             out << "goto " << label_;
             break;
+        case OpCode::Address:
+            out << dst_.ToString() << " = get address of " << lhs_.ToString();
+            break;
+        case OpCode::Load:
+            out << dst_.ToString() << " = load " << lhs_.ToString();
+            break;
+        case OpCode::Store:
+            out << "store " << lhs_.ToString() << " into " << dst_.ToString();
+            break;
+        default:
+            throw std::runtime_error("Unknown opcode: " + OpToStr(op_));
     }
 
     return out.str();

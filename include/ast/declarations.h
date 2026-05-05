@@ -13,6 +13,7 @@ public:
     explicit Declarator();
     virtual ~Declarator() = default;
     virtual void Accept(Visitor* visitor) = 0;
+
     virtual std::string GetId() const = 0;
     virtual void SetId(const std::string& id) = 0;
     virtual void SetInitializer(std::unique_ptr<Expression> initializer) = 0;
@@ -27,11 +28,13 @@ public:
     explicit IdentifierDeclarator(std::string id);
     virtual ~IdentifierDeclarator() = default;
     void Accept(Visitor* visitor) override;
+
     std::string GetId() const override;
     void SetId(const std::string& id) override;
     void SetInitializer(std::unique_ptr<Expression> initializer) override;
     Expression* GetInitializer() const override;
     bool HasInitializer() const override;
+
     std::unique_ptr<Expression> ExtractInitializer();
 
 private:
@@ -50,18 +53,40 @@ public:
                                 std::unique_ptr<ParameterList> parameters);
     virtual ~FunctionDeclarator() = default;
     void Accept(Visitor* visitor) override;
-    Declarator* GetDeclarator() const;
-    ParameterList* GetParameters() const;
-    bool HasParameters() const;
+
     std::string GetId() const override;
     void SetId(const std::string& id) override;
     void SetInitializer(std::unique_ptr<Expression> initializer) override;
     Expression* GetInitializer() const override;
     bool HasInitializer() const override;
 
+    Declarator* GetDeclarator() const;
+    ParameterList* GetParameters() const;
+    bool HasParameters() const;
+
 private:
     std::unique_ptr<Declarator> declarator_;
     std::optional<std::unique_ptr<ParameterList>> parameters_;
+};
+
+///////////////////////////////////////////////
+
+class PointerDeclarator : public Declarator {
+public:
+    explicit PointerDeclarator(std::unique_ptr<Declarator> declarator);
+    virtual ~PointerDeclarator() = default;
+    void Accept(Visitor* visitor) override;
+
+    std::string GetId() const override;
+    void SetId(const std::string& id) override;
+    void SetInitializer(std::unique_ptr<Expression> initializer) override;
+    Expression* GetInitializer() const override;
+    bool HasInitializer() const override;
+
+    Declarator* GetDeclarator() const;
+
+private:
+    std::unique_ptr<Declarator> declarator_;
 };
 
 ///////////////////////////////////////////////
@@ -76,6 +101,7 @@ struct TypeSpecifierSet {
     };
     std::vector<uint32_t> counts;
 
+    // to do: update counts len
     TypeSpecifierSet() : counts(5) {}
 
     void Add(Specifier spec) { counts[(int)spec]++; }
@@ -226,4 +252,46 @@ public:
 
 private:
     std::vector<std::unique_ptr<ParameterDeclaration>> parameters_;
+};
+
+///////////////////////////////////////////////
+
+class AbstractDeclarator : public BaseElement {
+public:
+    virtual ~AbstractDeclarator() = default;
+    virtual void Accept(Visitor* visitor) = 0;
+};
+
+///////////////////////////////////////////////
+
+class PointerAbstractDeclarator : public AbstractDeclarator {
+public:
+    explicit PointerAbstractDeclarator(std::unique_ptr<AbstractDeclarator> base = nullptr);
+    virtual ~PointerAbstractDeclarator() = default;
+    void Accept(Visitor* visitor) override;
+
+    AbstractDeclarator* GetBase() const;
+    bool HasBase() const;
+
+private:
+    std::unique_ptr<AbstractDeclarator> base_;
+};
+
+///////////////////////////////////////////////
+
+class TypeName : public BaseElement {
+public:
+    explicit TypeName(const TypeSpecifierSet& specifiers);
+    TypeName(const TypeSpecifierSet& specifiers,
+             std::unique_ptr<AbstractDeclarator> abstract_declarator);
+    virtual ~TypeName() = default;
+    void Accept(Visitor* visitor) override;
+
+    TypeSpecification* GetTypeSpecification() const;
+    AbstractDeclarator* GetAbstractDeclarator() const;
+    bool HasAbstractDeclarator() const;
+
+private:
+    std::unique_ptr<TypeSpecification> type_spec_;
+    std::unique_ptr<AbstractDeclarator> abstract_declarator_;
 };

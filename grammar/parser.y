@@ -41,6 +41,10 @@
     class IdentifierDeclarator;
     class FunctionDeclarator;
     class FunctionCallExpression;
+    class PointerDeclarator;
+    class AbstractDeclarator;
+    class PointerAbstractDeclarator;
+    class TypeName;
 };
 
 %define parse.trace
@@ -103,6 +107,7 @@
 %type <TypeSpecifierSet::Specifier> type_specifier
 %type <StorageClassSpecifierSet::Specifier> storage_class_specifier
 %type <std::unique_ptr<Declarator>> declarator
+%type <std::unique_ptr<Declarator>> direct_declarator
 %type <std::unique_ptr<Declarator>> init_declarator
 %type <std::unique_ptr<Declaration>> declaration
 %type <std::unique_ptr<CompoundStatement>> compound_statement
@@ -137,6 +142,8 @@
 %type <std::unique_ptr<ArgumentExpressionList>> argument_expression_list
 %type <std::unique_ptr<ParameterList>> parameter_list
 %type <std::unique_ptr<ParameterDeclaration>> parameter_declaration
+%type <std::unique_ptr<TypeName>> type_name
+%type <std::unique_ptr<AbstractDeclarator>> abstract_declarator
 
 %%
 %start start;
@@ -181,10 +188,13 @@ type_specifier:
     | DOUBLE { $$ = TypeSpecifierSet::Specifier::Double; };
 
 declarator:
+    STAR declarator { $$ = std::make_unique<PointerDeclarator>(std::move($2)); }
+    | direct_declarator { $$ = std::move($1); };
+
+direct_declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
-    | declarator LPAREN RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1)); }
-    | declarator LPAREN VOID RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1)); }
-    | declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); };
+    | LPAREN declarator RPAREN { $$ = std::move($2); }
+    | direct_declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); };
 
 declaration:
     declaration_specifiers init_declarator SEMI { $$ = std::make_unique<Declaration>(std::move($1), std::move($2)); };
@@ -197,7 +207,8 @@ initializer:
     assignment_expression { $$ = std::move($1); };
 
 parameter_list:
-    parameter_declaration { $$ = std::make_unique<ParameterList>(); $$->AddParameter(std::move($1)); }
+    VOID { $$ = std::make_unique<ParameterList>(); }
+    | parameter_declaration { $$ = std::make_unique<ParameterList>(); $$->AddParameter(std::move($1)); }
     | parameter_list COMMA parameter_declaration { $1->AddParameter(std::move($3)); $$ = std::move($1); };
 
 parameter_declaration:
@@ -311,14 +322,25 @@ multiplicative_expression:
 
 cast_expression:
     unary_expression { $$ = std::move($1); }
-    | LPAREN type_specifier_list RPAREN cast_expression { $$ = std::make_unique<CastExpression>(std::make_unique<TypeSpecification>($2), std::move($4)); };
+    | LPAREN type_name RPAREN cast_expression { $$ = std::make_unique<CastExpression>(std::move($2), std::move($4)); };
+
+type_name:
+    type_specifier_list { $$ = std::make_unique<TypeName>($1); }
+    | type_specifier_list abstract_declarator { $$ = std::make_unique<TypeName>($1, std::move($2)); };
+
+abstract_declarator:
+    STAR { $$ = std::make_unique<PointerAbstractDeclarator>(); }
+    | STAR abstract_declarator { $$ = std::make_unique<PointerAbstractDeclarator>(std::move($2)); }
+    | LPAREN abstract_declarator RPAREN { $$ = std::move($2); };
 
 unary_expression:
     postfix_expression { $$ = std::move($1); }
     | PLUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Plus, std::move($2)); }
     | MINUS unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Minus, std::move($2)); }
     | BIT_NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::BinaryNot, std::move($2)); }
-    | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Not, std::move($2)); };
+    | NOT unary_expression { $$ = std::make_unique<UnaryExpression>(UnaryExpression::UnaryOperator::Not, std::move($2)); }
+    | BIT_AND unary_expression { $$ = std::make_unique<AddressExpression>(std::move($2)); }
+    | STAR unary_expression { $$ = std::make_unique<DereferenceExpression>(std::move($2)); };
 
 postfix_expression:
     primary_expression { $$ = std::move($1); }

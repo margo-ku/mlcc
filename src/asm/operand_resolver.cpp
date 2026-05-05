@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 
+#include "include/asm/instructions.h"
+
 OperandResolver::OperandResolver(FrameStackAllocator& stack_allocator,
                                  TempRegisterAllocator& reg_allocator,
                                  ConstantPool& constant_pool)
@@ -9,8 +11,13 @@ OperandResolver::OperandResolver(FrameStackAllocator& stack_allocator,
       reg_allocator_(reg_allocator),
       constant_pool_(constant_pool) {}
 
-void OperandResolver::ResolveInstruction(const InstrPtr& instr, InstrList& before,
+void OperandResolver::ResolveInstruction(InstrPtr& instr, InstrList& before,
                                          InstrList& after) {
+    if (auto addr = dynamic_cast<AddressInstruction*>(instr.get())) {
+        ResolveVirtualInstructions(instr, before, after);
+        return;
+    }
+
     auto operands = instr->GetOperands();
     if (operands.empty()) {
         return;
@@ -27,6 +34,8 @@ void OperandResolver::ResolveInstruction(const InstrPtr& instr, InstrList& befor
             bool is_dst = (idx == 0 && !IsPureInputInstruction(instr));
             bool use_float_register = NeedsFloatRegister(instr, idx);
             ResolveDataOperand(operands[idx], is_dst, use_float_register, before, after);
+        } else if (std::dynamic_pointer_cast<IndirectMemory>(operands[idx])) {
+            ResolveIndirectMemory(operands[idx], before, after);
         }
     }
 
@@ -35,8 +44,13 @@ void OperandResolver::ResolveInstruction(const InstrPtr& instr, InstrList& befor
     };
 
     ASMOperand::Size target_size = ASMOperand::Size::Byte4;
+    bool include_immediates_in_target_size = false;
+    if (auto compare = dynamic_cast<CompareInstruction*>(instr.get())) {
+        include_immediates_in_target_size = !compare->IsFloat();
+    }
     for (const auto& op : operands) {
-        if (!std::dynamic_pointer_cast<Immediate>(op)) {
+        if (include_immediates_in_target_size ||
+            !std::dynamic_pointer_cast<Immediate>(op)) {
             target_size = max_size(target_size, op->GetSize());
         }
     }
@@ -64,8 +78,8 @@ void OperandResolver::ResolveInstruction(const InstrPtr& instr, InstrList& befor
             if (is_sp_arithmetic) {
                 continue;
             }
-            bool use_float_register = NeedsFloatRegister(instr, idx) ||
-                                      imm->GetValue().IsFloatingPoint();
+            bool use_float_register =
+                NeedsFloatRegister(instr, idx) || imm->GetValue().IsFloatingPoint();
             ResolveImmediate(operands[idx], use_float_register, target_size, before);
         }
     }
@@ -98,11 +112,11 @@ void OperandResolver::ResolveDataOperand(std::shared_ptr<ASMOperand>& operand,
     before.push_back(std::make_shared<AdrpInstruction>(addr_reg, symbol));
 
     if (is_dst) {
-        after.push_back(
-            std::make_shared<StoreGlobalInstruction>(value_reg, addr_reg, symbol));
+        after.push_back(std::make_shared<GlobalOffsetInstruction>(
+            GlobalOffsetInstruction::Op::Store, value_reg, addr_reg, symbol));
     } else {
-        before.push_back(
-            std::make_shared<LoadGlobalInstruction>(value_reg, addr_reg, symbol));
+        before.push_back(std::make_shared<GlobalOffsetInstruction>(
+            GlobalOffsetInstruction::Op::Load, value_reg, addr_reg, symbol));
     }
 
     operand = value_reg;
@@ -112,6 +126,10 @@ void OperandResolver::ResolveMemoryOperand(std::shared_ptr<ASMOperand>& operand,
                                            bool is_dst, bool use_float_register,
                                            InstrList& before, InstrList& after) {
     auto memory = std::dynamic_pointer_cast<MemoryOperand>(operand);
+    if (memory->GetMode() == MemoryOperand::Mode::Offset) {
+        memory = MaterializeLargeOffset(memory, before);
+    }
+
     auto size = memory->GetSize();
     auto reg = use_float_register ? reg_allocator_.AllocateSIMD()
                                   : reg_allocator_.AllocateGP(size);
@@ -164,10 +182,30 @@ void OperandResolver::ResolveFloatImmediate(std::shared_ptr<ASMOperand>& operand
     temps_.push_back(value_reg);
 
     before.push_back(std::make_shared<AdrpInstruction>(addr_reg, const_name));
-    before.push_back(
-        std::make_shared<LoadGlobalInstruction>(value_reg, addr_reg, const_name));
+    before.push_back(std::make_shared<GlobalOffsetInstruction>(
+        GlobalOffsetInstruction::Op::Load, value_reg, addr_reg, const_name));
 
     operand = value_reg;
+}
+
+void OperandResolver::ResolveIndirectMemory(std::shared_ptr<ASMOperand>& operand,
+                                            InstrList& before, InstrList& after) {
+    auto indirect = std::dynamic_pointer_cast<IndirectMemory>(operand);
+    auto pointer = indirect->GetPointer();
+
+    bool is_dst = false;
+    bool use_float_register = false;
+
+    if (std::dynamic_pointer_cast<Pseudo>(pointer)) {
+        ResolvePseudo(pointer);
+        ResolveMemoryOperand(pointer, is_dst, use_float_register, before, after);
+    } else if (std::dynamic_pointer_cast<DataOperand>(pointer)) {
+        ResolveDataOperand(pointer, is_dst, use_float_register, before, after);
+    }
+
+    auto addr_reg = std::dynamic_pointer_cast<Register>(pointer);
+    operand = std::make_shared<MemoryOperand>(addr_reg, indirect->GetOffset(),
+                                              indirect->GetSize());
 }
 
 bool OperandResolver::NeedsFloatRegister(const InstrPtr& instr,
@@ -205,6 +243,54 @@ bool OperandResolver::NeedsFloatRegister(const InstrPtr& instr,
     }
 
     return false;
+}
+
+void OperandResolver::ResolveVirtualInstructions(InstrPtr& instr, InstrList& before,
+                                                 InstrList& after) {
+    if (dynamic_cast<AddressInstruction*>(instr.get())) {
+        ResolveAddress(instr, before, after);
+        return;
+    }
+    throw std::runtime_error("Unknown virtual instruction");
+}
+
+void OperandResolver::ResolveAddress(InstrPtr& instr, InstrList& before,
+                                     InstrList& after) {
+    auto operands = instr->GetOperands();
+    auto dst = operands[0];
+    auto src = operands[1];
+
+    bool is_dst = true;
+    bool use_float_register = false;
+
+    if (std::dynamic_pointer_cast<Pseudo>(dst)) {
+        ResolvePseudo(dst);
+        ResolveMemoryOperand(dst, is_dst, use_float_register, before, after);
+    } else if (std::dynamic_pointer_cast<DataOperand>(dst)) {
+        ResolveDataOperand(dst, is_dst, use_float_register, before, after);
+    }
+
+    auto dst_reg = std::dynamic_pointer_cast<Register>(dst);
+
+    if (auto pseudo_src = std::dynamic_pointer_cast<Pseudo>(src)) {
+        int offset = stack_allocator_.GetLocalOffset(
+            pseudo_src->GetName(), static_cast<int>(pseudo_src->GetSize()));
+        auto x29 = std::make_shared<Register>("x29");
+        auto imm = std::make_shared<Immediate>(NumericConstant(std::abs(offset)));
+        BinaryOp op = (offset < 0) ? BinaryOp::Sub : BinaryOp::Add;
+        instr = std::make_shared<BinaryInstruction>(op, dst_reg, x29, imm);
+        return;
+    }
+
+    if (auto data_src = std::dynamic_pointer_cast<DataOperand>(src)) {
+        std::string symbol = "_" + data_src->GetName();
+        before.push_back(std::make_shared<AdrpInstruction>(dst_reg, symbol));
+        instr = std::make_shared<GlobalOffsetInstruction>(
+            GlobalOffsetInstruction::Op::Add, dst_reg, dst_reg, symbol);
+        return;
+    }
+
+    throw std::runtime_error("Unsupported source operand for AddressInstruction");
 }
 
 std::shared_ptr<MemoryOperand> OperandResolver::MaterializeLargeOffset(

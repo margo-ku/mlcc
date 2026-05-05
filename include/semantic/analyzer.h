@@ -15,10 +15,12 @@ public:
 
     bool HasErrors() const;
     const std::vector<std::string>& GetErrors() const;
-    void UpdateErrors();
 
 private:
-    SymbolTable& symbol_table_;
+    bool RunPass(TranslationUnit* translation_unit, Visitor& pass,
+                 const std::vector<std::string>& errors);
+    void AppendErrors(const std::vector<std::string>& errors);
+
     SymbolResolver symbol_resolver_;
     TypeChecker type_checker_;
     LoopAnalyzer loop_analyzer_;

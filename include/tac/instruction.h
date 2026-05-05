@@ -66,6 +66,9 @@ public:
         DoubleToUInt,
         IntToDouble,
         UIntToDouble,
+        Address,
+        Load,
+        Store,
     };
 
     static TACInstruction Label(const std::string& label);
@@ -97,6 +100,11 @@ public:
     static TACInstruction DoubleToUInt(const TACOperand& dst, const TACOperand& src);
     static TACInstruction IntToDouble(const TACOperand& dst, const TACOperand& src);
     static TACInstruction UIntToDouble(const TACOperand& dst, const TACOperand& src);
+
+    static TACInstruction Address(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction Load(const TACOperand& dst, const TACOperand& src);
+    static TACInstruction Store(const TACOperand& dst,
+                                const TACOperand& src);  // src == result, dst == address
 
     std::string ToString() const;
     OpCode GetOp() const;

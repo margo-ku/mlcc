@@ -3,6 +3,20 @@
 #include "include/ast/declarations.h"
 #include "include/ast/expressions.h"
 
+namespace {
+
+FunctionDeclarator* GetFunctionDeclarator(Declarator* declarator) {
+    if (auto* func = dynamic_cast<FunctionDeclarator*>(declarator)) {
+        return func;
+    }
+    if (auto* ptr = dynamic_cast<PointerDeclarator*>(declarator)) {
+        return GetFunctionDeclarator(ptr->GetDeclarator());
+    }
+    return nullptr;
+}
+
+}  // namespace
+
 SymbolResolver::SymbolResolver(SymbolTable& symbol_table) : symbol_table_(symbol_table) {
     symbol_table_.EnterScope();
 }
@@ -22,8 +36,7 @@ void SymbolResolver::Visit(ItemList* item_list) {
 }
 
 void SymbolResolver::Visit(FunctionDefinition* function) {
-    auto function_declarator =
-        dynamic_cast<FunctionDeclarator*>(function->GetDeclarator());
+    auto function_declarator = GetFunctionDeclarator(function->GetDeclarator());
     if (!function_declarator) {
         errors_.push_back("function definition is not a function");
         return;
@@ -99,16 +112,20 @@ void SymbolResolver::Visit(ConditionalExpression* expression) {
 }
 
 void SymbolResolver::Visit(AssignmentExpression* expression) {
-    if (!dynamic_cast<IdExpression*>(expression->GetLeftExpression())) {
-        errors_.push_back("left-hand side of assignment is not assignable");
-        return;
-    }
     expression->GetLeftExpression()->Accept(this);
     expression->GetRightExpression()->Accept(this);
 }
 
 void SymbolResolver::Visit(CastExpression* expression) {
-    expression->GetType()->Accept(this);
+    expression->GetTypeName()->Accept(this);
+    expression->GetExpression()->Accept(this);
+}
+
+void SymbolResolver::Visit(AddressExpression* expression) {
+    expression->GetExpression()->Accept(this);
+}
+
+void SymbolResolver::Visit(DereferenceExpression* expression) {
     expression->GetExpression()->Accept(this);
 }
 
@@ -245,6 +262,20 @@ void SymbolResolver::Visit(FunctionDeclarator* declarator) {
         declarator->GetParameters()->Accept(this);
         symbol_table_.ExitScope();
         current_storage_class_ = saved_storage_class;
+    }
+}
+
+void SymbolResolver::Visit(PointerDeclarator* declarator) {
+    declarator->GetDeclarator()->Accept(this);
+}
+
+void SymbolResolver::Visit(TypeName* type_name) {
+    type_name->GetTypeSpecification()->Accept(this);
+}
+
+void SymbolResolver::Visit(PointerAbstractDeclarator* declarator) {
+    if (declarator->HasBase()) {
+        declarator->GetBase()->Accept(this);
     }
 }
 

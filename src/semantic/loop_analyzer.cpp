@@ -57,7 +57,7 @@ void LoopAnalyzer::Visit(AssignmentExpression* expression) {
 }
 
 void LoopAnalyzer::Visit(CastExpression* expression) {
-    expression->GetType()->Accept(this);
+    expression->GetTypeName()->Accept(this);
     expression->GetExpression()->Accept(this);
 }
 
@@ -151,6 +151,20 @@ void LoopAnalyzer::Visit(FunctionDeclarator* declarator) {
         declarator->GetParameters()->Accept(this);
     }
 }
+
+void LoopAnalyzer::Visit(AddressExpression* expression) {
+    expression->GetExpression()->Accept(this);
+}
+
+void LoopAnalyzer::Visit(DereferenceExpression* expression) {
+    expression->GetExpression()->Accept(this);
+}
+
+void LoopAnalyzer::Visit(PointerDeclarator* declarator) {}
+
+void LoopAnalyzer::Visit(TypeName* type_name) {}
+
+void LoopAnalyzer::Visit(PointerAbstractDeclarator* declarator) {}
 
 const std::vector<std::string>& LoopAnalyzer::GetErrors() const { return errors_; }
 

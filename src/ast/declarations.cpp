@@ -64,6 +64,29 @@ bool FunctionDeclarator::HasInitializer() const { return false; }
 
 ///////////////////////////////////////////////
 
+PointerDeclarator::PointerDeclarator(std::unique_ptr<Declarator> declarator)
+    : declarator_(std::move(declarator)) {}
+
+void PointerDeclarator::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+std::string PointerDeclarator::GetId() const { return declarator_->GetId(); }
+
+void PointerDeclarator::SetId(const std::string& id) { declarator_->SetId(id); }
+
+void PointerDeclarator::SetInitializer(std::unique_ptr<Expression> initializer) {
+    declarator_->SetInitializer(std::move(initializer));
+}
+
+Expression* PointerDeclarator::GetInitializer() const {
+    return declarator_->GetInitializer();
+}
+
+bool PointerDeclarator::HasInitializer() const { return declarator_->HasInitializer(); }
+
+Declarator* PointerDeclarator::GetDeclarator() const { return declarator_.get(); }
+
+///////////////////////////////////////////////
+
 TypeSpecification::TypeSpecification(Type type) : type_(type) {}
 
 TypeSpecification::TypeSpecification(const TypeSpecifierSet& specifiers)
@@ -261,3 +284,36 @@ std::vector<std::unique_ptr<ParameterDeclaration>>& ParameterList::GetParameters
 void ParameterList::AddParameter(std::unique_ptr<ParameterDeclaration> parameter) {
     parameters_.push_back(std::move(parameter));
 }
+
+///////////////////////////////////////////////
+
+PointerAbstractDeclarator::PointerAbstractDeclarator(
+    std::unique_ptr<AbstractDeclarator> base)
+    : base_(std::move(base)) {}
+
+void PointerAbstractDeclarator::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+AbstractDeclarator* PointerAbstractDeclarator::GetBase() const { return base_.get(); }
+
+bool PointerAbstractDeclarator::HasBase() const { return base_ != nullptr; }
+
+///////////////////////////////////////////////
+
+TypeName::TypeName(const TypeSpecifierSet& specifiers)
+    : type_spec_(std::make_unique<TypeSpecification>(specifiers)),
+      abstract_declarator_(nullptr) {}
+
+TypeName::TypeName(const TypeSpecifierSet& specifiers,
+                   std::unique_ptr<AbstractDeclarator> abstract_declarator)
+    : type_spec_(std::make_unique<TypeSpecification>(specifiers)),
+      abstract_declarator_(std::move(abstract_declarator)) {}
+
+void TypeName::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+TypeSpecification* TypeName::GetTypeSpecification() const { return type_spec_.get(); }
+
+AbstractDeclarator* TypeName::GetAbstractDeclarator() const {
+    return abstract_declarator_.get();
+}
+
+bool TypeName::HasAbstractDeclarator() const { return abstract_declarator_ != nullptr; }

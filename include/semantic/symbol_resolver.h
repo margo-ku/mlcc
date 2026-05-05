@@ -23,6 +23,8 @@ public:
     void Visit(ConditionalExpression* expression) override;
     void Visit(AssignmentExpression* expression) override;
     void Visit(CastExpression* expression) override;
+    void Visit(AddressExpression* expression) override;
+    void Visit(DereferenceExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -36,6 +38,9 @@ public:
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
+    void Visit(PointerDeclarator* declarator) override;
+    void Visit(TypeName* type_name) override;
+    void Visit(PointerAbstractDeclarator* declarator) override;
 
     const std::vector<std::string>& GetErrors() const;
 

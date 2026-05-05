@@ -9,7 +9,7 @@ public:
     enum class Kind {
         Primitive,
         Function,
-        // Pointer, Void, Array, Struct, etc.
+        Pointer  //, Void, Array, Struct, etc.
     };
 
     explicit Type(Kind kind) : kind_(kind) {}
@@ -19,12 +19,14 @@ public:
     virtual size_t Size() const = 0;
     virtual size_t Alignment() const = 0;
 
-    virtual bool IsIntegral() const = 0;
-    virtual bool IsArithmetic() const = 0;
-    virtual bool IsSigned() const = 0;
-    virtual bool IsInt() const = 0;
-    virtual bool IsLong() const = 0;
-    virtual bool IsFloatingPoint() const = 0;
+    virtual bool IsIntegral() const { return false; }
+    virtual bool IsArithmetic() const { return false; }
+    virtual bool IsSigned() const { return false; }
+    virtual bool IsInt() const { return false; }
+    virtual bool IsLong() const { return false; }
+    virtual bool IsFloatingPoint() const { return false; }
+    virtual bool IsFunction() const { return false; }
+    virtual bool IsPointer() const { return false; }
 
     virtual std::string ToString() const = 0;
 

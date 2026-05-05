@@ -24,9 +24,34 @@ void PrintVisitor::Visit(ItemList* item_list) {
 void PrintVisitor::Visit(FunctionDefinition* function) {
     PrintTabs();
     stream_ << "FunctionDefinition: function ";
-    function->GetDeclarator()->Accept(this);
+    
+    Declarator* declarator = function->GetDeclarator();
+    FunctionDeclarator* func_decl = nullptr;
+    int pointer_count = 0;
+    
+    while (declarator) {
+        if (auto* fd = dynamic_cast<FunctionDeclarator*>(declarator)) {
+            func_decl = fd;
+            break;
+        } else if (auto* pd = dynamic_cast<PointerDeclarator*>(declarator)) {
+            pointer_count++;
+            declarator = pd->GetDeclarator();
+        } else {
+            break;
+        }
+    }
+    
+    if (func_decl) {
+        func_decl->Accept(this);
+    } else {
+        function->GetDeclarator()->Accept(this);
+    }
+    
     stream_ << " with return type ";
     function->GetReturnType()->Accept(this);
+    for (int i = 0; i < pointer_count; ++i) {
+        stream_ << "*";
+    }
     stream_ << std::endl;
 
     number_of_tabs_++;
@@ -39,6 +64,20 @@ void PrintVisitor::Visit(DeclarationSpecifiers* decl_specs) {
 }
 
 void PrintVisitor::Visit(TypeSpecification* type) { stream_ << type->GetTypeName(); }
+
+void PrintVisitor::Visit(TypeName* type_name) {
+    type_name->GetTypeSpecification()->Accept(this);
+    if (type_name->HasAbstractDeclarator()) {
+        type_name->GetAbstractDeclarator()->Accept(this);
+    }
+}
+
+void PrintVisitor::Visit(PointerAbstractDeclarator* declarator) {
+    stream_ << "*";
+    if (declarator->HasBase()) {
+        declarator->GetBase()->Accept(this);
+    }
+}
 
 void PrintVisitor::Visit(Declaration* declaration) {
     PrintTabs();
@@ -156,8 +195,18 @@ void PrintVisitor::Visit(AssignmentExpression* expression) {
 
 void PrintVisitor::Visit(CastExpression* expression) {
     stream_ << "(";
-    expression->GetType()->Accept(this);
+    expression->GetTypeName()->Accept(this);
     stream_ << ")";
+    expression->GetExpression()->Accept(this);
+}
+
+void PrintVisitor::Visit(AddressExpression* expression) {
+    stream_ << "&";
+    expression->GetExpression()->Accept(this);
+}
+
+void PrintVisitor::Visit(DereferenceExpression* expression) {
+    stream_ << "*";
     expression->GetExpression()->Accept(this);
 }
 
@@ -308,6 +357,11 @@ void PrintVisitor::Visit(FunctionDeclarator* declarator) {
         declarator->GetParameters()->Accept(this);
     }
     stream_ << ")";
+}
+
+void PrintVisitor::Visit(PointerDeclarator* declarator) {
+    stream_ << "*";
+    declarator->GetDeclarator()->Accept(this);
 }
 
 void PrintVisitor::PrintTabs() const {

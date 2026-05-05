@@ -86,6 +86,24 @@ private:
 
 ///////////////////////////////////////////////
 
+class IndirectMemory : public ASMOperand {
+public:
+    IndirectMemory(std::shared_ptr<ASMOperand> pointer, Size size);
+    IndirectMemory(std::shared_ptr<ASMOperand> pointer, int offset, Size size);
+
+    std::string ToString() const override;
+
+    const std::shared_ptr<ASMOperand>& GetPointer() const;
+    int GetOffset() const;
+    bool HasOffset() const;
+
+private:
+    std::shared_ptr<ASMOperand> pointer_;
+    int offset_ = 0;
+};
+
+///////////////////////////////////////////////
+
 class DataOperand : public ASMOperand {
 public:
     DataOperand(const std::string& name, Size size);

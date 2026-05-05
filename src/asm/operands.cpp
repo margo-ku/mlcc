@@ -80,6 +80,30 @@ const std::string& DataOperand::GetName() const { return name_; }
 
 ///////////////////////////////////////////////
 
+IndirectMemory::IndirectMemory(std::shared_ptr<ASMOperand> pointer, Size size)
+    : ASMOperand(size), pointer_(std::move(pointer)) {}
+
+IndirectMemory::IndirectMemory(std::shared_ptr<ASMOperand> pointer, int offset, Size size)
+    : ASMOperand(size), pointer_(std::move(pointer)), offset_(offset) {}
+
+std::string IndirectMemory::ToString() const {
+    std::ostringstream out;
+    out << "[" << pointer_->ToString();
+    if (offset_) {
+        out << ", #" << offset_;
+    }
+    out << "]";
+    return out.str();
+}
+
+const std::shared_ptr<ASMOperand>& IndirectMemory::GetPointer() const { return pointer_; }
+
+int IndirectMemory::GetOffset() const { return offset_; }
+
+bool IndirectMemory::HasOffset() const { return offset_ != 0; }
+
+///////////////////////////////////////////////
+
 std::shared_ptr<ASMOperand> MakeASMOperand(const TACOperand& tac_operand,
                                            SymbolTable& symbol_table) {
     if (tac_operand.IsConstant()) {

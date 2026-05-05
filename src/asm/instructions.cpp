@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <sstream>
 
 #include "include/types/numeric_constant.h"
 
@@ -446,47 +447,48 @@ void AdrpInstruction::SetOperands(const std::vector<std::shared_ptr<ASMOperand>>
 
 ///////////////////////////////////////////////
 
-LoadGlobalInstruction::LoadGlobalInstruction(std::shared_ptr<ASMOperand> dst,
-                                             std::shared_ptr<ASMOperand> base,
-                                             const std::string& symbol)
-    : dst_(dst), base_(base), symbol_(symbol) {}
+GlobalOffsetInstruction::GlobalOffsetInstruction(Op op,
+                                                 std::shared_ptr<ASMOperand> operand,
+                                                 std::shared_ptr<ASMOperand> base,
+                                                 const std::string& symbol)
+    : op_(op),
+      operand_(std::move(operand)),
+      base_(std::move(base)),
+      symbol_(symbol) {}
 
-std::string LoadGlobalInstruction::ToString() const {
-    return "ldr " + dst_->ToString() + ", [" + base_->ToString() + ", " + symbol_ +
-           "@PAGEOFF]";
+std::string GlobalOffsetInstruction::ToString() const {
+    std::ostringstream out;
+    switch (op_) {
+        case Op::Add: {
+            out << "add";
+            break;
+        }
+        case Op::Load: {
+            out << "ldr";
+            break;
+        }
+        case Op::Store: {
+            out << "str";
+            break;
+        }
+    }
+
+    bool is_add = op_ == Op::Add;
+    out << " " << operand_->ToString() << ", " << (is_add ? "" : "[") << base_->ToString()
+        << ", " << symbol_ << "@PAGEOFF" << (is_add ? "" : "]");
+    return out.str();
 }
 
-std::vector<std::shared_ptr<ASMOperand>> LoadGlobalInstruction::GetOperands() const {
-    return {dst_, base_};
+GlobalOffsetInstruction::Op GlobalOffsetInstruction::GetOp() const { return op_; }
+
+std::vector<std::shared_ptr<ASMOperand>> GlobalOffsetInstruction::GetOperands() const {
+    return {operand_, base_};
 }
 
-void LoadGlobalInstruction::SetOperands(
+void GlobalOffsetInstruction::SetOperands(
     const std::vector<std::shared_ptr<ASMOperand>>& ops) {
     assert(ops.size() == 2);
-    dst_ = ops[0];
-    base_ = ops[1];
-}
-
-///////////////////////////////////////////////
-
-StoreGlobalInstruction::StoreGlobalInstruction(std::shared_ptr<ASMOperand> src,
-                                               std::shared_ptr<ASMOperand> base,
-                                               const std::string& symbol)
-    : src_(src), base_(base), symbol_(symbol) {}
-
-std::string StoreGlobalInstruction::ToString() const {
-    return "str " + src_->ToString() + ", [" + base_->ToString() + ", " + symbol_ +
-           "@PAGEOFF]";
-}
-
-std::vector<std::shared_ptr<ASMOperand>> StoreGlobalInstruction::GetOperands() const {
-    return {src_, base_};
-}
-
-void StoreGlobalInstruction::SetOperands(
-    const std::vector<std::shared_ptr<ASMOperand>>& ops) {
-    assert(ops.size() == 2);
-    src_ = ops[0];
+    operand_ = ops[0];
     base_ = ops[1];
 }
 
@@ -530,6 +532,26 @@ std::vector<std::shared_ptr<ASMOperand>> FloatToIntInstruction::GetOperands() co
 }
 
 void FloatToIntInstruction::SetOperands(
+    const std::vector<std::shared_ptr<ASMOperand>>& ops) {
+    assert(ops.size() == 2);
+    dst_ = ops[0];
+    src_ = ops[1];
+}
+
+///////////////////////////////////////////////
+
+AddressInstruction::AddressInstruction(std::shared_ptr<ASMOperand> dst,
+                                       std::shared_ptr<ASMOperand> src)
+    : dst_(std::move(dst)), src_(std::move(src)) {}
+
+// virtual instruction should not be called
+std::string AddressInstruction::ToString() const { assert(0); }
+
+std::vector<std::shared_ptr<ASMOperand>> AddressInstruction::GetOperands() const {
+    return {dst_, src_};
+}
+
+void AddressInstruction::SetOperands(
     const std::vector<std::shared_ptr<ASMOperand>>& ops) {
     assert(ops.size() == 2);
     dst_ = ops[0];

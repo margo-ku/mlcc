@@ -119,6 +119,7 @@ set(
         src/types/function_type.cpp
         src/types/primitive_type.cpp
         src/types/numeric_constant.cpp
+        src/types/pointer_type.cpp
 )
 
 add_executable(
