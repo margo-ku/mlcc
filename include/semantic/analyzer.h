@@ -2,10 +2,11 @@
 
 #include <vector>
 
+#include "include/semantic/declaration_type_checker.h"
+#include "include/semantic/expression_type_checker.h"
 #include "include/semantic/loop_analyzer.h"
 #include "include/semantic/symbol_resolver.h"
 #include "include/semantic/symbol_table.h"
-#include "include/semantic/type_checker.h"
 
 class SemanticAnalyzer {
 public:
@@ -22,7 +23,8 @@ private:
     void AppendErrors(const std::vector<std::string>& errors);
 
     SymbolResolver symbol_resolver_;
-    TypeChecker type_checker_;
+    DeclarationTypeChecker declaration_type_checker_;
+    ExpressionTypeChecker expression_type_checker_;
     LoopAnalyzer loop_analyzer_;
     std::vector<std::string> errors_;
 };

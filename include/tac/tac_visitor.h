@@ -6,22 +6,19 @@
 #include "include/ast/expressions.h"
 #include "include/semantic/symbol_table.h"
 #include "include/tac/instruction.h"
-#include "include/visitors/visitor.h"
+#include "include/visitors/recursive_visitor.h"
 
 struct StackValue {
     TACOperand operand;
     bool is_address = false;
 };
 
-class TACVisitor : public Visitor {
+class TACVisitor : public RecursiveVisitor {
 public:
     explicit TACVisitor(SymbolTable& symbol_table);
 
     void Visit(TranslationUnit* translation_unit) override;
-    void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
-    void Visit(DeclarationSpecifiers* decl_specs) override;
-    void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
     void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;
@@ -33,9 +30,7 @@ public:
     void Visit(CastExpression* expression) override;
     void Visit(AddressExpression* expression) override;
     void Visit(DereferenceExpression* expression) override;
-    void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
-    void Visit(ExpressionStatement* statement) override;
     void Visit(SelectionStatement* statement) override;
     void Visit(JumpStatement* statement) override;
     void Visit(WhileStatement* statement) override;
@@ -47,7 +42,6 @@ public:
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
-    void Visit(PointerDeclarator* declarator) override;
     void Visit(TypeName* type_name) override;
     void Visit(PointerAbstractDeclarator* declarator) override;
     void Visit(ArrayAbstractDeclarator* declarator) override;

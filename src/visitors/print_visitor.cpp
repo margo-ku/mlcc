@@ -15,12 +15,6 @@ void PrintVisitor::Visit(TranslationUnit* translation_unit) {
     number_of_tabs_--;
 }
 
-void PrintVisitor::Visit(ItemList* item_list) {
-    for (auto& item : item_list->GetItems()) {
-        item->Accept(this);
-    }
-}
-
 void PrintVisitor::Visit(FunctionDefinition* function) {
     PrintTabs();
     stream_ << "FunctionDefinition: function ";
@@ -96,8 +90,6 @@ void PrintVisitor::Visit(Declaration* declaration) {
     declaration->GetDeclaration()->Accept(this);
     stream_ << std::endl;
 }
-
-void PrintVisitor::Visit(Expression* expression) {}
 
 void PrintVisitor::Visit(IdExpression* expression) { stream_ << expression->GetId(); }
 
@@ -379,8 +371,6 @@ void PrintVisitor::Visit(PointerDeclarator* declarator) {
     stream_ << "*";
     declarator->GetDeclarator()->Accept(this);
 }
-
-void PrintVisitor::Visit(Initializer* initializer) {}
 
 void PrintVisitor::Visit(SingleInitializer* initializer) {
     initializer->GetExpression()->Accept(this);

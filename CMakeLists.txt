@@ -109,10 +109,14 @@ set(
 set(
         SEMANTIC_SOURCES
         src/semantic/analyzer.cpp
+        src/semantic/declaration_type_checker.cpp
+        src/semantic/declarator_utils.cpp
+        src/semantic/expression_type_checker.cpp
         src/semantic/loop_analyzer.cpp
         src/semantic/semantic_visitor.cpp
         src/semantic/symbol_resolver.cpp
-        src/semantic/type_checker.cpp
+        src/semantic/type_resolver.cpp
+        src/semantic/conversion_rules.cpp
         src/semantic/symbol_table.cpp
 )
 

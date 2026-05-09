@@ -2,13 +2,12 @@
 
 #include <iostream>
 
-#include "visitor.h"
+#include "recursive_visitor.h"
 
-class PrintVisitor : public Visitor {
+class PrintVisitor : public RecursiveVisitor {
 public:
     explicit PrintVisitor(std::ostream& stream);
     void Visit(TranslationUnit* translation_unit) override;
-    void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
     void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
@@ -16,7 +15,6 @@ public:
     void Visit(PointerAbstractDeclarator* declarator) override;
     void Visit(ArrayAbstractDeclarator* declarator) override;
     void Visit(Declaration* declaration) override;
-    void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;
     void Visit(PrimaryExpression* expression) override;
     void Visit(UnaryExpression* expression) override;
@@ -41,7 +39,6 @@ public:
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
     void Visit(PointerDeclarator* declarator) override;
-    void Visit(Initializer* initializer) override;
     void Visit(SingleInitializer* initializer) override;
     void Visit(CompoundInitializer* initializer) override;
 

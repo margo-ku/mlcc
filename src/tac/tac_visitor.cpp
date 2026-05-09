@@ -33,13 +33,6 @@ void TACVisitor::Visit(TranslationUnit* translation_unit) {
     }
 }
 
-void TACVisitor::Visit(ItemList* item_list) {
-    const auto& items = item_list->GetItems();
-    for (auto& item : items) {
-        item->Accept(this);
-    }
-}
-
 void TACVisitor::Visit(FunctionDefinition* function) {
     auto declarator = GetFunctionDeclarator(function->GetDeclarator());
     auto params = declarator->GetParameters();
@@ -64,10 +57,6 @@ void TACVisitor::Visit(FunctionDefinition* function) {
 
     function->GetBody()->Accept(this);
 }
-
-void TACVisitor::Visit(DeclarationSpecifiers* decl_specs) {}
-
-void TACVisitor::Visit(TypeSpecification* type) {}
 
 void TACVisitor::Visit(Declaration* declaration) {
     auto decl = declaration->GetDeclaration();
@@ -279,11 +268,6 @@ void TACVisitor::Visit(CastExpression* expression) {
     Push(TACOperand(dst));
 }
 
-void TACVisitor::Visit(CompoundStatement* statement) {
-    auto body = statement->GetBody();
-    body->Accept(this);
-}
-
 void TACVisitor::Visit(ReturnStatement* statement) {
     TACOperand value = TACOperand("");
     if (statement->HasExpression()) {
@@ -295,12 +279,6 @@ void TACVisitor::Visit(ReturnStatement* statement) {
         instructions_.back().push_back(TACInstruction::Return(value));
     } else {
         instructions_.back().push_back(TACInstruction::Return());
-    }
-}
-
-void TACVisitor::Visit(ExpressionStatement* statement) {
-    if (statement->HasExpression()) {
-        statement->GetExpression()->Accept(this);
     }
 }
 
@@ -473,10 +451,6 @@ void TACVisitor::Visit(DereferenceExpression* expression) {
     expression->GetExpression()->Accept(this);
     TACOperand ptr = LValueConvert(GetTop());
     Push({ptr, true});
-}
-
-void TACVisitor::Visit(PointerDeclarator* declarator) {
-    declarator->GetDeclarator()->Accept(this);
 }
 
 void TACVisitor::Visit(TypeName* type_name) {}
