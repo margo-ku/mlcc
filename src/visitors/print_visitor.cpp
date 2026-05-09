@@ -24,11 +24,11 @@ void PrintVisitor::Visit(ItemList* item_list) {
 void PrintVisitor::Visit(FunctionDefinition* function) {
     PrintTabs();
     stream_ << "FunctionDefinition: function ";
-    
+
     Declarator* declarator = function->GetDeclarator();
     FunctionDeclarator* func_decl = nullptr;
     int pointer_count = 0;
-    
+
     while (declarator) {
         if (auto* fd = dynamic_cast<FunctionDeclarator*>(declarator)) {
             func_decl = fd;
@@ -40,13 +40,13 @@ void PrintVisitor::Visit(FunctionDefinition* function) {
             break;
         }
     }
-    
+
     if (func_decl) {
         func_decl->Accept(this);
     } else {
         function->GetDeclarator()->Accept(this);
     }
-    
+
     stream_ << " with return type ";
     function->GetReturnType()->Accept(this);
     for (int i = 0; i < pointer_count; ++i) {
@@ -77,6 +77,15 @@ void PrintVisitor::Visit(PointerAbstractDeclarator* declarator) {
     if (declarator->HasBase()) {
         declarator->GetBase()->Accept(this);
     }
+}
+
+void PrintVisitor::Visit(ArrayAbstractDeclarator* declarator) {
+    if (declarator->HasBase()) {
+        declarator->GetBase()->Accept(this);
+    }
+    stream_ << "[";
+    declarator->GetSize()->Accept(this);
+    stream_ << "]";
 }
 
 void PrintVisitor::Visit(Declaration* declaration) {
@@ -331,6 +340,13 @@ void PrintVisitor::Visit(FunctionCallExpression* expression) {
     stream_ << ")";
 }
 
+void PrintVisitor::Visit(SubscriptExpression* expression) {
+    expression->GetArrayExpression()->Accept(this);
+    stream_ << "[";
+    expression->GetIndexExpression()->Accept(this);
+    stream_ << "]";
+}
+
 void PrintVisitor::Visit(ArgumentExpressionList* list) {
     bool first = true;
     for (auto& arg : list->GetArguments()) {
@@ -362,6 +378,25 @@ void PrintVisitor::Visit(FunctionDeclarator* declarator) {
 void PrintVisitor::Visit(PointerDeclarator* declarator) {
     stream_ << "*";
     declarator->GetDeclarator()->Accept(this);
+}
+
+void PrintVisitor::Visit(Initializer* initializer) {}
+
+void PrintVisitor::Visit(SingleInitializer* initializer) {
+    initializer->GetExpression()->Accept(this);
+}
+
+void PrintVisitor::Visit(CompoundInitializer* initializer) {
+    stream_ << "{";
+    bool first = true;
+    for (const auto& item : initializer->GetInitializers()) {
+        if (!first) {
+            stream_ << ", ";
+        }
+        item->Accept(this);
+        first = false;
+    }
+    stream_ << "}";
 }
 
 void PrintVisitor::PrintTabs() const {

@@ -97,6 +97,7 @@ set(
 set(
         VISITOR_SOURCES
         src/visitors/print_visitor.cpp
+        src/visitors/recursive_visitor.cpp
 )
 
 set(
@@ -109,6 +110,7 @@ set(
         SEMANTIC_SOURCES
         src/semantic/analyzer.cpp
         src/semantic/loop_analyzer.cpp
+        src/semantic/semantic_visitor.cpp
         src/semantic/symbol_resolver.cpp
         src/semantic/type_checker.cpp
         src/semantic/symbol_table.cpp

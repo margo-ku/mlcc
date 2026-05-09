@@ -207,6 +207,22 @@ private:
 
 ///////////////////////////////////////////////
 
+class SubscriptExpression : public Expression {
+public:
+    SubscriptExpression(std::unique_ptr<Expression> array_expression,
+                        std::unique_ptr<Expression> index_expression);
+    virtual ~SubscriptExpression() = default;
+    void Accept(Visitor* visitor) override;
+    Expression* GetArrayExpression() const;
+    Expression* GetIndexExpression() const;
+
+private:
+    std::unique_ptr<Expression> array_expression_;
+    std::unique_ptr<Expression> index_expression_;
+};
+
+///////////////////////////////////////////////
+
 class TypeName;
 
 class CastExpression : public Expression {
@@ -247,3 +263,5 @@ public:
 private:
     std::unique_ptr<Expression> expression_;
 };
+
+///////////////////////////////////////////////

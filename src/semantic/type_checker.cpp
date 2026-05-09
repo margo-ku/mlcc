@@ -33,6 +33,10 @@ int CountPointerLevelsBeforeFunction(Declarator* declarator) {
     return 0;
 }
 
+SingleInitializer* GetSingleInitializer(Initializer* initializer) {
+    return dynamic_cast<SingleInitializer*>(initializer);
+}
+
 enum class BinaryOpClass { Integral, Arithmetic, Comparison, Equality, Logical };
 
 BinaryOpClass ClassifyBinaryOp(BinaryExpression::BinaryOperator op) {
@@ -591,6 +595,11 @@ void TypeChecker::Visit(FunctionCallExpression* expression) {
 
     expression->SetTypeRef(func_type->GetReturnType());
 }
+
+void TypeChecker::Visit(SubscriptExpression* expression) {
+    // to do
+}
+
 void TypeChecker::Visit(ArgumentExpressionList* list) {
     for (auto& argument : list->GetArguments()) {
         argument->Accept(this);
@@ -627,6 +636,23 @@ void TypeChecker::Visit(PointerDeclarator* declarator) {}
 void TypeChecker::Visit(TypeName* type_name) {}
 
 void TypeChecker::Visit(PointerAbstractDeclarator* declarator) {}
+
+void TypeChecker::Visit(ArrayAbstractDeclarator* declarator) {
+    // to do
+}
+
+void TypeChecker::Visit(Initializer* initializer) {}
+
+void TypeChecker::Visit(SingleInitializer* initializer) {
+    initializer->GetExpression()->Accept(this);
+    initializer->SetTypeRef(initializer->GetExpression()->GetTypeRef());
+}
+
+void TypeChecker::Visit(CompoundInitializer* initializer) {
+    for (auto& item : initializer->GetInitializers()) {
+        item->Accept(this);
+    }
+}
 
 void TypeChecker::Visit(AddressExpression* expression) {
     expression->GetExpression()->Accept(this);
@@ -665,7 +691,8 @@ void TypeChecker::ReportError(const std::string& message) { errors_.push_back(me
 
 bool TypeChecker::IsLValue(Expression* expression) const {
     return dynamic_cast<IdExpression*>(expression) != nullptr ||
-           dynamic_cast<DereferenceExpression*>(expression) != nullptr;
+           dynamic_cast<DereferenceExpression*>(expression) != nullptr ||
+           dynamic_cast<SubscriptExpression*>(expression) != nullptr;
 }
 
 bool TypeChecker::CanCast(TypeRef from, TypeRef to) {
@@ -864,21 +891,40 @@ TypeRef TypeChecker::ResolveAbstractDeclaratorType(TypeRef base_type,
         return nullptr;
     }
 
-    auto* pointer_declarator = dynamic_cast<PointerAbstractDeclarator*>(declarator);
-    if (!pointer_declarator) {
-        ReportError("unsupported abstract declarator in type name");
-        return nullptr;
+    if (auto* array_declarator = dynamic_cast<ArrayAbstractDeclarator*>(declarator)) {
+        if (array_declarator->GetSize()) {
+            array_declarator->GetSize()->Accept(this);
+            if (!array_declarator->GetSize()->GetTypeRef() ||
+                !array_declarator->GetSize()->GetTypeRef()->IsIntegral()) {
+                ReportError("array abstract declarator size must be integral");
+                return nullptr;
+            }
+        }
+        TypeRef resolved_base = base_type;
+        if (array_declarator->HasBase()) {
+            resolved_base =
+                ResolveAbstractDeclaratorType(base_type, array_declarator->GetBase());
+            if (!resolved_base) {
+                return nullptr;
+            }
+        }
+        return std::make_shared<PointerType>(resolved_base);
     }
 
-    TypeRef resolved_base = base_type;
-    if (pointer_declarator->HasBase()) {
-        resolved_base =
-            ResolveAbstractDeclaratorType(base_type, pointer_declarator->GetBase());
-        if (!resolved_base) {
-            return nullptr;
+    if (auto* pointer_declarator = dynamic_cast<PointerAbstractDeclarator*>(declarator)) {
+        TypeRef resolved_base = base_type;
+        if (pointer_declarator->HasBase()) {
+            resolved_base =
+                ResolveAbstractDeclaratorType(base_type, pointer_declarator->GetBase());
+            if (!resolved_base) {
+                return nullptr;
+            }
         }
+        return std::make_shared<PointerType>(resolved_base);
     }
-    return std::make_shared<PointerType>(resolved_base);
+
+    ReportError("unsupported abstract declarator in type name");
+    return nullptr;
 }
 
 std::unique_ptr<TypeName> TypeChecker::GetTypeName(TypeRef type) {
@@ -1063,7 +1109,14 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
     std::optional<NumericConstant> new_init_constant;
 
     if (id_declarator->HasInitializer()) {
-        auto* primary = dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
+        auto* single_init = GetSingleInitializer(id_declarator->GetInitializer());
+        if (!single_init) {
+            ReportError("file scope variable '" + name +
+                        "' has unsupported non-scalar initializer");
+            return false;
+        }
+        auto* init_expr = single_init->GetExpression();
+        auto* primary = dynamic_cast<PrimaryExpression*>(init_expr);
         if (!primary) {
             ReportError("initializer of file scope variable '" + name +
                         "' is not a constant expression");
@@ -1071,17 +1124,17 @@ bool TypeChecker::ProcessFileScopeVariable(IdentifierDeclarator* id_declarator,
         }
         primary->Accept(this);
         new_init_state = SymbolInfo::InitialValue::Initial;
-        TypeRef init_type = primary->GetTypeRef();
+        TypeRef init_type = init_expr->GetTypeRef();
         if (init_type && !init_type->Equals(declared_type)) {
-            auto wrapped = PerformCompileTimeCast(id_declarator->ExtractInitializer(),
-                                                  declared_type);
+            auto wrapped =
+                PerformCompileTimeCast(single_init->ExtractExpression(), declared_type);
             if (!wrapped) {
                 return false;
             }
-            id_declarator->SetInitializer(std::move(wrapped));
+            single_init->SetExpression(std::move(wrapped));
         }
         new_init_constant =
-            dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer())->GetValue();
+            dynamic_cast<PrimaryExpression*>(single_init->GetExpression())->GetValue();
     } else if (storage_class == StorageClass::Extern) {
         new_init_state = SymbolInfo::InitialValue::NoInitializer;
     } else {
@@ -1163,8 +1216,14 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
 
     if (storage_class == StorageClass::Static) {
         if (id_declarator->HasInitializer()) {
+            auto* single_init = GetSingleInitializer(id_declarator->GetInitializer());
+            if (!single_init) {
+                ReportError("local static '" + name +
+                            "' has unsupported non-scalar initializer");
+                return false;
+            }
             auto* primary =
-                dynamic_cast<PrimaryExpression*>(id_declarator->GetInitializer());
+                dynamic_cast<PrimaryExpression*>(single_init->GetExpression());
             if (!primary) {
                 ReportError("non-constant initializer on local static variable '" + name +
                             "'");
@@ -1176,12 +1235,12 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
 
             TypeRef init_type = primary->GetTypeRef();
             if (init_type && !init_type->Equals(declared_type)) {
-                auto converted = ConvertByAssignment(id_declarator->ExtractInitializer(),
-                                                     declared_type);
+                auto converted =
+                    ConvertByAssignment(single_init->ExtractExpression(), declared_type);
                 if (!converted) {
                     return false;
                 }
-                id_declarator->SetInitializer(std::move(converted));
+                single_init->SetExpression(std::move(converted));
             }
         } else {
             info->init_state = SymbolInfo::InitialValue::Initial;
@@ -1195,16 +1254,22 @@ bool TypeChecker::ProcessBlockScopeVariable(IdentifierDeclarator* id_declarator,
     info->type = declared_type;
     info->duration = SymbolInfo::StorageDuration::Automatic;
     if (id_declarator->HasInitializer()) {
-        Expression* init = id_declarator->GetInitializer();
+        auto* single_init = GetSingleInitializer(id_declarator->GetInitializer());
+        if (!single_init) {
+            ReportError("local variable '" + name +
+                        "' has unsupported non-scalar initializer");
+            return false;
+        }
+        Expression* init = single_init->GetExpression();
         init->Accept(this);
         TypeRef init_type = init->GetTypeRef();
         if (init_type && !init_type->Equals(declared_type)) {
             auto converted =
-                ConvertByAssignment(id_declarator->ExtractInitializer(), declared_type);
+                ConvertByAssignment(single_init->ExtractExpression(), declared_type);
             if (!converted) {
                 return false;
             }
-            id_declarator->SetInitializer(std::move(converted));
+            single_init->SetExpression(std::move(converted));
         }
     }
     return true;

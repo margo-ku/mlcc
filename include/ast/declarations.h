@@ -1,12 +1,17 @@
 #pragma once
+#include <memory>
 #include <optional>
+#include <vector>
 
+#include "include/ast/expressions.h"
 #include "include/ast/statements.h"
 #include "include/ast/translation_unit.h"
 
 class Visitor;
 
 ///////////////////////////////////////////////
+
+class Initializer;
 
 class Declarator : public BaseElement {
 public:
@@ -16,8 +21,8 @@ public:
 
     virtual std::string GetId() const = 0;
     virtual void SetId(const std::string& id) = 0;
-    virtual void SetInitializer(std::unique_ptr<Expression> initializer) = 0;
-    virtual Expression* GetInitializer() const = 0;
+    virtual void SetInitializer(std::unique_ptr<Initializer> initializer) = 0;
+    virtual Initializer* GetInitializer() const = 0;
     virtual bool HasInitializer() const = 0;
 };
 
@@ -31,15 +36,15 @@ public:
 
     std::string GetId() const override;
     void SetId(const std::string& id) override;
-    void SetInitializer(std::unique_ptr<Expression> initializer) override;
-    Expression* GetInitializer() const override;
+    void SetInitializer(std::unique_ptr<Initializer> initializer) override;
+    Initializer* GetInitializer() const override;
     bool HasInitializer() const override;
 
-    std::unique_ptr<Expression> ExtractInitializer();
+    std::unique_ptr<Initializer> ExtractInitializer();
 
 private:
     std::string id_;
-    std::optional<std::unique_ptr<Expression>> initializer_;
+    std::optional<std::unique_ptr<Initializer>> initializer_;
 };
 
 ///////////////////////////////////////////////
@@ -56,8 +61,8 @@ public:
 
     std::string GetId() const override;
     void SetId(const std::string& id) override;
-    void SetInitializer(std::unique_ptr<Expression> initializer) override;
-    Expression* GetInitializer() const override;
+    void SetInitializer(std::unique_ptr<Initializer> initializer) override;
+    Initializer* GetInitializer() const override;
     bool HasInitializer() const override;
 
     Declarator* GetDeclarator() const;
@@ -79,14 +84,29 @@ public:
 
     std::string GetId() const override;
     void SetId(const std::string& id) override;
-    void SetInitializer(std::unique_ptr<Expression> initializer) override;
-    Expression* GetInitializer() const override;
+    void SetInitializer(std::unique_ptr<Initializer> initializer) override;
+    Initializer* GetInitializer() const override;
     bool HasInitializer() const override;
 
     Declarator* GetDeclarator() const;
 
 private:
     std::unique_ptr<Declarator> declarator_;
+};
+
+///////////////////////////////////////////////
+
+class ArrayDeclarator : public PointerDeclarator {
+public:
+    explicit ArrayDeclarator(std::unique_ptr<Declarator> declarator,
+                             std::unique_ptr<Expression> size);
+    virtual ~ArrayDeclarator() = default;
+    void Accept(Visitor* visitor) override;
+
+    Expression* GetSize() const;
+
+private:
+    std::unique_ptr<Expression> size_;
 };
 
 ///////////////////////////////////////////////
@@ -266,7 +286,8 @@ public:
 
 class PointerAbstractDeclarator : public AbstractDeclarator {
 public:
-    explicit PointerAbstractDeclarator(std::unique_ptr<AbstractDeclarator> base = nullptr);
+    explicit PointerAbstractDeclarator(
+        std::unique_ptr<AbstractDeclarator> base = nullptr);
     virtual ~PointerAbstractDeclarator() = default;
     void Accept(Visitor* visitor) override;
 
@@ -274,6 +295,24 @@ public:
     bool HasBase() const;
 
 private:
+    std::unique_ptr<AbstractDeclarator> base_;
+};
+
+///////////////////////////////////////////////
+
+class ArrayAbstractDeclarator : public AbstractDeclarator {
+public:
+    explicit ArrayAbstractDeclarator(std::unique_ptr<Expression> size,
+                                     std::unique_ptr<AbstractDeclarator> base = nullptr);
+    virtual ~ArrayAbstractDeclarator() = default;
+    void Accept(Visitor* visitor) override;
+
+    Expression* GetSize() const;
+    AbstractDeclarator* GetBase() const;
+    bool HasBase() const;
+
+private:
+    std::unique_ptr<Expression> size_;
     std::unique_ptr<AbstractDeclarator> base_;
 };
 
@@ -295,3 +334,46 @@ private:
     std::unique_ptr<TypeSpecification> type_spec_;
     std::unique_ptr<AbstractDeclarator> abstract_declarator_;
 };
+
+///////////////////////////////////////////////
+
+class Initializer : public BaseElement {
+public:
+    virtual ~Initializer() = default;
+    virtual void Accept(Visitor* visitor);
+    TypeRef GetTypeRef() const;
+    void SetTypeRef(TypeRef type);
+
+private:
+    TypeRef type_ref_;
+};
+
+class CompoundInitializer : public Initializer {
+public:
+    explicit CompoundInitializer();
+    virtual ~CompoundInitializer() = default;
+    void Accept(Visitor* visitor) override;
+
+    void AddInitializer(std::unique_ptr<Initializer> initializer);
+    const std::vector<std::unique_ptr<Initializer>>& GetInitializers() const;
+    std::vector<std::unique_ptr<Initializer>>& GetInitializers();
+
+private:
+    std::vector<std::unique_ptr<Initializer>> initializers_;
+};
+
+class SingleInitializer : public Initializer {
+public:
+    explicit SingleInitializer(std::unique_ptr<Expression> expression);
+    virtual ~SingleInitializer() = default;
+    void Accept(Visitor* visitor) override;
+
+    Expression* GetExpression() const;
+    void SetExpression(std::unique_ptr<Expression> expression);
+    std::unique_ptr<Expression> ExtractExpression();
+
+private:
+    std::unique_ptr<Expression> expression_;
+};
+
+///////////////////////////////////////////////

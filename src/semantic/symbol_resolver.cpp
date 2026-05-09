@@ -23,27 +23,15 @@ SymbolResolver::SymbolResolver(SymbolTable& symbol_table) : symbol_table_(symbol
 
 SymbolResolver::~SymbolResolver() {}
 
-void SymbolResolver::Visit(TranslationUnit* translation_unit) {
-    for (auto& declaration : translation_unit->GetExternalDeclarations()) {
-        declaration->Accept(this);
-    }
-}
-
-void SymbolResolver::Visit(ItemList* item_list) {
-    for (auto& item : item_list->GetItems()) {
-        item->Accept(this);
-    }
-}
-
 void SymbolResolver::Visit(FunctionDefinition* function) {
     auto function_declarator = GetFunctionDeclarator(function->GetDeclarator());
     if (!function_declarator) {
-        errors_.push_back("function definition is not a function");
+        ReportError("function definition is not a function");
         return;
     }
 
     if (!symbol_table_.IsInFileScope()) {
-        errors_.push_back("function definition is not allowed in local scope");
+        ReportError("function definition is not allowed in local scope");
         return;
     }
 
@@ -51,7 +39,7 @@ void SymbolResolver::Visit(FunctionDefinition* function) {
     if (symbol_table_.IsInCurrentScope(name)) {
         auto existing = symbol_table_.Lookup(name);
         if (existing->linkage != SymbolInfo::LinkageKind::External) {
-            errors_.push_back("conflicting declaration of '" + name + "'");
+            ReportError("conflicting declaration of '" + name + "'");
             return;
         }
     } else {
@@ -69,10 +57,6 @@ void SymbolResolver::Visit(FunctionDefinition* function) {
     symbol_table_.ExitScope();
 }
 
-void SymbolResolver::Visit(DeclarationSpecifiers* decl_specs) {}
-
-void SymbolResolver::Visit(TypeSpecification* type) {}
-
 void SymbolResolver::Visit(Declaration* declaration) {
     StorageClass saved_storage_class = current_storage_class_;
     current_storage_class_ = declaration->GetDeclarationSpecifiers()->GetStorageClass();
@@ -82,51 +66,14 @@ void SymbolResolver::Visit(Declaration* declaration) {
     current_storage_class_ = saved_storage_class;
 }
 
-void SymbolResolver::Visit(Expression* expression) {}
-
 void SymbolResolver::Visit(IdExpression* expression) {
     std::string original_name = expression->GetId();
     auto info = symbol_table_.Lookup(original_name);
     if (!info) {
-        errors_.push_back("use of undeclared variable '" + original_name + "'");
+        ReportError("use of undeclared variable '" + original_name + "'");
         return;
     }
     expression->SetId(info->name);
-}
-
-void SymbolResolver::Visit(PrimaryExpression* expression) {}
-
-void SymbolResolver::Visit(UnaryExpression* expression) {
-    expression->GetExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(BinaryExpression* expression) {
-    expression->GetLeftExpression()->Accept(this);
-    expression->GetRightExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(ConditionalExpression* expression) {
-    expression->GetCondition()->Accept(this);
-    expression->GetLeftExpression()->Accept(this);
-    expression->GetRightExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(AssignmentExpression* expression) {
-    expression->GetLeftExpression()->Accept(this);
-    expression->GetRightExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(CastExpression* expression) {
-    expression->GetTypeName()->Accept(this);
-    expression->GetExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(AddressExpression* expression) {
-    expression->GetExpression()->Accept(this);
-}
-
-void SymbolResolver::Visit(DereferenceExpression* expression) {
-    expression->GetExpression()->Accept(this);
 }
 
 void SymbolResolver::Visit(CompoundStatement* statement) {
@@ -142,33 +89,6 @@ void SymbolResolver::Visit(CompoundStatement* statement) {
     }
 }
 
-void SymbolResolver::Visit(ReturnStatement* statement) {
-    if (statement->HasExpression()) {
-        statement->GetExpression()->Accept(this);
-    }
-}
-
-void SymbolResolver::Visit(ExpressionStatement* statement) {
-    if (statement->HasExpression()) {
-        statement->GetExpression()->Accept(this);
-    }
-}
-
-void SymbolResolver::Visit(SelectionStatement* statement) {
-    statement->GetCondition()->Accept(this);
-    statement->GetThenStatement()->Accept(this);
-    if (statement->HasElseStatement()) {
-        statement->GetElseStatement()->Accept(this);
-    }
-}
-
-void SymbolResolver::Visit(JumpStatement* statement) {}
-
-void SymbolResolver::Visit(WhileStatement* statement) {
-    statement->GetCondition()->Accept(this);
-    statement->GetBody()->Accept(this);
-}
-
 void SymbolResolver::Visit(ForStatement* statement) {
     symbol_table_.EnterScope();
     statement->GetInit()->Accept(this);
@@ -178,31 +98,12 @@ void SymbolResolver::Visit(ForStatement* statement) {
     symbol_table_.ExitScope();
 }
 
-void SymbolResolver::Visit(ParameterDeclaration* declaration) {
-    declaration->GetDeclarator()->Accept(this);
-}
-
-void SymbolResolver::Visit(ParameterList* list) {
-    for (auto& parameter : list->GetParameters()) {
-        parameter->Accept(this);
-    }
-}
-
 void SymbolResolver::Visit(FunctionCallExpression* expression) {
     if (!dynamic_cast<IdExpression*>(expression->GetFunction())) {
-        errors_.push_back("function call target is not an identifier");
+        ReportError("function call target is not an identifier");
         return;
     }
-    expression->GetFunction()->Accept(this);
-    if (expression->HasArguments()) {
-        expression->GetArguments()->Accept(this);
-    }
-}
-
-void SymbolResolver::Visit(ArgumentExpressionList* list) {
-    for (auto& argument : list->GetArguments()) {
-        argument->Accept(this);
-    }
+    SemanticVisitor::Visit(expression);
 }
 
 void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
@@ -213,7 +114,7 @@ void SymbolResolver::Visit(IdentifierDeclarator* declarator) {
     if (symbol_table_.IsInCurrentScope(original_name)) {
         auto existing = symbol_table_.Lookup(original_name);
         if (!has_linkage || !existing->HasLinkage()) {
-            errors_.push_back("conflicting declaration of '" + original_name + "'");
+            ReportError("conflicting declaration of '" + original_name + "'");
             return;
         }
     } else {
@@ -238,14 +139,14 @@ void SymbolResolver::Visit(FunctionDeclarator* declarator) {
 
     if (current_storage_class_ == StorageClass::Static &&
         !symbol_table_.IsInFileScope()) {
-        errors_.push_back("static function declaration is not allowed in local scope");
+        ReportError("static function declaration is not allowed in local scope");
         return;
     }
 
     if (symbol_table_.IsInCurrentScope(original_name)) {
         auto existing = symbol_table_.Lookup(original_name);
         if (existing->linkage != SymbolInfo::LinkageKind::External) {
-            errors_.push_back("conflicting declaration of '" + original_name + "'");
+            ReportError("conflicting declaration of '" + original_name + "'");
             return;
         }
     } else {
@@ -264,19 +165,3 @@ void SymbolResolver::Visit(FunctionDeclarator* declarator) {
         current_storage_class_ = saved_storage_class;
     }
 }
-
-void SymbolResolver::Visit(PointerDeclarator* declarator) {
-    declarator->GetDeclarator()->Accept(this);
-}
-
-void SymbolResolver::Visit(TypeName* type_name) {
-    type_name->GetTypeSpecification()->Accept(this);
-}
-
-void SymbolResolver::Visit(PointerAbstractDeclarator* declarator) {
-    if (declarator->HasBase()) {
-        declarator->GetBase()->Accept(this);
-    }
-}
-
-const std::vector<std::string>& SymbolResolver::GetErrors() const { return errors_; }

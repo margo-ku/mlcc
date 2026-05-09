@@ -1,52 +1,22 @@
 #pragma once
 
-#include <vector>
-
+#include "include/semantic/semantic_visitor.h"
 #include "include/semantic/symbol_table.h"
-#include "include/visitors/visitor.h"
 
-class SymbolResolver : public Visitor {
+class SymbolResolver : public SemanticVisitor {
 public:
     explicit SymbolResolver(SymbolTable& symbol_table);
     virtual ~SymbolResolver();
-    void Visit(TranslationUnit* translation_unit) override;
-    void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
-    void Visit(DeclarationSpecifiers* decl_specs) override;
-    void Visit(TypeSpecification* type) override;
     void Visit(Declaration* declaration) override;
-    void Visit(Expression* expression) override;
     void Visit(IdExpression* expression) override;
-    void Visit(PrimaryExpression* expression) override;
-    void Visit(UnaryExpression* expression) override;
-    void Visit(BinaryExpression* expression) override;
-    void Visit(ConditionalExpression* expression) override;
-    void Visit(AssignmentExpression* expression) override;
-    void Visit(CastExpression* expression) override;
-    void Visit(AddressExpression* expression) override;
-    void Visit(DereferenceExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
-    void Visit(ReturnStatement* statement) override;
-    void Visit(ExpressionStatement* statement) override;
-    void Visit(SelectionStatement* statement) override;
-    void Visit(JumpStatement* statement) override;
-    void Visit(WhileStatement* statement) override;
     void Visit(ForStatement* statement) override;
-    void Visit(ParameterDeclaration* declaration) override;
-    void Visit(ParameterList* list) override;
     void Visit(FunctionCallExpression* expression) override;
-    void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
-    void Visit(PointerDeclarator* declarator) override;
-    void Visit(TypeName* type_name) override;
-    void Visit(PointerAbstractDeclarator* declarator) override;
-
-    const std::vector<std::string>& GetErrors() const;
 
 private:
-    std::vector<std::string> errors_;
-
     bool suppress_next_compound_scope_ = false;
     SymbolTable& symbol_table_;
     StorageClass current_storage_class_ = StorageClass::None;

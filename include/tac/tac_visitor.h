@@ -43,12 +43,17 @@ public:
     void Visit(ParameterDeclaration* declaration) override;
     void Visit(ParameterList* list) override;
     void Visit(FunctionCallExpression* expression) override;
+    void Visit(SubscriptExpression* expression) override;
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
     void Visit(PointerDeclarator* declarator) override;
     void Visit(TypeName* type_name) override;
     void Visit(PointerAbstractDeclarator* declarator) override;
+    void Visit(ArrayAbstractDeclarator* declarator) override;
+    void Visit(Initializer* initializer) override;
+    void Visit(SingleInitializer* initializer) override;
+    void Visit(CompoundInitializer* initializer) override;
 
     void AddStaticVariables();
     std::vector<std::vector<TACInstruction>> GetTACInstructions() const;

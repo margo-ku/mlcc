@@ -13,6 +13,7 @@ public:
     virtual void Visit(TypeSpecification* type) = 0;
     virtual void Visit(TypeName* type_name) = 0;
     virtual void Visit(PointerAbstractDeclarator* declarator) = 0;
+    virtual void Visit(ArrayAbstractDeclarator* declarator) = 0;
     virtual void Visit(Declaration* declaration) = 0;
     virtual void Visit(Expression* expression) = 0;
     virtual void Visit(IdExpression* expression) = 0;
@@ -34,8 +35,12 @@ public:
     virtual void Visit(ParameterDeclaration* declaration) = 0;
     virtual void Visit(ParameterList* list) = 0;
     virtual void Visit(FunctionCallExpression* expression) = 0;
+    virtual void Visit(SubscriptExpression* expression) = 0;
     virtual void Visit(ArgumentExpressionList* list) = 0;
     virtual void Visit(IdentifierDeclarator* declarator) = 0;
     virtual void Visit(FunctionDeclarator* declarator) = 0;
     virtual void Visit(PointerDeclarator* declarator) = 0;
+    virtual void Visit(Initializer* initializer) = 0;
+    virtual void Visit(SingleInitializer* initializer) = 0;
+    virtual void Visit(CompoundInitializer* initializer) = 0;
 };

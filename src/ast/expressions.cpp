@@ -166,6 +166,24 @@ bool FunctionCallExpression::HasArguments() const { return arguments_.has_value(
 
 ///////////////////////////////////////////////
 
+SubscriptExpression::SubscriptExpression(
+    std::unique_ptr<Expression> array_expression,
+    std::unique_ptr<Expression> index_expression)
+    : array_expression_(std::move(array_expression)),
+      index_expression_(std::move(index_expression)) {}
+
+void SubscriptExpression::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* SubscriptExpression::GetArrayExpression() const {
+    return array_expression_.get();
+}
+
+Expression* SubscriptExpression::GetIndexExpression() const {
+    return index_expression_.get();
+}
+
+///////////////////////////////////////////////
+
 CastExpression::CastExpression(std::unique_ptr<TypeName> type_name,
                                std::unique_ptr<Expression> expression)
     : type_name_(std::move(type_name)), expression_(std::move(expression)) {}

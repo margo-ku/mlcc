@@ -89,6 +89,8 @@ fractional       ({digit}*\.{digit}+|{digit}+\.)
 ")"        { return yy::parser::make_RPAREN(loc); }
 "{"        { return yy::parser::make_LBRACE(loc); }
 "}"        { return yy::parser::make_RBRACE(loc); }
+"["        { return yy::parser::make_LSQUARE(loc); }
+"]"        { return yy::parser::make_RSQUARE(loc); }
 ":"        { return yy::parser::make_COLON(loc); }
 ";"        { return yy::parser::make_SEMI(loc); }
 "?"        { return yy::parser::make_QUESTION(loc); }

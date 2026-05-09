@@ -439,6 +439,10 @@ void TACVisitor::Visit(FunctionCallExpression* expression) {
     Push(TACOperand(return_value));
 }
 
+void TACVisitor::Visit(SubscriptExpression* expression) {
+    // to do
+}
+
 void TACVisitor::Visit(ArgumentExpressionList* list) {
     const auto& arguments = list->GetArguments();
 
@@ -478,6 +482,23 @@ void TACVisitor::Visit(PointerDeclarator* declarator) {
 void TACVisitor::Visit(TypeName* type_name) {}
 
 void TACVisitor::Visit(PointerAbstractDeclarator* declarator) {}
+
+void TACVisitor::Visit(ArrayAbstractDeclarator* declarator) {
+    // to do
+}
+
+void TACVisitor::Visit(Initializer* initializer) {
+    // to do
+}
+
+void TACVisitor::Visit(SingleInitializer* initializer) {
+    initializer->GetExpression()->Accept(this);
+}
+
+void TACVisitor::Visit(CompoundInitializer* initializer) {
+    // to do
+    throw std::runtime_error("not implemented");
+}
 
 std::string TACVisitor::AllocateTemporary(TypeRef type) {
     std::string name = GetTemporaryName();

@@ -1,18 +1,15 @@
 #pragma once
-
-#include <iostream>
-
+#include "include/ast/expressions.h"
 #include "visitor.h"
 
-class PrintVisitor : public Visitor {
+class RecursiveVisitor : public Visitor {
 public:
-    explicit PrintVisitor(std::ostream& stream);
     void Visit(TranslationUnit* translation_unit) override;
     void Visit(ItemList* item_list) override;
     void Visit(FunctionDefinition* function) override;
     void Visit(DeclarationSpecifiers* decl_specs) override;
     void Visit(TypeSpecification* type) override;
-    void Visit(TypeName* type_name) override;
+    void Visit(TypeName* type) override;
     void Visit(PointerAbstractDeclarator* declarator) override;
     void Visit(ArrayAbstractDeclarator* declarator) override;
     void Visit(Declaration* declaration) override;
@@ -26,6 +23,8 @@ public:
     void Visit(CastExpression* expression) override;
     void Visit(AddressExpression* expression) override;
     void Visit(DereferenceExpression* expression) override;
+    void Visit(SubscriptExpression* expression) override;
+    void Visit(FunctionCallExpression* expression) override;
     void Visit(CompoundStatement* statement) override;
     void Visit(ReturnStatement* statement) override;
     void Visit(ExpressionStatement* statement) override;
@@ -35,8 +34,6 @@ public:
     void Visit(ForStatement* statement) override;
     void Visit(ParameterDeclaration* declaration) override;
     void Visit(ParameterList* list) override;
-    void Visit(FunctionCallExpression* expression) override;
-    void Visit(SubscriptExpression* expression) override;
     void Visit(ArgumentExpressionList* list) override;
     void Visit(IdentifierDeclarator* declarator) override;
     void Visit(FunctionDeclarator* declarator) override;
@@ -44,9 +41,4 @@ public:
     void Visit(Initializer* initializer) override;
     void Visit(SingleInitializer* initializer) override;
     void Visit(CompoundInitializer* initializer) override;
-
-private:
-    std::ostream& stream_;
-    size_t number_of_tabs_;
-    void PrintTabs() const;
 };

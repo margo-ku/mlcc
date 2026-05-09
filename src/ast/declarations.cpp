@@ -16,15 +16,15 @@ std::string IdentifierDeclarator::GetId() const { return id_; }
 
 void IdentifierDeclarator::SetId(const std::string& id) { id_ = id; }
 
-void IdentifierDeclarator::SetInitializer(std::unique_ptr<Expression> initializer) {
+void IdentifierDeclarator::SetInitializer(std::unique_ptr<Initializer> initializer) {
     initializer_ = std::move(initializer);
 }
 
-Expression* IdentifierDeclarator::GetInitializer() const { return initializer_->get(); }
+Initializer* IdentifierDeclarator::GetInitializer() const { return initializer_->get(); }
 
 bool IdentifierDeclarator::HasInitializer() const { return initializer_.has_value(); }
 
-std::unique_ptr<Expression> IdentifierDeclarator::ExtractInitializer() {
+std::unique_ptr<Initializer> IdentifierDeclarator::ExtractInitializer() {
     if (initializer_.has_value()) {
         return std::move(initializer_.value());
     }
@@ -54,11 +54,11 @@ std::string FunctionDeclarator::GetId() const { return declarator_->GetId(); }
 
 void FunctionDeclarator::SetId(const std::string& id) { declarator_->SetId(id); }
 
-void FunctionDeclarator::SetInitializer(std::unique_ptr<Expression> initializer) {
+void FunctionDeclarator::SetInitializer(std::unique_ptr<Initializer> initializer) {
     throw std::invalid_argument("Function declarator cannot have an initializer");
 }
 
-Expression* FunctionDeclarator::GetInitializer() const { return nullptr; }
+Initializer* FunctionDeclarator::GetInitializer() const { return nullptr; }
 
 bool FunctionDeclarator::HasInitializer() const { return false; }
 
@@ -73,17 +73,27 @@ std::string PointerDeclarator::GetId() const { return declarator_->GetId(); }
 
 void PointerDeclarator::SetId(const std::string& id) { declarator_->SetId(id); }
 
-void PointerDeclarator::SetInitializer(std::unique_ptr<Expression> initializer) {
+void PointerDeclarator::SetInitializer(std::unique_ptr<Initializer> initializer) {
     declarator_->SetInitializer(std::move(initializer));
 }
 
-Expression* PointerDeclarator::GetInitializer() const {
+Initializer* PointerDeclarator::GetInitializer() const {
     return declarator_->GetInitializer();
 }
 
 bool PointerDeclarator::HasInitializer() const { return declarator_->HasInitializer(); }
 
 Declarator* PointerDeclarator::GetDeclarator() const { return declarator_.get(); }
+
+///////////////////////////////////////////////
+
+ArrayDeclarator::ArrayDeclarator(std::unique_ptr<Declarator> declarator,
+                                 std::unique_ptr<Expression> size)
+    : PointerDeclarator(std::move(declarator)), size_(std::move(size)) {}
+
+void ArrayDeclarator::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* ArrayDeclarator::GetSize() const { return size_.get(); }
 
 ///////////////////////////////////////////////
 
@@ -299,6 +309,20 @@ bool PointerAbstractDeclarator::HasBase() const { return base_ != nullptr; }
 
 ///////////////////////////////////////////////
 
+ArrayAbstractDeclarator::ArrayAbstractDeclarator(
+    std::unique_ptr<Expression> size, std::unique_ptr<AbstractDeclarator> base)
+    : size_(std::move(size)), base_(std::move(base)) {}
+
+void ArrayAbstractDeclarator::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* ArrayAbstractDeclarator::GetSize() const { return size_.get(); }
+
+AbstractDeclarator* ArrayAbstractDeclarator::GetBase() const { return base_.get(); }
+
+bool ArrayAbstractDeclarator::HasBase() const { return base_ != nullptr; }
+
+///////////////////////////////////////////////
+
 TypeName::TypeName(const TypeSpecifierSet& specifiers)
     : type_spec_(std::make_unique<TypeSpecification>(specifiers)),
       abstract_declarator_(nullptr) {}
@@ -317,3 +341,43 @@ AbstractDeclarator* TypeName::GetAbstractDeclarator() const {
 }
 
 bool TypeName::HasAbstractDeclarator() const { return abstract_declarator_ != nullptr; }
+
+///////////////////////////////////////////////
+
+void Initializer::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+TypeRef Initializer::GetTypeRef() const { return type_ref_; }
+
+void Initializer::SetTypeRef(TypeRef type) { type_ref_ = type; }
+
+CompoundInitializer::CompoundInitializer() = default;
+
+SingleInitializer::SingleInitializer(std::unique_ptr<Expression> expression)
+    : expression_(std::move(expression)) {}
+
+void SingleInitializer::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+Expression* SingleInitializer::GetExpression() const { return expression_.get(); }
+
+void SingleInitializer::SetExpression(std::unique_ptr<Expression> expression) {
+    expression_ = std::move(expression);
+}
+
+std::unique_ptr<Expression> SingleInitializer::ExtractExpression() {
+    return std::move(expression_);
+}
+
+void CompoundInitializer::Accept(Visitor* visitor) { visitor->Visit(this); }
+
+void CompoundInitializer::AddInitializer(std::unique_ptr<Initializer> initializer) {
+    initializers_.push_back(std::move(initializer));
+}
+
+const std::vector<std::unique_ptr<Initializer>>& CompoundInitializer::GetInitializers()
+    const {
+    return initializers_;
+}
+
+std::vector<std::unique_ptr<Initializer>>& CompoundInitializer::GetInitializers() {
+    return initializers_;
+}

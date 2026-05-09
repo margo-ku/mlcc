@@ -41,10 +41,16 @@
     class IdentifierDeclarator;
     class FunctionDeclarator;
     class FunctionCallExpression;
+    class SubscriptExpression;
     class PointerDeclarator;
     class AbstractDeclarator;
     class PointerAbstractDeclarator;
+    class ArrayAbstractDeclarator;
+    class ArrayDeclarator;
     class TypeName;
+    class Initializer;
+    class SingleInitializer;
+    class CompoundInitializer;
 };
 
 %define parse.trace
@@ -80,7 +86,7 @@
 %token OR AND NOT
 %token BIT_AND BIT_OR BIT_XOR BIT_LSHIFT BIT_RSHIFT
 %token LE LEQ GE GEQ EQ NOT_EQ
-%token LPAREN RPAREN LBRACE RBRACE SEMI COLON QUESTION COMMA
+%token LPAREN RPAREN LBRACE RBRACE LSQUARE RSQUARE SEMI COLON QUESTION COMMA
 %token ASSIGNMENT
 %token INT LONG VOID DOUBLE
 %token RETURN IF ELSE DO WHILE FOR BREAK CONTINUE
@@ -117,7 +123,6 @@
 %type <std::unique_ptr<ReturnStatement>> return_statement
 %type <std::unique_ptr<ExpressionStatement>> expression_statement
 %type <std::unique_ptr<SelectionStatement>> selection_statement
-%type <std::unique_ptr<Expression>> initializer
 %type <std::unique_ptr<Expression>> expression
 %type <std::unique_ptr<Expression>> primary_expression
 %type <std::unique_ptr<Expression>> postfix_expression
@@ -139,11 +144,15 @@
 %type <std::unique_ptr<Expression>> and_expression
 %type <std::unique_ptr<Expression>> exclusive_or_expression
 %type <std::unique_ptr<Expression>> inclusive_or_expression
+%type <std::unique_ptr<Expression>> integral_constant
 %type <std::unique_ptr<ArgumentExpressionList>> argument_expression_list
 %type <std::unique_ptr<ParameterList>> parameter_list
 %type <std::unique_ptr<ParameterDeclaration>> parameter_declaration
 %type <std::unique_ptr<TypeName>> type_name
 %type <std::unique_ptr<AbstractDeclarator>> abstract_declarator
+%type <std::unique_ptr<AbstractDeclarator>> direct_abstract_declarator
+%type <std::unique_ptr<Initializer>> initializer
+%type <std::unique_ptr<CompoundInitializer>> initializer_list
 
 %%
 %start start;
@@ -194,7 +203,8 @@ declarator:
 direct_declarator:
     ID { $$ = std::make_unique<IdentifierDeclarator>($1); }
     | LPAREN declarator RPAREN { $$ = std::move($2); }
-    | direct_declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); };
+    | direct_declarator LPAREN parameter_list RPAREN { $$ = std::make_unique<FunctionDeclarator>(std::move($1), std::move($3)); }
+    | direct_declarator LSQUARE integral_constant RSQUARE { $$ = std::make_unique<ArrayDeclarator>(std::move($1), std::move($3)); };
 
 declaration:
     declaration_specifiers init_declarator SEMI { $$ = std::make_unique<Declaration>(std::move($1), std::move($2)); };
@@ -204,7 +214,13 @@ init_declarator:
     | declarator ASSIGNMENT initializer { $1->SetInitializer(std::move($3)); $$ = std::move($1); };
 
 initializer:
-    assignment_expression { $$ = std::move($1); };
+    assignment_expression { $$ = std::make_unique<SingleInitializer>(std::move($1)); }
+    | LBRACE initializer_list RBRACE { $$ = std::move($2); }
+    | LBRACE initializer_list COMMA RBRACE { $$ = std::move($2); };
+
+initializer_list:
+    initializer { $$ = std::make_unique<CompoundInitializer>(); $$->AddInitializer(std::move($1));}
+    | initializer_list COMMA initializer { $1->AddInitializer(std::move($3)); $$ = std::move($1); };
 
 parameter_list:
     VOID { $$ = std::make_unique<ParameterList>(); }
@@ -331,7 +347,12 @@ type_name:
 abstract_declarator:
     STAR { $$ = std::make_unique<PointerAbstractDeclarator>(); }
     | STAR abstract_declarator { $$ = std::make_unique<PointerAbstractDeclarator>(std::move($2)); }
-    | LPAREN abstract_declarator RPAREN { $$ = std::move($2); };
+    | direct_abstract_declarator { $$ = std::move($1); };
+
+direct_abstract_declarator:
+    LPAREN abstract_declarator RPAREN { $$ = std::move($2); }
+    | LSQUARE integral_constant RSQUARE { $$ = std::make_unique<ArrayAbstractDeclarator>(std::move($2)); }
+    | direct_abstract_declarator LSQUARE integral_constant RSQUARE { $$ = std::make_unique<ArrayAbstractDeclarator>(std::move($3), std::move($1)); };
 
 unary_expression:
     postfix_expression { $$ = std::move($1); }
@@ -345,16 +366,20 @@ unary_expression:
 postfix_expression:
     primary_expression { $$ = std::move($1); }
     | postfix_expression LPAREN RPAREN { $$ = std::make_unique<FunctionCallExpression>(std::move($1)); }
-    | postfix_expression LPAREN argument_expression_list RPAREN { $$ = std::make_unique<FunctionCallExpression>(std::move($1), std::move($3)); };
+    | postfix_expression LPAREN argument_expression_list RPAREN { $$ = std::make_unique<FunctionCallExpression>(std::move($1), std::move($3)); }
+    | postfix_expression LSQUARE expression RSQUARE { $$ = std::make_unique<SubscriptExpression>(std::move($1), std::move($3)); };
 
 primary_expression:
     ID { $$ = std::make_unique<IdExpression>($1); }
-    | INT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
-    | LONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
-    | UINT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
-    | ULONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | integral_constant { $$ = std::move($1); }
     | DOUBLE_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
     | LPAREN expression RPAREN { $$ = std::move($2); };
+
+integral_constant:
+    INT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | LONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | UINT_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); }
+    | ULONG_NUMBER { $$ = std::make_unique<PrimaryExpression>($1); };
 
 argument_expression_list:
     assignment_expression { $$ = std::make_unique<ArgumentExpressionList>(); $$->AddArgument(std::move($1)); }
